@@ -1,0 +1,37 @@
+# Apple Developer MCP Server - Cloudflare Workers Environment Variables
+# 
+# This is the template for local development environment variables.
+# Copy this file to .dev.vars and fill in your actual values.
+#
+# Command: cp .dev.vars.example .dev.vars
+#
+# For production deployment, configure these same variables in:
+# Cloudflare Dashboard → Workers → Your Worker → Settings → Environment Variables
+#
+# 🔒 SECURITY: Never commit .dev.vars to version control!
+
+# =============================================================================
+# SiliconFlow API Configuration (Required)
+# =============================================================================
+# Get your API key from: https://siliconflow.cn
+# This is used for Qwen 4B embedding generation
+SILICONFLOW_API_KEY=sk-your-siliconflow-api-key-here
+SILICONFLOW_TIMEOUT=30
+
+# =============================================================================
+# NEON Database Configuration (Required)
+# =============================================================================
+# Get these values from your NEON dashboard: https://neon.tech
+# NEON provides serverless PostgreSQL with pgvector support
+NEON_HOST=your-neon-host.neon.tech
+NEON_PORT=5432
+NEON_DATABASE=your-database-name
+NEON_USER=your-database-user
+NEON_PASSWORD=your-database-password
+
+# =============================================================================
+# RAG Search Configuration
+# =============================================================================
+# Enable hybrid search (vector similarity + keyword matching)
+# Set to "true" for better search results, "false" for vector-only
+USE_HYBRID_SEARCH=true
