@@ -76,16 +76,36 @@ export class AppleRAGMCP extends McpAgent {
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const { pathname } = new URL(request.url);
-    const path = pathname.replace(/\/$/, ""); // 移除尾部斜杠
+    const path = pathname.replace(/\/$/, "");
 
+    // SSE endpoint
     if (path === "/sse" || pathname === "/sse/message") {
       return AppleRAGMCP.serveSSE("/sse").fetch(request, env, ctx);
     }
 
+    // MCP endpoint
     if (path === "/mcp") {
       return AppleRAGMCP.serve("/mcp").fetch(request, env, ctx);
     }
 
-    return new Response("Not found", { status: 404 });
+    // Health check endpoint
+    if (path === "/health") {
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          service: "Apple RAG MCP Server",
+          timestamp: new Date().toISOString(),
+          path: pathname,
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return new Response(`Apple RAG MCP Server - Path not found: ${pathname}`, {
+      status: 404,
+      headers: { "Content-Type": "text/plain" },
+    });
   },
 };

@@ -1,5 +1,97 @@
 # Apple RAG MCP Server
 
+🎉 **FREE Apple Developer Documentation RAG Service** - Ready to use instantly!
+
+## 🚀 **Quick Start - Use Our Free Service**
+
+**No setup required!** Connect directly to our hosted Apple RAG MCP service:
+
+### 🔗 **Available Endpoints**
+
+| Protocol | Endpoint | Best For |
+|----------|----------|----------|
+| **SSE** | `https://appleragmcp.com/sse` | Real-time applications, streaming |
+| **HTTP** | `https://appleragmcp.com/mcp` | Standard MCP clients, batch queries |
+
+### ⚡ **Instant Configuration**
+
+#### For Claude Desktop
+Add this to your MCP configuration file:
+
+```json
+{
+  "mcpServers": {
+    "apple-rag": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://appleragmcp.com/sse"
+      ]
+    }
+  }
+}
+```
+
+#### For Other MCP Clients
+- **SSE Connection**: `https://appleragmcp.com/sse`
+- **HTTP Connection**: `https://appleragmcp.com/mcp`
+
+### 🧪 **Test It Now**
+
+```bash
+# Test the service instantly
+curl -H "Accept: text/event-stream" https://appleragmcp.com/sse
+
+# Or test the health endpoint
+curl https://appleragmcp.com/health
+
+# Test a RAG query (requires MCP client)
+# Example query: "SwiftUI navigation best practices"
+```
+
+### 🛠️ **Available Tools**
+
+Once connected, you can use the `perform_rag_query` tool:
+
+```typescript
+// Query Apple Developer Documentation
+await callTool("perform_rag_query", {
+  query: "How to implement SwiftUI navigation",
+  match_count: 3  // Optional: number of results (default: 5)
+});
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "query": "How to implement SwiftUI navigation",
+  "search_mode": "hybrid",
+  "results": [
+    {
+      "url": "https://developer.apple.com/documentation/swiftui/navigation",
+      "content": "SwiftUI provides several ways to implement navigation...",
+      "similarity": 0.95
+    }
+  ],
+  "count": 1
+}
+```
+
+### 🔄 **Protocol Differences**
+
+| Feature | SSE Endpoint | HTTP Endpoint |
+|---------|--------------|---------------|
+| **Connection** | Persistent, real-time | Request-response |
+| **Best For** | Interactive applications | Batch processing |
+| **Streaming** | ✅ Native support | ❌ Single response |
+| **Latency** | Lower (persistent connection) | Higher (connection overhead) |
+| **Use Case** | Chat applications, real-time tools | API integrations, scripts |
+
+---
+
+## 📖 **About This Service**
+
 A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG (Retrieval Augmented Generation) capabilities for Apple Developer Documentation. Built with TypeScript and deployed on Cloudflare Workers, this server enables AI agents to search and retrieve relevant Apple development content with advanced vector similarity and hybrid search strategies.
 
 ## 🚀 Features
@@ -8,7 +100,7 @@ A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG
 - **🔍 Intelligent RAG Queries** - Advanced document retrieval with semantic search
 - **🔄 Hybrid Search** - Combines vector similarity and keyword matching for optimal results
 - **⚡ High Performance** - Built on Cloudflare Workers with edge computing
-- **🌐 Dual Transport** - Supports both SSE and MCP protocol connections
+- **🌐 Dual Transport** - Supports both SSE and HTTP MCP protocol connections
 - **📊 Vector Database** - NEON PostgreSQL with pgvector for efficient similarity search
 
 ### Technical Highlights
@@ -44,9 +136,11 @@ A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG
 - **Per-Instance RAG Services** - Each DO instance maintains its own RAG service and database connections
 - **I/O Optimization** - Follows Cloudflare's performance guidelines by avoiding cross-instance I/O sharing
 
-## 🚀 Quick Start
+## 🏠 **Self-Hosting (Optional)**
 
-### Option 1: Local Development (Recommended for Testing)
+Want to run your own instance? Here's how:
+
+### Local Development
 
 ```bash
 # Clone and setup
@@ -54,7 +148,7 @@ git clone https://github.com/your-username/apple-rag-mcp.git
 cd apple-rag-mcp
 npm install
 
-# Quick setup with Cloudflare Workers standard
+# Configure environment
 cp .dev.vars.example .dev.vars
 # Edit .dev.vars with your API keys (see configuration section below)
 
@@ -62,43 +156,18 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-Your MCP server will be available at:
+Your local server will be available at:
 - **SSE endpoint**: `http://localhost:8787/sse`
-- **MCP endpoint**: `http://localhost:8787/mcp`
+- **HTTP endpoint**: `http://localhost:8787/mcp`
 
-**Production endpoints**:
-- **SSE endpoint**: `https://appleragmcp.com/sse`
-- **MCP endpoint**: `https://appleragmcp.com/mcp`
-
-### Option 2: Deploy to Cloudflare Workers
+### Deploy Your Own Instance
 
 [![Deploy to Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/your-username/apple-rag-mcp)
 
-This will deploy your MCP server to:
-- **Production URL**: `https://appleragmcp.com/sse`
-- **Workers.dev URL**: `https://apple-rag-mcp.<your-account>.workers.dev/sse`
-
-### Quick Test
-
-Once running, test your server:
-
 ```bash
-# Option 1: Use the test script (recommended)
-./test-mcp.sh
-
-# Option 2: Manual testing
-curl -H "Accept: text/event-stream" http://localhost:8787/sse
-
-# Option 3: Test with Claude Desktop or other MCP clients using:
-# http://localhost:8787/sse (for local development)
-# https://appleragmcp.com/sse (for production)
+# Deploy to Cloudflare Workers
+npm run deploy
 ```
-
-The test script will check:
-- ✅ Server health and connectivity
-- ✅ SSE endpoint functionality
-- ✅ Environment configuration
-- ✅ Basic MCP protocol support
 
 ## 📋 Prerequisites
 
@@ -190,76 +259,79 @@ npm run dev
 npm run deploy
 ```
 
-## 🔌 MCP Client Integration
+## 🔌 **Advanced MCP Client Integration**
 
-### Claude Desktop Configuration
+### Multiple Client Support
 
-Add this to your Claude Desktop MCP configuration:
+Our service works with any MCP-compatible client:
 
+#### Claude Desktop (Recommended)
 ```json
 {
   "mcpServers": {
     "apple-rag": {
       "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://appleragmcp.com/sse"
-      ]
+      "args": ["mcp-remote", "https://appleragmcp.com/sse"]
     }
   }
 }
 ```
 
-For local development:
-```json
-{
-  "mcpServers": {
-    "apple-rag": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:8787/sse"
-      ]
-    }
-  }
-}
-```
-
-### Available Tools
-
-#### `perform_rag_query`
-Performs intelligent RAG queries on Apple Developer Documentation.
-
-**Parameters:**
-- `query` (string, required) - Your search query
-- `match_count` (number, optional, default: 5) - Number of results to return
-
-**Example Usage:**
+#### Custom MCP Clients
 ```typescript
-// In your MCP client
+// Direct connection examples
+const sseEndpoint = "https://appleragmcp.com/sse";
+const httpEndpoint = "https://appleragmcp.com/mcp";
+
+// Use your preferred MCP client library
+```
+
+#### Local Development Override
+```json
+{
+  "mcpServers": {
+    "apple-rag-local": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8787/sse"]
+    }
+  }
+}
+```
+
+### 💡 **Usage Examples**
+
+#### Common Queries
+```typescript
+// SwiftUI Development
 await callTool("perform_rag_query", {
-  query: "How to implement SwiftUI navigation",
+  query: "SwiftUI navigation best practices",
   match_count: 3
+});
+
+// UIKit Integration
+await callTool("perform_rag_query", {
+  query: "UIKit view controller lifecycle methods",
+  match_count: 5
+});
+
+// Core Data & CloudKit
+await callTool("perform_rag_query", {
+  query: "Core Data CloudKit synchronization",
+  match_count: 4
+});
+
+// iOS Performance
+await callTool("perform_rag_query", {
+  query: "iOS app performance optimization techniques"
 });
 ```
 
-**Response Format:**
-```json
-{
-  "success": true,
-  "query": "How to implement SwiftUI navigation",
-  "search_mode": "hybrid",
-  "reranking_applied": false,
-  "results": [
-    {
-      "url": "https://developer.apple.com/documentation/swiftui/navigation",
-      "content": "SwiftUI provides several ways to implement navigation...",
-      "similarity": 0.95
-    }
-  ],
-  "count": 1
-}
-```
+#### Response Structure
+Every query returns structured data with:
+- **URL**: Direct link to Apple documentation
+- **Content**: Relevant documentation excerpt
+- **Similarity**: Relevance score (0.0 - 1.0)
+- **Search Mode**: "hybrid" (vector + keyword search)
 
 ## 🔧 Configuration Options
 
