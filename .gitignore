@@ -95,10 +95,15 @@ web_modules/
 # dotenv environment variable files
 
 .env
+.env.*
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+
+# Cloudflare Workers development variables (not needed for MCP proxy)
+.dev.vars
+.dev.vars.*
 
 # parcel-bundler cache (https://parceljs.org/)
 
@@ -168,7 +173,6 @@ dist
 
 # wrangler project
 
-.dev.vars
 .wrangler/
 
 # External documentation (from API projects)

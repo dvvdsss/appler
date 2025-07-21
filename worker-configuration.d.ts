@@ -3,14 +3,6 @@
 // Runtime types generated with workerd@1.20250617.0 2025-03-10 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-    SILICONFLOW_API_KEY: string;
-    SILICONFLOW_TIMEOUT: string;
-    NEON_HOST: string;
-    NEON_PORT: string;
-    NEON_DATABASE: string;
-    NEON_USER: string;
-    NEON_PASSWORD: string;
-    USE_HYBRID_SEARCH: string;
     MCP_OBJECT: DurableObjectNamespace<import("./src/index").AppleRAGMCP>;
   }
 }

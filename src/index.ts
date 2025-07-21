@@ -22,7 +22,8 @@ export class AppleRAGMCP extends McpAgent {
 
   constructor(env: any) {
     super(env, {});
-    this.apiClient = new ApiGatewayClient(env.API_GATEWAY_URL);
+    // Use hardcoded API Gateway URL - no environment variables needed
+    this.apiClient = new ApiGatewayClient();
   }
 
   async init() {

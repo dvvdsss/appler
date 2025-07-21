@@ -162,8 +162,7 @@ git clone https://github.com/your-username/apple-rag-mcp.git
 cd apple-rag-mcp
 npm install
 
-# Configure API Gateway URL in wrangler.jsonc
-# No additional environment variables needed for proxy mode
+# No configuration needed - API Gateway URL is hardcoded
 
 # Start development server
 npm run dev
@@ -206,26 +205,13 @@ cd apple-rag-mcp
 npm install
 ```
 
-### 3. Configuration (Minimal Setup)
+### 3. Configuration (Zero Configuration)
 ```bash
-# Edit wrangler.jsonc to configure your API Gateway URL
-# Default: https://api.apple-rag.com
+# No configuration needed!
+# API Gateway URL is hardcoded to https://api.apple-rag.com
 ```
 
-Edit `wrangler.jsonc` vars section:
-
-```json
-{
-  "vars": {
-    "ENVIRONMENT": "production",
-    "SERVICE_NAME": "apple-rag-mcp-server",
-    "SERVICE_VERSION": "1.0.0",
-    "API_GATEWAY_URL": "https://api.apple-rag.com"
-  }
-}
-```
-
-> ✅ **Simplified Setup**: No database credentials needed! The MCP server acts as a secure proxy to the API Gateway.
+> ✅ **Zero Configuration**: No environment variables, no database credentials, no API keys needed! The MCP server acts as a secure proxy to the API Gateway.
 
 
 
@@ -329,17 +315,15 @@ Every query returns structured data with:
 
 ## 🔧 Configuration Options
 
-### Environment Variables (Cloudflare Workers Standard)
+### Zero Configuration Required
 
-**Configuration** (`wrangler.jsonc` vars section):
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `API_GATEWAY_URL` | ✅ | `https://api.apple-rag.com` | Your API Gateway endpoint |
-| `ENVIRONMENT` | ❌ | `production` | Deployment environment |
-| `SERVICE_NAME` | ❌ | `apple-rag-mcp-server` | Service identifier |
-| `SERVICE_VERSION` | ❌ | `1.0.0` | Service version |
+**No Environment Variables Needed**: The MCP server requires zero configuration:
+- ✅ **API Gateway URL**: Hardcoded to `https://api.apple-rag.com`
+- ✅ **No Secrets**: No API keys or database credentials stored
+- ✅ **No Variables**: No environment variables required
+- ✅ **Pure Proxy**: All authentication handled by API Gateway using user-provided API keys
 
-**No Secrets Required**: The MCP server acts as a proxy - all authentication is handled by the API Gateway using user-provided API keys.
+**Deployment**: Simply deploy to Cloudflare Workers - no additional configuration needed!
 
 ### Search Modes
 
