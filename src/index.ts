@@ -1,6 +1,6 @@
 /**
  * Apple RAG MCP Server
- * 完整的RAG查询系统，基于NEON PostgreSQL + SiliconFlow API
+ * Complete RAG query system proxy to API Gateway
  */
 
 import { McpAgent } from "agents/mcp";
@@ -26,7 +26,7 @@ export class AppleRAGMCP extends McpAgent {
   }
 
   async init() {
-    // 核心RAG查询工具 - 代理到 API Gateway
+    // Core RAG query tool - proxy to API Gateway
     this.server.tool(
       "perform_rag_query",
       {
@@ -56,7 +56,7 @@ export class AppleRAGMCP extends McpAgent {
       },
       async ({ query, match_count, api_key }) => {
         try {
-          // 代理请求到 API Gateway
+          // Proxy request to API Gateway
           const result = await this.apiClient.performRAGQuery(
             {
               query,

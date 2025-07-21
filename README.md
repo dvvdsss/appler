@@ -106,17 +106,17 @@ A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG
 ## 🚀 Features
 
 ### Core Capabilities
-- **🔍 Intelligent RAG Queries** - Advanced document retrieval with semantic search
-- **🔄 Hybrid Search** - Combines vector similarity and keyword matching for optimal results
+- **🔍 Intelligent RAG Queries** - Advanced document retrieval via API Gateway
+- **🔄 Secure Proxy** - All requests proxied through authenticated API Gateway
 - **⚡ High Performance** - Built on Cloudflare Workers with edge computing
 - **🌐 Dual Transport** - Supports both SSE and HTTP MCP protocol connections
-- **📊 Vector Database** - NEON PostgreSQL with pgvector for efficient similarity search
+- **🔑 API Key Authentication** - User-controlled access through API keys
 
 ### Technical Highlights
-- **🤖 Qwen 4B Embeddings** - Powered by SiliconFlow API for high-quality embeddings
-- **🏗️ Modern Architecture** - TypeScript, async-first design, modular structure
-- **🔒 Security First** - Environment-based configuration, no hardcoded credentials
-- **📈 Scalable** - Cloud-native design with lazy loading and connection pooling
+- **🔗 API Gateway Integration** - Seamless integration with apple-rag.com API
+- **🏗️ Modern Architecture** - TypeScript, async-first design, proxy pattern
+- **🔒 Security First** - No sensitive data storage, user-controlled API keys
+- **📈 Scalable** - Lightweight proxy design, global edge deployment
 
 ## 🏗️ Architecture
 
@@ -185,9 +185,8 @@ npm run deploy
 ## 📋 Prerequisites
 
 ### Required Services
-1. **[NEON Database](https://neon.tech)** - PostgreSQL with pgvector extension
-2. **[SiliconFlow API](https://siliconflow.cn)** - For Qwen embedding generation
-3. **[Cloudflare Account](https://cloudflare.com)** - For Workers deployment (optional for local dev)
+1. **[Apple RAG API](https://apple-rag.com)** - API Gateway for RAG queries
+2. **[Cloudflare Account](https://cloudflare.com)** - For Workers deployment (optional for local dev)
 
 ### System Requirements
 - **Node.js** 18+
@@ -228,26 +227,7 @@ Edit `wrangler.jsonc` vars section:
 
 > ✅ **Simplified Setup**: No database credentials needed! The MCP server acts as a secure proxy to the API Gateway.
 
-### 4. Database Setup
 
-Your NEON database needs the `pgvector` extension and a `chunks` table:
-
-```sql
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Create chunks table for document storage
-CREATE TABLE IF NOT EXISTS chunks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    url TEXT NOT NULL,
-    content TEXT NOT NULL,
-    embedding vector(2560),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create index for efficient searches
-CREATE INDEX IF NOT EXISTS idx_chunks_url ON chunks(url);
-```
 
 ## 🚀 Usage
 
@@ -373,15 +353,8 @@ Every query returns structured data with:
 ```
 src/
 ├── index.ts              # Main MCP server entry point
-├── database/
-│   ├── config.ts         # NEON database configuration
-│   └── client.ts         # PostgreSQL client with pgvector
-├── embedding/
-│   └── siliconflow.ts    # SiliconFlow API integration
-├── search/
-│   └── hybrid.ts         # Hybrid search engine
-└── rag/
-    └── service.ts        # Core RAG service
+└── api/
+    └── client.ts         # API Gateway client for proxying requests
 ```
 
 ### Available Scripts
@@ -425,15 +398,13 @@ Please see [SECURITY.md](SECURITY.md) for information about reporting security v
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) - The MCP specification
 - [Anthropic MCP SDK](https://github.com/anthropics/anthropic-sdk-typescript) - Official MCP SDK
-- [NEON Database](https://neon.tech/) - Serverless PostgreSQL
-- [SiliconFlow](https://siliconflow.cn/) - AI model API platform
+- [Apple RAG API](https://apple-rag.com/) - RAG API Gateway service
 
 ## 🙏 Acknowledgments
 
 - **Anthropic** for the Model Context Protocol specification
 - **Cloudflare** for the Workers platform and agents framework
-- **NEON** for serverless PostgreSQL with pgvector
-- **SiliconFlow** for providing Qwen model APIs
+- **Apple RAG API** for providing the RAG service backend
 
 ---
 

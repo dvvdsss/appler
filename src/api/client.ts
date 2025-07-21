@@ -141,32 +141,4 @@ export class ApiGatewayClient {
       };
     }
   }
-
-  /**
-   * Health check for API Gateway
-   */
-  async healthCheck(): Promise<{ status: string; message?: string }> {
-    try {
-      const response = await fetch(`${this.baseUrl}/health`, {
-        method: "GET",
-        headers: {
-          "User-Agent": "Apple-RAG-MCP-Server/1.0.0",
-        },
-      });
-
-      if (response.ok) {
-        return { status: "ok" };
-      } else {
-        return {
-          status: "error",
-          message: `API Gateway returned ${response.status}`,
-        };
-      }
-    } catch (error) {
-      return {
-        status: "error",
-        message: error instanceof Error ? error.message : "Connection failed",
-      };
-    }
-  }
 }
