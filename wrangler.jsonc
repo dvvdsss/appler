@@ -1,10 +1,11 @@
 /**
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Apple RAG MCP Server - Cloudflare Workers Configuration
+ * Deployed at: mcp.apple-rag.com
+ * For more details on configuration: https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "apple-rag-mcp",
+  "name": "apple-rag-mcp-server",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
@@ -22,13 +23,20 @@
       }
     ]
   },
+
   "routes": [
     {
-      "pattern": "appleragmcp.com/*",
-      "zone_name": "appleragmcp.com"
+      "pattern": "mcp.apple-rag.com/*",
+      "zone_name": "apple-rag.com"
     }
   ],
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "SERVICE_NAME": "apple-rag-mcp-server",
+    "SERVICE_VERSION": "1.0.0",
+    "API_GATEWAY_URL": "https://api.apple-rag.com"
   }
 }

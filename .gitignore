@@ -170,3 +170,7 @@ dist
 
 .dev.vars
 .wrangler/
+
+# External documentation (from API projects)
+
+docs/

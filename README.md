@@ -1,22 +1,30 @@
-# Apple RAG MCP Server
+# 🍎 Apple RAG MCP Server
 
-🎉 **FREE Apple Developer Documentation RAG Service** - Ready to use instantly!
+> **Professional MCP Proxy Service for Apple Developer Documentation**
+> Deployed at: `mcp.apple-rag.com`
+> Powered by Cloudflare Workers
 
-## 🚀 **Quick Start - Use Our Free Service**
+🚀 **AI-Powered Apple Developer Documentation Search** - Connect with your API key!
 
-**No setup required!** Connect directly to our hosted Apple RAG MCP service:
+## 🚀 **Quick Start - Get Your API Key**
+
+**3 Simple Steps:**
+1. Visit [apple-rag.com](https://apple-rag.com) to register and get your API key
+2. Configure your MCP client with our service endpoint
+3. Start querying Apple Developer Documentation with AI!
 
 ### 🔗 **Available Endpoints**
 
 | Protocol | Endpoint | Best For |
 |----------|----------|----------|
-| **SSE** | `https://appleragmcp.com/sse` | Real-time applications, streaming |
-| **HTTP** | `https://appleragmcp.com/mcp` | Standard MCP clients, batch queries |
+| **SSE** | `https://mcp.apple-rag.com/sse` | Real-time applications, streaming |
+| **HTTP** | `https://mcp.apple-rag.com/` | Standard MCP clients, batch queries |
 
-### ⚡ **Instant Configuration**
+### ⚡ **Configuration with API Key**
 
 #### For Claude Desktop
-Add this to your MCP configuration file:
+1. **Get your API key** from [apple-rag.com](https://apple-rag.com)
+2. **Add this to your MCP configuration file**:
 
 ```json
 {
@@ -25,39 +33,40 @@ Add this to your MCP configuration file:
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://appleragmcp.com/sse"
+        "https://mcp.apple-rag.com/sse"
       ]
     }
   }
 }
 ```
 
-#### For Other MCP Clients
-- **SSE Connection**: `https://appleragmcp.com/sse`
-- **HTTP Connection**: `https://appleragmcp.com/mcp`
+3. **Use the tool with your API key**:
+   - When calling `perform_rag_query`, include your API key as a parameter
+   - Example: `perform_rag_query(query="SwiftUI navigation", api_key="ak_live_your_key_here")`
 
-### 🧪 **Test It Now**
+#### For Other MCP Clients
+- **SSE Connection**: `https://mcp.apple-rag.com/sse`
+- **HTTP Connection**: `https://mcp.apple-rag.com/`
+
+### 🧪 **Test Connection**
 
 ```bash
-# Test the service instantly
-curl -H "Accept: text/event-stream" https://appleragmcp.com/sse
+# Test SSE connection
+curl -H "Accept: text/event-stream" https://mcp.apple-rag.com/sse
 
-# Or test the health endpoint
-curl https://appleragmcp.com/health
-
-# Test a RAG query (requires MCP client)
-# Example query: "SwiftUI navigation best practices"
+# Note: Actual queries require a valid API key from apple-rag.com
 ```
 
 ### 🛠️ **Available Tools**
 
-Once connected, you can use the `perform_rag_query` tool:
+Once connected, you can use the `perform_rag_query` tool with your API key:
 
 ```typescript
 // Query Apple Developer Documentation
 await callTool("perform_rag_query", {
   query: "How to implement SwiftUI navigation",
-  match_count: 3  // Optional: number of results (default: 5)
+  match_count: 3,  // Optional: number of results (default: 5)
+  api_key: "ak_live_your_key_here"  // Required: Your API key from apple-rag.com
 });
 ```
 
@@ -113,32 +122,37 @@ A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MCP Client    │───▶│  Apple RAG MCP   │───▶│  NEON Database  │
-│  (Claude, etc.) │    │     Server       │    │   (pgvector)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │  SiliconFlow API │
-                       │ (Qwen Embedding) │
-                       └──────────────────┘
+│   MCP Client    │───▶│  Apple RAG MCP   │───▶│  API Gateway    │
+│  (Claude, etc.) │    │   Proxy Server   │    │ (api.apple-rag  │
+└─────────────────┘    └──────────────────┘    │     .com)       │
+                                │              └─────────────────┘
+                                │                       │
+                                ▼                       ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │   API Key       │    │   RAG Service   │
+                       │ Authentication  │    │   + Database    │
+                       └─────────────────┘    └─────────────────┘
 ```
 
 ### Core Components
-- **`AppleRAGMCP`** - Main MCP server class with RAG tools (Durable Object)
-- **`RAGService`** - Core RAG query processing and orchestration (per-instance)
-- **`HybridSearchEngine`** - Advanced search combining vector + keyword strategies
-- **`NEONClient`** - PostgreSQL client with pgvector support (isolated per DO)
-- **`SiliconFlowEmbedding`** - Embedding generation service
+- **`AppleRAGMCP`** - Main MCP server class handling protocol communication
+- **`ApiGatewayClient`** - HTTP client for proxying requests to API Gateway
+- **Proxy Architecture** - No direct database access, all requests via API Gateway
+- **API Key Authentication** - Secure authentication through apple-rag.com
 
 ### Cloudflare Workers Architecture
-- **Durable Object Isolation** - Each MCP session runs in an isolated Durable Object instance
-- **Per-Instance RAG Services** - Each DO instance maintains its own RAG service and database connections
-- **I/O Optimization** - Follows Cloudflare's performance guidelines by avoiding cross-instance I/O sharing
+- **Lightweight Proxy** - Minimal resource usage, pure request forwarding
+- **Global Edge Deployment** - Low latency worldwide through Cloudflare's network
+- **Secure by Design** - No sensitive data stored, all authentication via API Gateway
 
 ## 🏠 **Self-Hosting (Optional)**
 
-Want to run your own instance? Here's how:
+Want to run your own MCP proxy instance? Here's how:
+
+### Prerequisites
+- Node.js 18+ and npm
+- Cloudflare account with Workers enabled
+- Access to an Apple RAG API Gateway instance
 
 ### Local Development
 
@@ -148,9 +162,8 @@ git clone https://github.com/your-username/apple-rag-mcp.git
 cd apple-rag-mcp
 npm install
 
-# Configure environment
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars with your API keys (see configuration section below)
+# Configure API Gateway URL in wrangler.jsonc
+# No additional environment variables needed for proxy mode
 
 # Start development server
 npm run dev
@@ -194,29 +207,26 @@ cd apple-rag-mcp
 npm install
 ```
 
-### 3. Environment Configuration (Cloudflare Workers Standard)
+### 3. Configuration (Minimal Setup)
 ```bash
-# Copy the example environment file
-cp .dev.vars.example .dev.vars
+# Edit wrangler.jsonc to configure your API Gateway URL
+# Default: https://api.apple-rag.com
 ```
 
-Edit `.dev.vars` with your actual credentials:
+Edit `wrangler.jsonc` vars section:
 
-```bash
-# SiliconFlow API Configuration (Required)
-SILICONFLOW_API_KEY=sk-your-actual-api-key-here
-
-# NEON Database Configuration (Required)
-NEON_HOST=your-neon-host.neon.tech
-NEON_DATABASE=your-database-name
-NEON_USER=your-database-user
-NEON_PASSWORD=your-database-password
-
-# Search Configuration
-USE_HYBRID_SEARCH=true
+```json
+{
+  "vars": {
+    "ENVIRONMENT": "production",
+    "SERVICE_NAME": "apple-rag-mcp-server",
+    "SERVICE_VERSION": "1.0.0",
+    "API_GATEWAY_URL": "https://api.apple-rag.com"
+  }
+}
 ```
 
-> ⚠️ **Cloudflare Standard**: Use `.dev.vars` for local development. For production, configure these in Cloudflare Dashboard. Never commit `.dev.vars` - it's already in `.gitignore`.
+> ✅ **Simplified Setup**: No database credentials needed! The MCP server acts as a secure proxy to the API Gateway.
 
 ### 4. Database Setup
 
@@ -271,7 +281,7 @@ Our service works with any MCP-compatible client:
   "mcpServers": {
     "apple-rag": {
       "command": "npx",
-      "args": ["mcp-remote", "https://appleragmcp.com/sse"]
+      "args": ["mcp-remote", "https://mcp.apple-rag.com/sse"]
     }
   }
 }
@@ -280,8 +290,8 @@ Our service works with any MCP-compatible client:
 #### Custom MCP Clients
 ```typescript
 // Direct connection examples
-const sseEndpoint = "https://appleragmcp.com/sse";
-const httpEndpoint = "https://appleragmcp.com/mcp";
+const sseEndpoint = "https://mcp.apple-rag.com/sse";
+const httpEndpoint = "https://mcp.apple-rag.com/mcp";
 
 // Use your preferred MCP client library
 ```
@@ -305,24 +315,28 @@ const httpEndpoint = "https://appleragmcp.com/mcp";
 // SwiftUI Development
 await callTool("perform_rag_query", {
   query: "SwiftUI navigation best practices",
-  match_count: 3
+  match_count: 3,
+  api_key: "ak_live_your_key_here"
 });
 
 // UIKit Integration
 await callTool("perform_rag_query", {
   query: "UIKit view controller lifecycle methods",
-  match_count: 5
+  match_count: 5,
+  api_key: "ak_live_your_key_here"
 });
 
 // Core Data & CloudKit
 await callTool("perform_rag_query", {
   query: "Core Data CloudKit synchronization",
-  match_count: 4
+  match_count: 4,
+  api_key: "ak_live_your_key_here"
 });
 
 // iOS Performance
 await callTool("perform_rag_query", {
-  query: "iOS app performance optimization techniques"
+  query: "iOS app performance optimization techniques",
+  api_key: "ak_live_your_key_here"
 });
 ```
 
@@ -337,19 +351,15 @@ Every query returns structured data with:
 
 ### Environment Variables (Cloudflare Workers Standard)
 
-**Local Development** (`.dev.vars` file):
+**Configuration** (`wrangler.jsonc` vars section):
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SILICONFLOW_API_KEY` | ✅ | - | SiliconFlow API key for embeddings |
-| `NEON_HOST` | ✅ | - | NEON database host |
-| `NEON_DATABASE` | ✅ | - | Database name |
-| `NEON_USER` | ✅ | - | Database user |
-| `NEON_PASSWORD` | ✅ | - | Database password |
-| `NEON_PORT` | ❌ | `5432` | Database port |
-| `USE_HYBRID_SEARCH` | ❌ | `true` | Enable hybrid search |
-| `SILICONFLOW_TIMEOUT` | ❌ | `30` | API timeout in seconds |
+| `API_GATEWAY_URL` | ✅ | `https://api.apple-rag.com` | Your API Gateway endpoint |
+| `ENVIRONMENT` | ❌ | `production` | Deployment environment |
+| `SERVICE_NAME` | ❌ | `apple-rag-mcp-server` | Service identifier |
+| `SERVICE_VERSION` | ❌ | `1.0.0` | Service version |
 
-**Production Deployment**: Configure the same variables in Cloudflare Dashboard → Workers → Your Worker → Settings → Environment Variables.
+**No Secrets Required**: The MCP server acts as a proxy - all authentication is handled by the API Gateway using user-provided API keys.
 
 ### Search Modes
 

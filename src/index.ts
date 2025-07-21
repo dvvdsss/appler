@@ -5,42 +5,65 @@
 
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-import { RAGService } from "./rag/service.js";
+import { ApiGatewayClient } from "./api/client.js";
 
 // Define our MCP agent with RAG tools
 export class AppleRAGMCP extends McpAgent {
   server = new McpServer({
-    name: "Apple RAG Server",
+    name: "apple-rag-mcp-server",
     version: "1.0.0",
+    description:
+      "AI-powered Apple Developer Documentation RAG service using MCP protocol",
+    author: "Apple RAG Team",
+    license: "MIT",
   });
 
-  private ragService: RAGService | null = null;
+  private apiClient: ApiGatewayClient;
+
+  constructor(env: any) {
+    super(env, {});
+    this.apiClient = new ApiGatewayClient(env.API_GATEWAY_URL);
+  }
 
   async init() {
-    // 核心RAG查询工具 - 完全对齐Python版本
+    // 核心RAG查询工具 - 代理到 API Gateway
     this.server.tool(
       "perform_rag_query",
       {
-        query: z
-          .string()
-          .describe("The search query for Apple Developer Documentation"),
-        match_count: z
-          .number()
-          .default(5)
-          .describe("Maximum number of results to return"),
+        description:
+          "Search Apple Developer Documentation using advanced RAG technology",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "The search query for Apple Developer Documentation",
+            },
+            match_count: {
+              type: "number",
+              description: "Maximum number of results to return",
+              default: 5,
+              minimum: 1,
+              maximum: 20,
+            },
+            api_key: {
+              type: "string",
+              description: "API key for authentication (required for access)",
+            },
+          },
+          required: ["query", "api_key"],
+        },
       },
-      async ({ query, match_count }) => {
+      async ({ query, match_count, api_key }) => {
         try {
-          // 懒加载RAG服务 - 每个DO实例独立
-          if (!this.ragService) {
-            this.ragService = new RAGService(this.env);
-          }
-
-          const result = await this.ragService.performRAGQuery({
-            query,
-            matchCount: match_count,
-          });
+          // 代理请求到 API Gateway
+          const result = await this.apiClient.performRAGQuery(
+            {
+              query,
+              match_count,
+            },
+            api_key
+          );
 
           return {
             content: [
@@ -60,6 +83,7 @@ export class AppleRAGMCP extends McpAgent {
                     success: false,
                     query,
                     error: String(error),
+                    suggestion: "Please check your API key and try again.",
                   },
                   null,
                   2
@@ -83,29 +107,22 @@ export default {
       return AppleRAGMCP.serveSSE("/sse").fetch(request, env, ctx);
     }
 
-    // MCP endpoint
-    if (path === "/mcp") {
+    // MCP endpoint - support both /mcp and root path
+    if (path === "/mcp" || path === "" || path === "/") {
       return AppleRAGMCP.serve("/mcp").fetch(request, env, ctx);
     }
 
-    // Health check endpoint
-    if (path === "/health") {
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          service: "Apple RAG MCP Server",
-          timestamp: new Date().toISOString(),
-          path: pathname,
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    return new Response(`Apple RAG MCP Server - Path not found: ${pathname}`, {
-      status: 404,
-      headers: { "Content-Type": "text/plain" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Endpoint not found",
+        message: `Path '${pathname}' is not available. Available endpoints: / (root), /sse`,
+        service: "Apple RAG MCP Server",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   },
 };

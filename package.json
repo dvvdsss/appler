@@ -13,9 +13,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "1.13.1",
-		"agents": "^0.0.100",
-		"postgres": "^3.4.7",
-		"zod": "^3.25.67"
+		"agents": "^0.0.100"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.0.6",
