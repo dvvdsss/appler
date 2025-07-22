@@ -14,12 +14,6 @@ importers:
       agents:
         specifier: ^0.0.100
         version: 0.0.100(@cloudflare/workers-types@4.20250719.0)(react@19.1.0)
-      postgres:
-        specifier: ^3.4.7
-        version: 3.4.7
-      zod:
-        specifier: ^3.25.67
-        version: 3.25.76
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.0.6
@@ -838,10 +832,6 @@ packages:
   pkce-challenge@5.0.0:
     resolution: {integrity: sha512-ueGLflrrnvwB3xuo/uGob5pd5FN7l0MsLf0Z87o/UQmRtwjvfylfc9MurIxRAWywCYTgrvpXBcqjV4OfCYGCIQ==}
     engines: {node: '>=16.20.0'}
-
-  postgres@3.4.7:
-    resolution: {integrity: sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw==}
-    engines: {node: '>=12'}
 
   proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
@@ -1736,8 +1726,6 @@ snapshots:
   pathe@2.0.3: {}
 
   pkce-challenge@5.0.0: {}
-
-  postgres@3.4.7: {}
 
   proxy-addr@2.0.7:
     dependencies:
