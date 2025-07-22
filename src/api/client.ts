@@ -21,7 +21,7 @@ export interface RAGQueryResponse {
       title?: string;
       section?: string;
       last_updated?: string;
-    }; 
+    };
   }>;
   count: number;
   processing_time_ms?: number;
