@@ -150,7 +150,7 @@ A powerful **Model Context Protocol (MCP) server** that provides intelligent RAG
 Want to run your own MCP proxy instance? Here's how:
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+ and pnpm
 - Cloudflare account with Workers enabled
 - Access to an Apple RAG API Gateway instance
 
@@ -160,12 +160,12 @@ Want to run your own MCP proxy instance? Here's how:
 # Clone and setup
 git clone https://github.com/your-username/apple-rag-mcp.git
 cd apple-rag-mcp
-npm install
+pnpm install
 
 # No configuration needed - API Gateway URL is hardcoded
 
 # Start development server
-npm run dev
+pnpm run dev
 ```
 
 Your local server will be available at:
@@ -178,7 +178,7 @@ Your local server will be available at:
 
 ```bash
 # Deploy to Cloudflare Workers
-npm run deploy
+pnpm run deploy
 ```
 
 ## 📋 Prerequisites
@@ -189,7 +189,7 @@ npm run deploy
 
 ### System Requirements
 - **Node.js** 18+
-- **npm** or **yarn**
+- **pnpm** or **yarn**
 - **Git**
 
 ## 🛠️ Installation
@@ -202,7 +202,7 @@ cd apple-rag-mcp
 
 ### 2. Install Dependencies
 ```bash
-npm install
+pnpm install
 ```
 
 ### 3. Configuration (Zero Configuration)
@@ -221,7 +221,7 @@ npm install
 
 ```bash
 # Start the development server
-npm run dev
+pnpm run dev
 
 # The server will be available at:
 # - SSE endpoint: http://localhost:8787/sse
@@ -232,7 +232,7 @@ npm run dev
 
 ```bash
 # Deploy to Cloudflare Workers
-npm run deploy
+pnpm run deploy
 ```
 
 ## 🔌 **Advanced MCP Client Integration**
@@ -343,16 +343,16 @@ src/
 
 ### Available Scripts
 ```bash
-npm run dev          # Start development server
-npm run deploy       # Deploy to Cloudflare Workers
-npm run type-check   # TypeScript type checking
-npm run format       # Format code with Biome
-npm run lint:fix     # Fix linting issues
+pnpm run dev          # Start development server
+pnpm run deploy       # Deploy to Cloudflare Workers
+pnpm run type-check   # TypeScript type checking
+pnpm run format       # Format code with Biome
+pnpm run lint:fix     # Fix linting issues
 ```
 
 ### Type Checking
 ```bash
-npm run type-check
+pnpm run type-check
 ```
 
 ## 🤝 Contributing
@@ -364,7 +364,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Set up environment: `cp .dev.vars.example .dev.vars` and configure your credentials
 4. Make your changes
-5. Test locally: `npm run dev`
+5. Test locally: `pnpm run dev`
 6. Add tests if applicable
 7. Commit your changes: `git commit -m 'Add amazing feature'`
 8. Push to the branch: `git push origin feature/amazing-feature`

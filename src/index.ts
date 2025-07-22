@@ -10,7 +10,7 @@ import { ApiGatewayClient } from "./api/client.js";
 // Define our MCP agent with RAG tools
 export class AppleRAGMCP extends McpAgent {
   server = new McpServer({
-    name: "apple-rag-mcp-server",
+    name: "apple-rag-mcp",
     version: "1.0.0",
     description:
       "AI-powered Apple Developer Documentation RAG service using MCP protocol",

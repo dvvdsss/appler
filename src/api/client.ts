@@ -76,7 +76,7 @@ export class ApiGatewayClient {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "Apple-RAG-MCP-Server/1.0.0",
+      "User-Agent": "Apple-RAG-MCP/1.0.0",
     };
 
     // Add API Key if provided

@@ -2,6 +2,10 @@
 	"name": "apple-rag-mcp",
 	"version": "0.0.0",
 	"private": true,
+	"engines": {
+		"node": ">=22.17.1",
+		"pnpm": ">=9.0.0"
+	},
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
