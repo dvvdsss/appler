@@ -9,20 +9,6 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
-  "migrations": [
-    {
-      "new_sqlite_classes": ["AppleRAGMCP"],
-      "tag": "v1"
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "class_name": "AppleRAGMCP",
-        "name": "MCP_OBJECT"
-      }
-    ]
-  },
 
   "routes": [
     {
