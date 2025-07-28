@@ -369,9 +369,10 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Authorization, Content-Type, Accept, mcp-protocol-version",
+        "Authorization, Content-Type, Accept, X-Requested-With, mcp-protocol-version",
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Max-Age": "86400",
+      "Access-Control-Expose-Headers": "mcp-protocol-version",
     };
   }
 }
