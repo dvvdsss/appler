@@ -1,0 +1,8 @@
+name = "apple-rag-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-07-01"
+
+[env.production]
+routes = [
+  { pattern = "mcp.apple-rag.com/*", zone_name = "apple-rag.com" }
+]

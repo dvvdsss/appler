@@ -1,0 +1,20 @@
+{
+  "name": "apple-rag-mcp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^24.1.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.26.0"
+  }
+}
