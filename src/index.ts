@@ -5,6 +5,14 @@
 
 import { ApiGatewayClient } from "./api/client";
 
+// CORS headers for Cloudflare AI Playground
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "https://playground.ai.cloudflare.com",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
+  "Access-Control-Max-Age": "86400",
+};
+
 // Define our MCP server with RAG tools
 export class AppleRAGMCP {
   private apiClient: ApiGatewayClient;
@@ -16,6 +24,69 @@ export class AppleRAGMCP {
 
   async init() {
     // Initialization complete - no setup needed for simple proxy
+  }
+
+  // Handle SSE connections for MCP protocol
+  async handleSSE(request: Request): Promise<Response> {
+    // Handle preflight OPTIONS request
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 200,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    // Create SSE stream
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    // Send initial MCP initialization
+    const initMessage = {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {
+          tools: {},
+        },
+        serverInfo: {
+          name: "apple-rag-mcp",
+          version: "1.0.0",
+        },
+      },
+    };
+
+    // Send initialization message
+    await writer.write(
+      encoder.encode(`data: ${JSON.stringify(initMessage)}\n\n`)
+    );
+
+    // Keep connection alive with periodic heartbeat
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        const heartbeat = {
+          jsonrpc: "2.0",
+          method: "notifications/heartbeat",
+          params: { timestamp: new Date().toISOString() },
+        };
+        await writer.write(
+          encoder.encode(`data: ${JSON.stringify(heartbeat)}\n\n`)
+        );
+      } catch (error) {
+        clearInterval(heartbeatInterval);
+      }
+    }, 30000); // 30 seconds
+
+    // Return SSE response
+    return new Response(readable, {
+      headers: {
+        ...CORS_HEADERS,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   }
 
   async handleRequest(request: Request): Promise<Response> {
@@ -199,21 +270,35 @@ export default {
     const mcpServer = new AppleRAGMCP();
     await mcpServer.init();
 
-    // SSE endpoint
+    // Handle OPTIONS preflight requests
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 200,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    // SSE endpoint for MCP communication
     if (path === "/sse" || pathname === "/sse/message") {
-      // Handle SSE requests
-      if (request.headers.get("accept") === "text/event-stream") {
-        return new Response("SSE endpoint - not yet implemented", {
-          status: 501,
-          headers: { "Content-Type": "text/plain" },
-        });
-      }
+      return mcpServer.handleSSE(request);
     }
 
     // MCP endpoint - support both /mcp and root path
     if (path === "/mcp" || path === "" || path === "/") {
       // Handle MCP requests using the server's request handler
-      return await mcpServer.handleRequest(request);
+      const response = await mcpServer.handleRequest(request);
+
+      // Add CORS headers to MCP responses
+      const headers = new Headers(response.headers);
+      Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
     }
 
     return new Response(
