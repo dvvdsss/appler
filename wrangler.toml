@@ -2,7 +2,15 @@ name = "apple-rag-mcp"
 main = "src/index.ts"
 compatibility_date = "2024-07-01"
 
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "9b5243e561db4efcacf646f6b93ea9c4"
+
 [env.production]
 routes = [
   { pattern = "mcp.apple-rag.com/*", zone_name = "apple-rag.com" }
 ]
+
+[[env.production.kv_namespaces]]
+binding = "OAUTH_KV"
+id = "9b5243e561db4efcacf646f6b93ea9c4"
