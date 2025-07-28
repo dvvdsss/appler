@@ -22,7 +22,7 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
 
   async fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
-    
+
     if (request.method === "OPTIONS") {
       return this.corsResponse();
     }
@@ -163,9 +163,13 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
       case "whoami":
         return this.handleWhoami(id);
       case "rag_query":
-        return this.requirePermission("rag.read", () => this.handleRagQuery(id, args));
+        return this.requirePermission("rag.read", () =>
+          this.handleRagQuery(id, args)
+        );
       case "admin_status":
-        return this.requirePermission("admin", () => this.handleAdminStatus(id));
+        return this.requirePermission("admin", () =>
+          this.handleAdminStatus(id)
+        );
       default:
         return this.errorResponse(404, "Tool not found", id);
     }
@@ -176,28 +180,79 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
       jsonrpc: "2.0",
       id,
       result: {
-        content: [{
-          type: "text",
-          text: `Hello, ${this.auth.username}! You are authenticated with permissions: ${this.auth.permissions.join(", ")}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Hello, ${
+              this.auth.username
+            }! You are authenticated with permissions: ${this.auth.permissions.join(
+              ", "
+            )}`,
+          },
+        ],
       },
     });
   }
 
   private async handleRagQuery(id: string, args: any): Promise<Response> {
     const { query, limit = 5 } = args;
-    
-    // TODO: Implement actual RAG query to Apple RAG API
-    return this.jsonResponse({
-      jsonrpc: "2.0",
-      id,
-      result: {
-        content: [{
-          type: "text",
-          text: `RAG Query: "${query}" (limit: ${limit}) - Implementation coming soon!`,
-        }],
-      },
-    });
+
+    try {
+      // Get OAuth access token from context
+      const accessToken = this.getAccessToken();
+
+      // Call apple-rag-api RAG endpoint
+      const response = await fetch(
+        "https://api.apple-rag.com/api/v1/rag/query",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query,
+            match_count: limit,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `RAG API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const ragResult = await response.json();
+
+      // Format results for MCP response
+      const formattedText = this.formatRAGResults(ragResult);
+
+      return this.jsonResponse({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: formattedText,
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      console.error("RAG query error:", error);
+      return this.jsonResponse({
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: -32603,
+          message: `RAG query failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        },
+      });
+    }
   }
 
   private async handleAdminStatus(id: string): Promise<Response> {
@@ -205,10 +260,14 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
       jsonrpc: "2.0",
       id,
       result: {
-        content: [{
-          type: "text",
-          text: `System Status: OK | User: ${this.auth.username} | Permissions: ${this.auth.permissions.join(", ")}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `System Status: OK | User: ${
+              this.auth.username
+            } | Permissions: ${this.auth.permissions.join(", ")}`,
+          },
+        ],
       },
     });
   }
@@ -217,7 +276,41 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
     return this.auth.permissions.includes(permission);
   }
 
-  private async requirePermission(permission: string, handler: () => Promise<Response>): Promise<Response> {
+  private getAccessToken(): string {
+    return this.auth.claims?.access_token || `Bearer-${this.auth.userId}`;
+  }
+
+  private formatRAGResults(ragResult: any): string {
+    if (!ragResult.success || !ragResult.results) {
+      return `❌ RAG Query Failed: ${ragResult.error || "Unknown error"}`;
+    }
+
+    const { query, results, count, processing_time_ms } = ragResult;
+
+    let formatted = `🔍 **Apple Developer Documentation Search**\n`;
+    formatted += `**Query:** ${query}\n`;
+    formatted += `**Results:** ${count} matches (${processing_time_ms}ms)\n\n`;
+
+    results.forEach((result: any, index: number) => {
+      formatted += `**${index + 1}. ${
+        result.metadata?.title || "Documentation"
+      }**\n`;
+      formatted += `📄 ${result.content.substring(0, 200)}${
+        result.content.length > 200 ? "..." : ""
+      }\n`;
+      formatted += `🔗 ${result.url}\n`;
+      formatted += `📊 Similarity: ${(result.similarity * 100).toFixed(
+        1
+      )}%\n\n`;
+    });
+
+    return formatted;
+  }
+
+  private async requirePermission(
+    permission: string,
+    handler: () => Promise<Response>
+  ): Promise<Response> {
     if (!this.hasPermission(permission)) {
       return this.jsonResponse({
         jsonrpc: "2.0",
@@ -240,7 +333,11 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
     });
   }
 
-  private errorResponse(status: number, message: string, id?: string): Response {
+  private errorResponse(
+    status: number,
+    message: string,
+    id?: string
+  ): Response {
     return new Response(
       JSON.stringify({
         jsonrpc: "2.0",
@@ -271,7 +368,8 @@ export class AppleRAGMCPServer extends WorkerEntrypoint<Env> {
     return {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, mcp-protocol-version",
+      "Access-Control-Allow-Headers":
+        "Authorization, Content-Type, Accept, mcp-protocol-version",
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Max-Age": "86400",
     };

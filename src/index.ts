@@ -12,13 +12,13 @@ export default new OAuthProvider({
   apiRoute: "/mcp",
   apiHandler: AppleRAGMCPServer,
 
-  // Authentication and authorization handler - elegant website integration
+  // Authentication and authorization handler - unified backend architecture
   defaultHandler: AuthHandler,
 
-  // OAuth 2.1 endpoints - integrated with apple-rag-website
-  authorizeEndpoint: "https://apple-rag.com/oauth/authorize",
-  tokenEndpoint: "/token",
-  clientRegistrationEndpoint: "/register",
+  // OAuth 2.1 endpoints - optimal architecture
+  authorizeEndpoint: "https://apple-rag.com/oauth/authorize", // Frontend for UI
+  tokenEndpoint: "https://api.apple-rag.com/oauth/token", // Backend for tokens
+  clientRegistrationEndpoint: "https://api.apple-rag.com/oauth/register",
 
   // Supported OAuth scopes
   scopesSupported: ["rag.read", "rag.write", "admin"],

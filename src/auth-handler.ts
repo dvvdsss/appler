@@ -15,15 +15,15 @@ export const AuthHandler = {
   ): Promise<Response> {
     const { pathname } = new URL(request.url);
 
-    // Redirect all authorization requests to apple-rag-website
+    // Redirect all authorization requests to apple-rag-website frontend
     if (pathname === "/authorize") {
       const url = new URL(request.url);
       const redirectUrl = new URL("https://apple-rag.com/oauth/authorize");
 
       // Forward all OAuth parameters
-      for (const [key, value] of url.searchParams.entries()) {
+      url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
-      }
+      });
 
       return Response.redirect(redirectUrl.toString(), 302);
     }
@@ -60,33 +60,34 @@ function getIntegratedHomePage(): string {
     <div class="header">
         <h1>🍎 Apple RAG MCP Server</h1>
         <p>Modern OAuth 2.1 + Model Context Protocol</p>
-        <p class="success">✅ Integrated with Apple RAG Website</p>
+        <p class="success">✅ Unified Backend Architecture</p>
     </div>
 
     <div class="card">
-        <h2>🔗 Seamless Integration</h2>
-        <p>This MCP server is now fully integrated with the Apple RAG website for a unified authentication experience.</p>
+        <h2>🔗 Unified Backend Architecture</h2>
+        <p>This MCP server uses a unified OAuth 2.1 backend architecture with apple-rag-api for seamless authentication.</p>
         <p>Connect your MCP client to: <code class="code">https://mcp.apple-rag.com/mcp</code></p>
     </div>
 
     <div class="integration">
-        <h3>🎨 Design Integration</h3>
+        <h3>🏗️ Architecture Benefits</h3>
         <ul style="color: #d4d4d8; line-height: 1.8;">
-            <li><strong>Unified Design:</strong> OAuth pages use the same Aceternity UI components</li>
-            <li><strong>Brand Consistency:</strong> Seamless transition from website to authorization</li>
-            <li><strong>Modern UX:</strong> Dark theme, animations, and responsive design</li>
-            <li><strong>Zero Redundancy:</strong> Shared components and design system</li>
+            <li><strong>Unified OAuth:</strong> Single backend handles all authentication</li>
+            <li><strong>Session Sharing:</strong> Login once, use everywhere</li>
+            <li><strong>Enterprise Security:</strong> OAuth 2.1 with PKCE protection</li>
+            <li><strong>Zero Redundancy:</strong> Centralized user and token management</li>
         </ul>
     </div>
 
     <div class="card">
-        <h3>🚀 Authorization Flow</h3>
+        <h3>🚀 OAuth 2.1 Flow</h3>
         <ol style="color: #d4d4d8; line-height: 1.8;">
             <li>MCP client initiates OAuth flow</li>
             <li>User redirected to <strong>apple-rag.com/oauth/authorize</strong></li>
-            <li>Beautiful, branded authorization page</li>
-            <li>Seamless authentication and consent</li>
-            <li>Return to MCP server with authorization</li>
+            <li>Frontend checks login status with React/Next.js</li>
+            <li>If logged in: direct authorization, else: login + authorize</li>
+            <li>Frontend calls backend API to generate tokens</li>
+            <li>Return to MCP server with secure authorization</li>
         </ol>
         <div style="text-align: center; margin-top: 20px;">
             <a href="https://apple-rag.com" class="btn">Visit Apple RAG Website →</a>
