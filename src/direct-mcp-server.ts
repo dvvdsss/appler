@@ -3,6 +3,8 @@
  * 现代精简的MCP协议服务器，无OAuth复杂性
  */
 
+import { logger } from "./logger";
+
 interface UserContext {
   userId: string;
   username: string;
@@ -21,6 +23,12 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    // Log incoming request
+    logger.request(request.method, pathname, {
+      userAgent: request.headers.get("User-Agent"),
+      origin: request.headers.get("Origin"),
+    });
 
     // CORS headers for all responses - include MCP protocol headers
     const corsHeaders = {
@@ -178,21 +186,42 @@ async function verifyToken(
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader?.startsWith("Bearer ")) {
+    logger.auth("authentication_failed", {
+      reason: "missing_bearer_token",
+      hasAuthHeader: !!authHeader,
+    });
     return { valid: false, error: "Missing Bearer token" };
   }
 
   const token = authHeader.substring(7);
 
+  logger.auth("token_verification_started", {
+    tokenPrefix: token.substring(0, 10) + "...",
+  });
+
   // 从KV存储中获取Token信息
   const tokenData = await env.TOKENS.get(token);
   if (!tokenData) {
+    logger.auth("authentication_failed", {
+      reason: "token_not_found",
+      tokenPrefix: token.substring(0, 10) + "...",
+    });
     return { valid: false, error: "Invalid token" };
   }
 
   try {
     const user = JSON.parse(tokenData) as UserContext;
+    logger.auth("authentication_success", {
+      userId: user.userId,
+      username: user.username,
+      permissions: user.permissions,
+    });
     return { valid: true, user };
   } catch {
+    logger.auth("authentication_failed", {
+      reason: "malformed_token_data",
+      tokenPrefix: token.substring(0, 10) + "...",
+    });
     return { valid: false, error: "Malformed token data" };
   }
 }
@@ -202,6 +231,13 @@ async function verifyToken(
  */
 async function handleMCPRequest(body: any, user: UserContext): Promise<any> {
   const { method, id, params } = body;
+
+  logger.mcp("request_received", {
+    method,
+    id,
+    userId: user.userId,
+    hasParams: !!params,
+  });
 
   // Handle initialize
   if (method === "initialize") {
