@@ -12,5 +12,5 @@ routes = [
 ]
 
 [[env.production.kv_namespaces]]
-binding = "OAUTH_KV"
+binding = "TOKENS"
 id = "9b5243e561db4efcacf646f6b93ea9c4"

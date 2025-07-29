@@ -1,17 +1,16 @@
 /**
- * 直接实现MCP协议的OAuth服务器
- * 解决HTTP/SSE传输协议兼容性问题
+ * Apple RAG MCP Server - 纯Token认证实现
+ * 现代精简的MCP协议服务器，无OAuth复杂性
  */
 
-interface AuthContext {
+interface UserContext {
   userId: string;
   username: string;
   permissions: string[];
-  claims: Record<string, any>;
 }
 
 interface Env {
-  DB: D1Database;
+  TOKENS: KVNamespace;
 }
 
 export default {
@@ -23,11 +22,12 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    // CORS headers for all responses
+    // CORS headers for all responses - include MCP protocol headers
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, Accept, mcp-protocol-version, x-mcp-client-id, x-mcp-client-version",
       "Access-Control-Max-Age": "86400",
     };
 
@@ -46,8 +46,8 @@ export default {
     if (pathname === "/") {
       // If it's a POST request, treat as MCP endpoint
       if (request.method === "POST") {
-        // Verify OAuth authentication
-        const authResult = await verifyOAuthToken(request);
+        // 验证Token认证
+        const authResult = await verifyToken(request, env);
         if (!authResult.valid) {
           return new Response(
             JSON.stringify({
@@ -72,11 +72,11 @@ export default {
           );
         }
 
-        const authContext = authResult.context!;
+        const user = authResult.user!;
 
         try {
           const body = await request.json();
-          const response = await handleMCPRequest(body, authContext);
+          const response = await handleMCPRequest(body, user);
 
           return new Response(JSON.stringify(response), {
             status: 200,
@@ -139,89 +139,21 @@ export default {
       }
     }
 
-    // MCP endpoint - handle both HTTP and SSE
+    // MCP endpoint - 备用端点（推荐使用根路径）
     if (pathname === "/mcp") {
-      // Verify OAuth authentication
-      const authResult = await verifyOAuthToken(request);
-      if (!authResult.valid) {
-        return new Response(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: null,
-            error: {
-              code: -32001,
-              message: "Authentication required",
-              data: {
-                error: "invalid_token",
-                error_description: authResult.error,
-              },
-            },
-          }),
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              ...corsHeaders,
-            },
-          }
-        );
-      }
-
-      const authContext = authResult.context!;
-
-      // Handle POST requests (standard MCP)
-      if (request.method === "POST") {
-        try {
-          const body = await request.json();
-          const response = await handleMCPRequest(body, authContext);
-
-          return new Response(JSON.stringify(response), {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              ...corsHeaders,
-            },
-          });
-        } catch (error) {
-          return new Response(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              id: null,
-              error: {
-                code: -32700,
-                message: "Parse error",
-              },
-            }),
-            {
-              status: 400,
-              headers: {
-                "Content-Type": "application/json",
-                ...corsHeaders,
-              },
-            }
-          );
+      return new Response(
+        JSON.stringify({
+          message: "Please use root path / for MCP protocol",
+          redirect: "/",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
         }
-      }
-
-      // Handle GET requests for SSE (if needed)
-      if (request.method === "GET") {
-        // For now, redirect GET to POST endpoint info
-        return new Response(
-          JSON.stringify({
-            message: "MCP endpoint ready",
-            method: "POST",
-            contentType: "application/json",
-            authentication: "Bearer token required",
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              ...corsHeaders,
-            },
-          }
-        );
-      }
+      );
     }
 
     // 404 for all other paths
@@ -233,51 +165,42 @@ export default {
 };
 
 /**
- * Verify OAuth Bearer Token
+ * 验证Bearer Token - 纯Token认证
  */
-async function verifyOAuthToken(request: Request): Promise<{
+async function verifyToken(
+  request: Request,
+  env: Env
+): Promise<{
   valid: boolean;
-  context?: AuthContext;
+  user?: UserContext;
   error?: string;
 }> {
   const authHeader = request.headers.get("Authorization");
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { valid: false, error: "Missing or invalid Authorization header" };
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { valid: false, error: "Missing Bearer token" };
   }
 
   const token = authHeader.substring(7);
 
-  // For testing, accept the specific test token
-  if (
-    token ===
-    "at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions"
-  ) {
-    return {
-      valid: true,
-      context: {
-        userId: "test_user_demo_2025_01_29",
-        username: "demo_user",
-        permissions: ["rag.read", "rag.write", "admin"],
-        claims: {
-          sub: "test_user_demo_2025_01_29",
-          name: "MCP Demo User",
-          iat: Math.floor(Date.now() / 1000),
-        },
-      },
-    };
+  // 从KV存储中获取Token信息
+  const tokenData = await env.TOKENS.get(token);
+  if (!tokenData) {
+    return { valid: false, error: "Invalid token" };
   }
 
-  return { valid: false, error: "Invalid token" };
+  try {
+    const user = JSON.parse(tokenData) as UserContext;
+    return { valid: true, user };
+  } catch {
+    return { valid: false, error: "Malformed token data" };
+  }
 }
 
 /**
- * Handle MCP JSON-RPC requests
+ * 处理MCP JSON-RPC请求
  */
-async function handleMCPRequest(
-  body: any,
-  authContext: AuthContext
-): Promise<any> {
+async function handleMCPRequest(body: any, user: UserContext): Promise<any> {
   const { method, id, params } = body;
 
   // Handle initialize
@@ -287,12 +210,10 @@ async function handleMCPRequest(
       id,
       result: {
         protocolVersion: "2025-03-26",
-        capabilities: {
-          tools: {},
-        },
+        capabilities: { tools: {} },
         serverInfo: {
           name: "Apple RAG MCP Server",
-          version: "1.0.0",
+          version: "2.0.0",
         },
       },
     };
@@ -307,7 +228,7 @@ async function handleMCPRequest(
         tools: [
           {
             name: "hello",
-            description: "Hello World with OAuth authentication verification",
+            description: "Hello World with Token authentication",
             inputSchema: {
               type: "object",
               properties: {},
@@ -333,17 +254,16 @@ async function handleMCPRequest(
               type: "text",
               text: `Hello World! 🌍
 
-OAuth 2.1 Authentication Successful!
+Token Authentication Successful!
 
-✅ Authenticated User Details:
-• User ID: ${authContext.userId}
-• Username: ${authContext.username}
-• Permissions: ${authContext.permissions.join(", ")}
-• Token Claims: ${JSON.stringify(authContext.claims, null, 2)}
+✅ User Details:
+• User ID: ${user.userId}
+• Username: ${user.username}
+• Permissions: ${user.permissions.join(", ")}
 
-🎉 OAuth 2.1 + MCP Authorization is working correctly!
+🎉 Pure Token Authentication is working perfectly!
 
-This simple hello world tool confirms that:
+This confirms that:
 - Bearer token authentication is working
 - User context is properly passed
 - Permission system is active
@@ -356,24 +276,16 @@ Connection and authentication: SUCCESS! ✅`,
       };
     }
 
-    // Unknown tool
     return {
       jsonrpc: "2.0",
       id,
-      error: {
-        code: -32601,
-        message: `Unknown tool: ${name}`,
-      },
+      error: { code: -32601, message: `Unknown tool: ${name}` },
     };
   }
 
-  // Unknown method
   return {
     jsonrpc: "2.0",
     id,
-    error: {
-      code: -32601,
-      message: `Unknown method: ${method}`,
-    },
+    error: { code: -32601, message: `Unknown method: ${method}` },
   };
 }
