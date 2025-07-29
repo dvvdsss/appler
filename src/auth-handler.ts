@@ -4,15 +4,27 @@
  */
 
 interface Env {
+  DB: D1Database;
   OAUTH_PROVIDER: any;
+}
+
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  permissions: string[];
+  created_at: string;
+  last_login: string;
 }
 
 // Modern CORS configuration
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Requested-With',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Authorization, Content-Type, X-Requested-With",
+  "Access-Control-Max-Age": "86400",
 } as const;
 
 export const AuthHandler = {
@@ -31,18 +43,21 @@ export const AuthHandler = {
       });
     }
 
-    // OAuth 2.1 Resource Server Metadata endpoint
+    // OAuth 2.0 Protected Resource Metadata (RFC 9728)
     if (pathname === "/.well-known/oauth-protected-resource") {
       return new Response(
         JSON.stringify(
           {
-            resource_server: "https://mcp.apple-rag.com",
+            resource: "https://mcp.apple-rag.com", // RFC 9728 canonical resource URI
             authorization_servers: ["https://api.apple-rag.com"],
-            scopes_supported: ["rag.read", "rag.write", "admin"],
+            scopes_supported: [
+              "rag.read",
+              "rag.write",
+              "admin",
+              "image_generation",
+            ],
             bearer_methods_supported: ["header"],
             resource_documentation: "https://apple-rag.com/docs",
-            authorization_endpoint: "https://apple-rag.com/oauth/authorize",
-            token_endpoint: "https://api.apple-rag.com/oauth/token",
           },
           null,
           2
@@ -50,10 +65,26 @@ export const AuthHandler = {
         {
           headers: {
             "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=3600",
             ...CORS_HEADERS,
           },
         }
       );
+    }
+
+    // User authentication endpoint (mock implementation)
+    if (pathname === "/auth/login" && request.method === "POST") {
+      return await this.handleLogin(request, env);
+    }
+
+    // User profile endpoint
+    if (pathname === "/auth/profile" && request.method === "GET") {
+      return await this.handleProfile(request, env);
+    }
+
+    // Permission management endpoint (admin only)
+    if (pathname === "/auth/permissions" && request.method === "POST") {
+      return await this.handlePermissionUpdate(request, env);
     }
 
     // Redirect all authorization requests to apple-rag-website frontend
@@ -76,6 +107,202 @@ export const AuthHandler = {
         ...CORS_HEADERS,
       },
     });
+  },
+
+  /**
+   * Handle user login (mock implementation for demonstration)
+   * In production, integrate with your authentication provider
+   */
+  async handleLogin(request: Request, env: Env): Promise<Response> {
+    try {
+      const body = (await request.json()) as {
+        username?: string;
+        password?: string;
+      };
+      const { username, password } = body;
+
+      // Mock authentication - replace with real authentication logic
+      if (username && password) {
+        // Create mock user profile
+        const userProfile: UserProfile = {
+          id: `user_${Date.now()}`,
+          username,
+          email: `${username}@example.com`,
+          name: username.charAt(0).toUpperCase() + username.slice(1),
+          permissions: this.determineUserPermissions(username),
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+        };
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user: userProfile,
+            message: "Login successful",
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              ...CORS_HEADERS,
+            },
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid credentials",
+          }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+              ...CORS_HEADERS,
+            },
+          }
+        );
+      }
+    } catch (error) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Login failed",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    }
+  },
+
+  /**
+   * Handle user profile requests
+   */
+  async handleProfile(request: Request, _env: Env): Promise<Response> {
+    try {
+      // Extract user from Authorization header (simplified)
+      const authHeader = request.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Authorization required",
+          }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+              ...CORS_HEADERS,
+            },
+          }
+        );
+      }
+
+      // Mock user profile - in production, fetch from database
+      const userProfile: UserProfile = {
+        id: "user_123",
+        username: "demo_user",
+        email: "demo@example.com",
+        name: "Demo User",
+        permissions: ["rag.read", "rag.write"],
+        created_at: "2024-01-01T00:00:00Z",
+        last_login: new Date().toISOString(),
+      };
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          user: userProfile,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Failed to fetch profile",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    }
+  },
+
+  /**
+   * Handle permission updates (admin only)
+   */
+  async handlePermissionUpdate(request: Request, _env: Env): Promise<Response> {
+    try {
+      const body = (await request.json()) as {
+        userId?: string;
+        permissions?: string[];
+        action?: string;
+      };
+      const { userId, permissions, action } = body;
+
+      // Mock permission update - in production, update database
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Permissions ${action}d for user ${userId}`,
+          permissions,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Permission update failed",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    }
+  },
+
+  /**
+   * Determine user permissions based on username (mock logic)
+   * In production, fetch from database or external auth provider
+   */
+  determineUserPermissions(username: string): string[] {
+    // Mock permission assignment logic
+    if (username === "admin") {
+      return ["rag.read", "rag.write", "admin", "image_generation"];
+    } else if (username === "editor") {
+      return ["rag.read", "rag.write"];
+    } else if (username === "designer") {
+      return ["rag.read", "image_generation"];
+    } else {
+      return ["rag.read"]; // Default read-only access
+    }
   },
 };
 

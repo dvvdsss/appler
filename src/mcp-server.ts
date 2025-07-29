@@ -1,8 +1,14 @@
 /**
  * Apple RAG MCP Server - Modern OAuth 2.1 Implementation
+ * Cloudflare Workers OAuth Provider compliant
  */
 
-import { WorkerEntrypoint } from "cloudflare:workers";
+import { McpAgent } from "@cloudflare/workers-oauth-provider";
+import { resourceValidator } from "./security/resource-validator.js";
+import {
+  AuthErrors,
+  extractResourceFromRequest,
+} from "./middleware/www-authenticate-handler.js";
 
 interface AuthContext {
   userId: string;
@@ -12,6 +18,7 @@ interface AuthContext {
 }
 
 interface Env {
+  DB: D1Database;
   OAUTH_PROVIDER: any;
 }
 
