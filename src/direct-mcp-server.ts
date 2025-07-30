@@ -8,7 +8,96 @@ import { logger } from "./logger";
 interface UserContext {
   userId: string;
   username: string;
-  permissions: string[];
+  tier: string;
+  created_at: string;
+  is_active: boolean;
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  currentCount: number;
+  resetTime: string;
+}
+
+interface MCPRequest {
+  jsonrpc: string;
+  id: number | string;
+  method: string;
+  params?: {
+    name?: string;
+    arguments?: any;
+  };
+}
+
+function getClientIP(request: Request): string {
+  const cfIP = request.headers.get("CF-Connecting-IP");
+  if (cfIP) return cfIP;
+
+  const forwardedFor = request.headers.get("X-Forwarded-For");
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
+
+  const realIP = request.headers.get("X-Real-IP");
+  if (realIP) return realIP;
+
+  return "unknown";
+}
+
+async function checkRateLimit(ip: string, env: Env): Promise<RateLimitResult> {
+  const currentMinute = Math.floor(Date.now() / 60000);
+  const key = `rate_limit:${ip}:${currentMinute}`;
+
+  const currentCount = parseInt((await env.TOKENS.get(key)) || "0");
+  const newCount = currentCount + 1; // 包括当前这次调用
+
+  if (currentCount >= 3) {
+    // 被限流时，返回包括当前调用在内的总次数
+    return {
+      allowed: false,
+      currentCount: newCount,
+      resetTime: new Date((currentMinute + 1) * 60000).toISOString(),
+    };
+  }
+
+  // 允许通过时，更新计数器
+  await env.TOKENS.put(key, String(newCount), { expirationTtl: 120 });
+
+  return {
+    allowed: true,
+    currentCount: newCount,
+    resetTime: new Date((currentMinute + 1) * 60000).toISOString(),
+  };
+}
+
+function logAnonymousUsage(ip: string, served: boolean): void {
+  const record = {
+    timestamp: new Date().toISOString(),
+    ip,
+    served,
+  };
+  console.log(JSON.stringify(record));
+}
+
+function createRateLimitResponse(id: number | string, currentCount: number) {
+  const friendlyMessage = `🚫 Rate limit reached!
+
+Hi there! It looks like you're using our MCP server without an authentication token. To prevent abuse, anonymous users can make up to 3 requests per minute.
+
+You've already made ${currentCount} requests in the last minute, so we need to pause here for a moment.
+
+Want unlimited access? Visit https://apple-rag.com to create your free account and get your personal authentication token. It only takes a minute and unlocks much higher rate limits!`;
+
+  return {
+    jsonrpc: "2.0" as const,
+    id,
+    result: {
+      content: [
+        {
+          type: "text" as const,
+          text: friendlyMessage,
+        },
+      ],
+    },
+  };
 }
 
 interface Env {
@@ -16,11 +105,7 @@ interface Env {
 }
 
 export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -54,7 +139,7 @@ export default {
     if (pathname === "/") {
       // If it's a POST request, treat as MCP endpoint
       if (request.method === "POST") {
-        // 验证Token认证
+        // 验证Token认证和检查限流
         const authResult = await verifyToken(request, env);
         if (!authResult.valid) {
           return new Response(
@@ -81,9 +166,43 @@ export default {
         }
 
         const user = authResult.user!;
+        const isAnonymous = user.userId === "anonymous";
+        const ip = getClientIP(request);
 
         try {
-          const body = await request.json();
+          const body = (await request.json()) as MCPRequest;
+
+          // 检查匿名用户的限流状态
+          if (
+            isAnonymous &&
+            authResult.rateLimitResult &&
+            !authResult.rateLimitResult.allowed
+          ) {
+            // 记录被限流的请求
+            logAnonymousUsage(ip, false);
+
+            return new Response(
+              JSON.stringify(
+                createRateLimitResponse(
+                  body.id,
+                  authResult.rateLimitResult.currentCount
+                )
+              ),
+              {
+                status: 200,
+                headers: {
+                  "Content-Type": "application/json",
+                  ...corsHeaders,
+                },
+              }
+            );
+          }
+
+          // 记录成功的匿名请求
+          if (isAnonymous) {
+            logAnonymousUsage(ip, true);
+          }
+
           const response = await handleMCPRequest(body, user);
 
           return new Response(JSON.stringify(response), {
@@ -122,13 +241,13 @@ export default {
               name: "Apple RAG MCP Server",
               version: "1.0.0",
               description:
-                "OAuth 2.1 compliant MCP server with hello world tool",
+                "MCP server with optional authentication and hello world tool",
               protocol: "mcp",
               protocolVersion: "2025-03-26",
               capabilities: {
                 tools: {},
               },
-              authentication: "OAuth 2.1 Bearer Token",
+              authentication: "Optional Bearer Token",
               endpoints: {
                 mcp: "/",
               },
@@ -182,15 +301,36 @@ async function verifyToken(
   valid: boolean;
   user?: UserContext;
   error?: string;
+  rateLimitResult?: RateLimitResult;
 }> {
   const authHeader = request.headers.get("Authorization");
 
+  // Handle anonymous access with rate limiting
   if (!authHeader?.startsWith("Bearer ")) {
-    logger.auth("authentication_failed", {
-      reason: "missing_bearer_token",
-      hasAuthHeader: !!authHeader,
+    const ip = getClientIP(request);
+    const rateLimitResult = await checkRateLimit(ip, env);
+
+    logger.auth("anonymous_access", {
+      reason: "no_token_provided",
+      ip,
+      rateLimitAllowed: rateLimitResult.allowed,
+      currentCount: rateLimitResult.currentCount,
     });
-    return { valid: false, error: "Missing Bearer token" };
+
+    // Create anonymous user context
+    const anonymousUser: UserContext = {
+      userId: "anonymous",
+      username: "Anonymous User",
+      tier: "anonymous",
+      created_at: new Date().toISOString(),
+      is_active: true,
+    };
+
+    return {
+      valid: true,
+      user: anonymousUser,
+      rateLimitResult,
+    };
   }
 
   const token = authHeader.substring(7);
@@ -214,7 +354,7 @@ async function verifyToken(
     logger.auth("authentication_success", {
       userId: user.userId,
       username: user.username,
-      permissions: user.permissions,
+      tier: user.tier,
     });
     return { valid: true, user };
   } catch {
@@ -264,7 +404,7 @@ async function handleMCPRequest(body: any, user: UserContext): Promise<any> {
         tools: [
           {
             name: "hello",
-            description: "Hello World with Token authentication",
+            description: "Hello World with optional authentication",
             inputSchema: {
               type: "object",
               properties: {},
@@ -281,6 +421,8 @@ async function handleMCPRequest(body: any, user: UserContext): Promise<any> {
     const { name } = params;
 
     if (name === "hello") {
+      const isAnonymous = user.userId === "anonymous";
+
       return {
         jsonrpc: "2.0",
         id,
@@ -288,21 +430,42 @@ async function handleMCPRequest(body: any, user: UserContext): Promise<any> {
           content: [
             {
               type: "text",
-              text: `Hello World! 🌍
+              text: isAnonymous
+                ? `Hello World! 🌍
+
+Welcome to Apple RAG MCP Server!
+
+✅ Anonymous Access:
+• Access Type: Anonymous User
+• No authentication required
+• Basic functionality available
+
+🎉 MCP Server is working perfectly!
+
+This confirms that:
+- Anonymous access is enabled
+- MCP protocol is functioning
+- Basic tools are available
+
+Connection: SUCCESS! ✅
+
+💡 Tip: For advanced features, consider getting an authentication token.`
+                : `Hello World! 🌍
 
 Token Authentication Successful!
 
 ✅ User Details:
 • User ID: ${user.userId}
 • Username: ${user.username}
-• Permissions: ${user.permissions.join(", ")}
+• Tier: ${user.tier}
+• Active: ${user.is_active}
 
-🎉 Pure Token Authentication is working perfectly!
+🎉 Authenticated access is working perfectly!
 
 This confirms that:
 - Bearer token authentication is working
 - User context is properly passed
-- Permission system is active
+- Full functionality available
 - MCP protocol is functioning
 
 Connection and authentication: SUCCESS! ✅`,

@@ -23,4 +23,4 @@ head_sampling_rate = 0.5  # 50% sampling for MCP server monitoring
 
 [[env.production.kv_namespaces]]
 binding = "TOKENS"
-id = "9b5243e561db4efcacf646f6b93ea9c4"
+id = "bff2091c27b342e0b768ec98759a6605"
