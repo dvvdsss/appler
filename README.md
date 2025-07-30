@@ -48,8 +48,9 @@ Apple RAG MCP Server 是一个现代化的 Model Context Protocol (MCP) 服务�
 
 4. **部署到生产环境**
    ```bash
-   npm run deploy:prod
+   npm run deploy
    ```
+   > 配置已优化为生产就绪，单一部署命令即可完成生产部署
 
 ### 🔗 MCP 客户端配置
 
