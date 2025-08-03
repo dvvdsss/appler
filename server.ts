@@ -73,6 +73,9 @@ const start = async () => {
     server.log.info(`📡 Listening on http://0.0.0.0:${appConfig.PORT}`);
     server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
   } catch (error) {
+    console.error('❌ Failed to start server:');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
     server.log.error('Failed to start server:', error);
     process.exit(1);
   }
