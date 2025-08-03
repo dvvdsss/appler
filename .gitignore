@@ -95,11 +95,13 @@ web_modules/
 # dotenv environment variable files
 
 .env
-.env.*
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+
+# Allow production template
+!.env.production
 
 # Cloudflare Workers development variables (not needed for MCP proxy)
 .dev.vars
