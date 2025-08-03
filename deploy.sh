@@ -35,11 +35,43 @@ log_error() {
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     log_error ".env file not found!"
-    log_info "Please copy .env.example to .env and configure your settings"
-    exit 1
+    log_info "Creating .env from production template..."
+    cp .env.production .env
+    log_success ".env file created from production template"
 fi
 
 log_success ".env file found"
+
+# Function to get secret from Cloudflare Workers (if available)
+get_cloudflare_secret() {
+    local secret_name=$1
+    if command -v wrangler &> /dev/null; then
+        log_info "Attempting to get $secret_name from Cloudflare Workers..."
+        # Note: This is a placeholder - wrangler doesn't support getting secret values
+        # In production, you would manually set this or use a different method
+        log_warning "Cloudflare secret retrieval not implemented - please set manually"
+        return 1
+    else
+        log_warning "Wrangler not found - skipping Cloudflare secret retrieval"
+        return 1
+    fi
+}
+
+# Check and update SILICONFLOW_API_KEY if it's a placeholder
+if grep -q "PLACEHOLDER_WILL_BE_SET_ON_VPS\|WILL_BE_SET_FROM_CLOUDFLARE_SECRETS" .env; then
+    log_warning "SiliconFlow API key needs to be set!"
+    log_info "Please update the SILICONFLOW_API_KEY in .env file with your actual API key"
+    log_info "You can get it from: https://cloud.siliconflow.cn/"
+
+    # Prompt for API key
+    read -p "Enter your SiliconFlow API key (or press Enter to continue with placeholder): " api_key
+    if [ ! -z "$api_key" ]; then
+        sed -i.bak "s/SILICONFLOW_API_KEY=.*/SILICONFLOW_API_KEY=$api_key/" .env
+        log_success "SiliconFlow API key updated"
+    else
+        log_warning "Continuing with placeholder API key - search functionality will not work"
+    fi
+fi
 
 # Install dependencies
 log_info "Installing dependencies..."
