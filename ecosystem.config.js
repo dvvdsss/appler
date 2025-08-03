@@ -15,7 +15,7 @@ module.exports = {
     // Environment Configuration
     env: {
       NODE_ENV: 'production',
-      PORT: 3000,
+      PORT: 3001,
     },
     
     // Performance Configuration
