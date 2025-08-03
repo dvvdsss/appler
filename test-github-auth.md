@@ -1,1 +1,0 @@
-# VPS GitHub Configuration Test
