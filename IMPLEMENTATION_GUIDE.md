@@ -2,314 +2,249 @@
 
 ## 项目概述
 
-**目标**: 创建符合 MCP 授权规范的 OAuth 2.1 认证服务器，提供 Hello World 工具验证认证流程
-**架构**: 直接实现 MCP 协议，支持 Bearer Token 认证，部署在 Cloudflare Workers
-**域名**: `mcp.apple-rag.com`
+**目标**: 创建高性能的 Apple 开发文档 RAG 搜索 MCP 服务器
+**架构**: 基于 Fastify 的 Node.js 服务器，部署在 VPS 上
+**技术栈**: TypeScript + Fastify + PostgreSQL + pgvector + PM2
 
 ## 核心实现架构
 
-### 1. 直接 MCP 协议实现 (`src/direct-mcp-server.ts`)
+### 1. MCP 协议服务器 (`server.ts`)
 
-**设计决策**: 放弃 Cloudflare Workers OAuth Provider，直接实现 MCP 协议
-**原因**: OAuth Provider 返回 HTML 而不是 JSON，不兼容 MCP 客户端 HTTP 传输协议
+**设计决策**: 使用 Fastify 框架实现高性能 MCP 协议服务器
+**优势**: 高性能、类型安全、生产就绪
 
 ```typescript
-export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
-    // 直接处理HTTP请求，确保返回正确的JSON格式
-  },
-};
+import { fastify } from 'fastify';
+import { MCPHandler } from './src/mcp-handler.js';
+
+const server = fastify({
+  logger: process.env.NODE_ENV === 'production' ? {
+    level: 'info'
+  } : {
+    level: 'debug',
+    transport: {
+      target: 'pino-pretty',
+      options: { colorize: true }
+    }
+  }
+});
 ```
 
 **关键实现点**:
 
-- 根路径 `/` 同时支持 GET（服务器信息）和 POST（MCP 协议）
-- 完整的 CORS 支持，包含 MCP 协议特有头部
-- Bearer Token 验证，不触发 OAuth 重定向流程
+- 根路径 `/` 处理 MCP 协议请求
+- `/health` 健康检查端点
+- 完整的错误处理和日志记录
+- 生产环境优化配置
 
-### 2. CORS 配置 - 关键兼容性实现
+### 2. RAG 搜索引擎 (`src/services/`)
 
-**问题**: MCP 客户端发送特殊头部 `mcp-protocol-version`，标准 CORS 配置不支持
-**解决**: 扩展 CORS 头部白名单
+**核心功能**: 向量搜索 Apple 开发文档
+**技术实现**: PostgreSQL + pgvector + SiliconFlow 嵌入模型
 
 ```typescript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, Accept, mcp-protocol-version, x-mcp-client-id, x-mcp-client-version",
-  "Access-Control-Max-Age": "86400",
+// 向量搜索实现
+const searchResults = await this.db.query(`
+  SELECT
+    url, title, content, context,
+    1 - (embedding <=> $1) as similarity
+  FROM embeddings
+  WHERE 1 - (embedding <=> $1) > $2
+  ORDER BY similarity DESC
+  LIMIT $3
+`, [queryEmbedding, threshold, limit]);
+```
+
+**重要**: 使用余弦相似度进行语义搜索，支持高精度文档检索
+
+### 3. 部署架构
+
+**部署方式**: VPS + PM2 集群模式
+**负载均衡**: PM2 自动负载均衡多个进程
+
+```typescript
+// PM2 生态系统配置
+module.exports = {
+  apps: [{
+    name: 'apple-rag-mcp',
+    script: 'dist/server.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3001
+    }
+  }]
 };
 ```
 
-**重要**: 必须包含所有 MCP 协议头部，否则浏览器环境会阻止请求
+### 4. 数据库设计
 
-### 3. 端点路径设计
+**向量存储**: PostgreSQL + pgvector 扩展
+**表结构**: 优化的嵌入向量存储
 
-**MCP 客户端行为**: 默认连接根路径 `/` 而不是 `/mcp`
-**实现策略**: 根路径同时处理信息查询和协议通信
+```sql
+CREATE TABLE embeddings (
+  id SERIAL PRIMARY KEY,
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  context TEXT,
+  embedding vector(2560),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-```typescript
-// 根路径处理逻辑
-if (pathname === "/") {
-  if (request.method === "POST") {
-    // MCP协议处理
-    return handleMCPProtocol(request);
-  }
-  if (request.method === "GET") {
-    // 服务器信息
-    return getServerInfo();
-  }
-}
+CREATE INDEX ON embeddings USING ivfflat (embedding vector_cosine_ops);
 ```
 
-### 4. OAuth 认证实现
-
-**认证方式**: Bearer Token 直接验证，不使用完整 OAuth 流程
-**Token 验证**: 硬编码测试 Token，生产环境需要连接数据库
-
-```typescript
-async function verifyOAuthToken(request: Request) {
-  const authHeader = request.headers.get("Authorization");
-  const token = authHeader?.substring(7); // 移除 "Bearer "
-
-  // 测试Token验证
-  if (
-    token ===
-    "at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions"
-  ) {
-    return {
-      valid: true,
-      context: {
-        userId: "test_user_demo_2025_01_29",
-        username: "demo_user",
-        permissions: ["rag.read", "rag.write", "admin"],
-        claims: {
-          /* JWT claims */
-        },
-      },
-    };
-  }
-
-  return { valid: false, error: "Invalid token" };
-}
-```
-
-### 5. MCP 协议处理
+### 5. MCP 协议实现
 
 **支持的方法**:
 
 - `initialize` - 协议初始化
 - `tools/list` - 工具列表
-- `tools/call` - 工具调用
+- `tools/call` - RAG 查询工具
 
-**Hello 工具实现**:
-
-```typescript
-if (name === "hello") {
-  return {
-    jsonrpc: "2.0",
-    id,
-    result: {
-      content: [
-        {
-          type: "text",
-          text: `Hello World! 🌍\n\nOAuth 2.1 Authentication Successful!\n\n✅ Authenticated User Details:\n• User ID: ${
-            authContext.userId
-          }\n• Username: ${
-            authContext.username
-          }\n• Permissions: ${authContext.permissions.join(
-            ", "
-          )}\n• Token Claims: ${JSON.stringify(authContext.claims, null, 2)}`,
-        },
-      ],
-    },
-  };
-}
-```
-
-## 关键兼容性努力
-
-### 1. MCP 官方规范兼容
-
-**协议版本**: `2025-03-26`
-**JSON-RPC 格式**: 严格遵循 2.0 规范
-**工具 Schema**: 完整的 inputSchema 定义
+**查询工具实现**:
 
 ```typescript
 {
-  name: "hello",
-  description: "Hello World with OAuth authentication verification",
+  name: "query",
+  description: "Search Apple Developer Documentation using advanced RAG technology",
   inputSchema: {
     type: "object",
-    properties: {},
-    required: []
+    properties: {
+      query: {
+        type: "string",
+        description: "Search query for Apple Developer Documentation"
+      },
+      match_count: {
+        type: "number",
+        description: "Number of results to return (1-20)",
+        minimum: 1,
+        maximum: 20,
+        default: 5
+      }
+    },
+    required: ["query"]
   }
 }
 ```
 
-### 2. Cloudflare Workers 兼容
+## 技术特性
 
-**入口点**: 标准的 fetch handler
-**环境变量**: 通过 Env 接口访问
-**响应格式**: 确保所有响应都是标准 Response 对象
+### 1. 高性能架构
+
+**框架**: Fastify - 高性能 Node.js 框架
+**数据库**: PostgreSQL + 连接池优化
+**缓存**: 内存缓存 + 数据库查询优化
+
+### 2. 生产环境优化
+
+**日志系统**: Pino 高性能日志
+**监控**: PM2 内置监控 + 自定义健康检查
+**错误处理**: 完整的错误捕获和恢复机制
 
 ```typescript
-interface Env {
-  DB: D1Database;
-}
-
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response>
-}
+// 生产环境日志配置
+const logger = process.env.NODE_ENV === 'production' ? {
+  level: 'info',
+  redact: ['req.headers.authorization']
+} : {
+  level: 'debug',
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true }
+  }
+};
 ```
 
-### 3. 浏览器环境兼容
+### 3. 安全特性
 
 **CORS 策略**: 完整的 preflight 支持
-**Content-Type**: 所有响应都返回 `application/json`
-**错误处理**: 标准 HTTP 状态码和 JSON-RPC 错误格式
+**输入验证**: 严格的参数验证和清理
+**错误处理**: 不泄露敏感信息的错误响应
 
-## 踩过的坑和解决方案
+## 部署和运维
 
-### 坑 1: OAuth Provider 兼容性
-
-**问题**: Cloudflare Workers OAuth Provider 返回 HTML
-**解决**: 直接实现 MCP 协议，放弃第三方库
-
-### 坑 2: 端点路径错误
-
-**问题**: MCP 客户端连接 `/` 而不是 `/mcp`
-**解决**: 根路径同时支持 GET 和 POST 请求
-
-### 坑 3: OAuth 重定向误触发
-
-**问题**: 提供 OAuth metadata 导致客户端尝试授权流程
-**解决**: 移除 `/.well-known/oauth-protected-resource` 端点和 WWW-Authenticate 头
-
-### 坑 4: CORS 配置不完整
-
-**问题**: 缺少 MCP 协议头部导致浏览器阻止请求
-**具体表现**: `Request header field mcp-protocol-version is not allowed by Access-Control-Allow-Headers in preflight response`
-**环境差异**: curl 测试成功（不受 CORS 限制），浏览器环境失败（严格 CORS 策略）
-**解决**: 扩展 CORS 头部白名单包含所有 MCP 协议头部
-
-```typescript
-// 修复前
-"Access-Control-Allow-Headers": "Content-Type, Authorization, Accept"
-
-// 修复后
-"Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, mcp-protocol-version, x-mcp-client-id, x-mcp-client-version"
-```
-
-## 部署配置
-
-### wrangler.toml
-
-```toml
-name = "apple-rag-mcp"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
-
-[env.production]
-routes = [
-  { pattern = "mcp.apple-rag.com/*", zone_name = "apple-rag.com" }
-]
-
-[[env.production.kv_namespaces]]
-binding = "OAUTH_KV"
-id = "9b5243e561db4efcacf646f6b93ea9c4"
-```
-
-### 部署命令
+### VPS 部署流程
 
 ```bash
-npx wrangler deploy --env production
+# 1. 克隆代码
+git clone <repository>
+cd apple-rag-mcp
+
+# 2. 安装依赖
+pnpm install
+
+# 3. 构建项目
+pnpm build
+
+# 4. 启动生产服务
+pnpm start:prod
+```
+
+### PM2 集群管理
+
+```bash
+# 启动集群
+pm2 start ecosystem.config.cjs --env production
+
+# 监控状态
+pm2 status
+pm2 monit
+
+# 查看日志
+pm2 logs apple-rag-mcp
+
+# 重启服务
+pm2 restart apple-rag-mcp
 ```
 
 ## 测试验证
 
-### MCP 客户端连接配置
-
-```
-MCP Server URL: https://mcp.apple-rag.com
-Header Name: Authorization
-Bearer Value: at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions
-```
-
-### 基础连接测试
+### 本地开发测试
 
 ```bash
-curl -X GET "https://mcp.apple-rag.com/" -H "Accept: application/json"
+# 开发模式
+pnpm dev
+
+# 健康检查
+curl http://localhost:3001/health
+
+# MCP 协议测试
+curl -X POST http://localhost:3001/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}'
 ```
 
-### MCP 协议完整测试
+### 生产环境测试
 
 ```bash
-# 1. 初始化
-curl -X POST "https://mcp.apple-rag.com/" \
+# RAG 查询测试
+curl -X POST http://your-vps:3001/ \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions" \
-  -d '{"jsonrpc": "2.0", "method": "initialize", "id": 1}'
-
-# 2. 工具列表
-curl -X POST "https://mcp.apple-rag.com/" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions" \
-  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}'
-
-# 3. Hello工具调用
-curl -X POST "https://mcp.apple-rag.com/" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer at_test_mcp_demo_2025_01_29_secure_token_for_apple_rag_system_v1_full_permissions" \
-  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "hello", "arguments": {}}, "id": 3}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"Swift programming","match_count":2}}}'
 ```
 
-### CORS 验证
+## 性能优化
 
-```bash
-curl -X OPTIONS "https://mcp.apple-rag.com/" \
-  -H "Origin: https://playground.ai.cloudflare.com" \
-  -H "Access-Control-Request-Method: POST" \
-  -H "Access-Control-Request-Headers: mcp-protocol-version,authorization,content-type"
-```
+### 数据库优化
 
-### 预期响应
+- 向量索引优化 (ivfflat)
+- 连接池配置
+- 查询缓存策略
 
-**Hello 工具成功响应**:
+### 应用优化
 
-```
-Hello World! 🌍
+- PM2 集群模式
+- 内存使用监控
+- 响应时间优化
 
-OAuth 2.1 Authentication Successful!
+## 扩展计划
 
-✅ Authenticated User Details:
-• User ID: test_user_demo_2025_01_29
-• Username: demo_user
-• Permissions: rag.read, rag.write, admin
-
-🎉 OAuth 2.1 + MCP Authorization is working correctly!
-Connection and authentication: SUCCESS! ✅
-```
-
-## 重要注意事项
-
-1. **协议优先**: MCP 协议兼容性比 OAuth 完整性更重要
-2. **环境测试**: 必须在浏览器环境测试，不能仅依赖 curl
-3. **CORS 完整性**: 包含所有可能的 MCP 协议头部
-4. **错误处理**: 返回标准 JSON-RPC 错误格式
-5. **Token 验证**: 生产环境需要连接真实的用户数据库
-
-## 生产环境扩展
-
-当前实现是测试版本，生产环境需要：
-
-1. 连接 D1 数据库进行 Token 验证
-2. 实现完整的用户权限系统
-3. 添加日志和监控
-4. 实现 Token 刷新机制
-5. 添加更多实用工具
+1. **多语言支持**: 支持中文查询
+2. **缓存系统**: Redis 缓存热门查询
+3. **API 限流**: 防止滥用
+4. **用户系统**: 多用户支持
+5. **监控告警**: 完整的运维监控

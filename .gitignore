@@ -103,7 +103,7 @@ web_modules/
 # Allow production template
 !.env.production
 
-# Cloudflare Workers development variables (not needed for MCP proxy)
+# Development variables
 .dev.vars
 .dev.vars.*
 
@@ -173,8 +173,7 @@ dist
 .yarn/install-state.gz
 .pnp.\*
 
-# wrangler project
-
+# Build artifacts and cache
 .wrangler/
 
 # External documentation (from API projects)

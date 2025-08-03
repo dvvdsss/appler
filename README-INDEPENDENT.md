@@ -1,21 +1,22 @@
-# Apple RAG MCP Server - Independent Edition
+# Apple RAG MCP Server - VPS Edition
 
-Modern, self-contained MCP server with built-in RAG capabilities for Apple Developer Documentation.
+Modern, high-performance MCP server with built-in RAG capabilities for Apple Developer Documentation, optimized for VPS deployment.
 
 ## 🚀 Features
 
-- **Independent Operation**: No external API dependencies
+- **VPS Optimized**: No CPU time limits, full Node.js compatibility
 - **Built-in RAG**: Direct PostgreSQL + pgvector integration
-- **Modern Architecture**: TypeScript, optimized for Cloudflare Workers
+- **Modern Architecture**: TypeScript + Fastify + PM2 cluster
 - **MCP 2025-06-18 Compliant**: Full protocol support
 - **High Performance**: Vector search with SiliconFlow embeddings
 - **Production Ready**: Comprehensive error handling and logging
+- **Package Manager**: Modern pnpm for faster, more reliable builds
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────┐
-│           MCP Server                    │
+│         VPS MCP Server                  │
 │  ┌─────────────┐  ┌─────────────────┐  │
 │  │   RAG       │  │   Embedding     │  │
 │  │  Service    │  │   Service       │  │
@@ -36,28 +37,34 @@ Modern, self-contained MCP server with built-in RAG capabilities for Apple Devel
 
 ## 📋 Prerequisites
 
-1. **PostgreSQL Database** with pgvector extension
-2. **SiliconFlow API Key** for embedding generation
-3. **Cloudflare Workers** account with KV namespace
+1. **VPS Server** with Node.js 18+
+2. **PostgreSQL Database** with pgvector extension
+3. **SiliconFlow API Key** for embedding generation
+4. **pnpm** package manager
 
 ## 🔧 Environment Variables
 
-Add these to your `wrangler.toml` or Cloudflare dashboard:
+Create `.env` file with these variables:
 
-```toml
-[vars]
-ENVIRONMENT = "production"
-USE_HYBRID_SEARCH = "false"
-SILICONFLOW_TIMEOUT = "30"
-EMBEDDING_DB_PORT = "5432"
-EMBEDDING_DB_SSLMODE = "disable"
+```env
+# Server Configuration
+PORT=3001
+NODE_ENV=production
 
-# Add these as secrets:
-# SILICONFLOW_API_KEY = "your-siliconflow-api-key"
-# EMBEDDING_DB_HOST = "your-postgres-host"
-# EMBEDDING_DB_DATABASE = "your-database-name"
-# EMBEDDING_DB_USER = "your-username"
-# EMBEDDING_DB_PASSWORD = "your-password"
+# Database Configuration
+EMBEDDING_DB_HOST=your-postgres-host
+EMBEDDING_DB_PORT=5432
+EMBEDDING_DB_DATABASE=your-database-name
+EMBEDDING_DB_USER=your-username
+EMBEDDING_DB_PASSWORD=your-password
+EMBEDDING_DB_SSLMODE=disable
+
+# API Configuration
+SILICONFLOW_API_KEY=your-siliconflow-api-key
+SILICONFLOW_TIMEOUT=30
+
+# Feature Flags
+USE_HYBRID_SEARCH=false
 ```
 
 ## 🚀 Quick Start
@@ -67,18 +74,21 @@ EMBEDDING_DB_SSLMODE = "disable"
    pnpm install
    ```
 
-2. **Set up secrets:**
+2. **Configure environment:**
    ```bash
-   wrangler secret put SILICONFLOW_API_KEY
-   wrangler secret put EMBEDDING_DB_HOST
-   wrangler secret put EMBEDDING_DB_DATABASE
-   wrangler secret put EMBEDDING_DB_USER
-   wrangler secret put EMBEDDING_DB_PASSWORD
+   cp .env.example .env
+   # Edit .env with your configuration
    ```
 
-3. **Deploy:**
+3. **Build and start:**
    ```bash
-   pnpm run deploy
+   pnpm build
+   pnpm start
+   ```
+
+4. **Or use PM2 for production:**
+   ```bash
+   pnpm start:prod
    ```
 
 ## 🔍 Usage

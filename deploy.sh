@@ -42,23 +42,8 @@ fi
 
 log_success ".env file found"
 
-# Function to get secret from Cloudflare Workers (if available)
-get_cloudflare_secret() {
-    local secret_name=$1
-    if command -v wrangler &> /dev/null; then
-        log_info "Attempting to get $secret_name from Cloudflare Workers..."
-        # Note: This is a placeholder - wrangler doesn't support getting secret values
-        # In production, you would manually set this or use a different method
-        log_warning "Cloudflare secret retrieval not implemented - please set manually"
-        return 1
-    else
-        log_warning "Wrangler not found - skipping Cloudflare secret retrieval"
-        return 1
-    fi
-}
-
 # Check and update SILICONFLOW_API_KEY if it's a placeholder
-if grep -q "PLACEHOLDER_WILL_BE_SET_ON_VPS\|WILL_BE_SET_FROM_CLOUDFLARE_SECRETS" .env; then
+if grep -q "PLACEHOLDER_WILL_BE_SET_ON_VPS" .env; then
     log_warning "SiliconFlow API key needs to be set!"
     log_info "Please update the SILICONFLOW_API_KEY in .env file with your actual API key"
     log_info "You can get it from: https://cloud.siliconflow.cn/"
