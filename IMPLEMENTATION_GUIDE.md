@@ -165,29 +165,87 @@ const logger = process.env.NODE_ENV === 'production' ? {
 **输入验证**: 严格的参数验证和清理
 **错误处理**: 不泄露敏感信息的错误响应
 
+## 环境配置管理
+
+### 开发环境 vs 生产环境
+
+| 配置项 | 开发环境 (`.env`) | 生产环境 (`.env.production`) |
+|--------|------------------|------------------------------|
+| **NODE_ENV** | `development` | `production` |
+| **数据库主机** | `198.12.70.36` (远程) | `localhost` (本地) |
+| **端口** | `3001` | `3001` |
+| **会话密钥** | 开发密钥 | 生产密钥 |
+| **日志级别** | `debug` | `info` |
+
+### 环境文件说明
+
+- **`.env`**: 当前使用的环境配置（开发环境）
+- **`.env.production`**: 生产环境配置模板
+- **`ENVIRONMENT_CONFIG.md`**: 详细的环境配置说明
+
+### 生产环境配置步骤
+
+```bash
+# 1. 复制生产环境配置
+cp .env.production .env
+
+# 2. 编辑配置文件
+nano .env
+
+# 3. 确保以下配置正确：
+# NODE_ENV=production
+# EMBEDDING_DB_HOST=localhost
+# SILICONFLOW_API_KEY=your-actual-api-key
+```
+
 ## 部署和运维
 
 ### VPS 部署流程
+
+#### 方法一：使用 pnpm 脚本（推荐）
 
 ```bash
 # 1. 克隆代码
 git clone <repository>
 cd apple-rag-mcp
 
-# 2. 安装依赖
+# 2. 配置生产环境
+cp .env.production .env
+# 编辑 .env 文件，设置正确的数据库连接和 API 密钥
+
+# 3. 安装依赖
 pnpm install
 
-# 3. 构建项目
+# 4. 构建项目
 pnpm build
 
-# 4. 启动生产服务
+# 5. 启动生产服务（使用 PM2 集群模式）
 pnpm start:prod
 ```
+
+#### 方法二：使用部署脚本
+
+```bash
+# 1. 克隆代码
+git clone <repository>
+cd apple-rag-mcp
+
+# 2. 运行自动化部署脚本
+./deploy.sh
+```
+
+**注意**: `pnpm start:prod` 命令会自动执行以下操作：
+- 构建 TypeScript 项目 (`pnpm build`)
+- 使用 PM2 启动应用 (`pm2 start ecosystem.config.cjs --env production`)
+- 配置集群模式和生产环境优化
 
 ### PM2 集群管理
 
 ```bash
-# 启动集群
+# 启动集群（推荐使用 pnpm 脚本）
+pnpm start:prod
+
+# 或者直接使用 PM2
 pm2 start ecosystem.config.cjs --env production
 
 # 监控状态
@@ -199,6 +257,12 @@ pm2 logs apple-rag-mcp
 
 # 重启服务
 pm2 restart apple-rag-mcp
+
+# 停止服务
+pm2 stop apple-rag-mcp
+
+# 删除服务
+pm2 delete apple-rag-mcp
 ```
 
 ## 测试验证

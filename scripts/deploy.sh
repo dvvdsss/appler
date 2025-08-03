@@ -99,7 +99,7 @@ log_success "Existing processes stopped"
 
 # Start the application with PM2
 log_info "Starting application with PM2..."
-pm2 start ecosystem.config.js --env production
+pm2 start ecosystem.config.cjs --env production
 log_success "Application started with PM2"
 
 # Save PM2 configuration
@@ -127,5 +127,5 @@ echo "  📈 Monitor:       pm2 monit"
 echo "  🔍 Status:        pm2 status"
 
 echo ""
-log_success "🌐 Server should be running on http://localhost:3000"
-log_info "Health check: curl http://localhost:3000/health"
+log_success "🌐 Server should be running on http://localhost:3001"
+log_info "Health check: curl http://localhost:3001/health"
