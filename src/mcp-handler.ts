@@ -124,7 +124,7 @@ export class MCPHandler {
   private sessionService: SessionService;
   private authMiddleware: AuthMiddleware;
   private isInitialized = false;
-  private supportedProtocolVersion = '2024-11-05';
+  private supportedProtocolVersion = '2025-06-18';
   private sessions = new Map<string, SessionState>(); // Secure session tracking with user binding
   private activeRequests = new Map<string | number, RequestState>(); // Request cancellation tracking
   private pingConfig: PingConfig;

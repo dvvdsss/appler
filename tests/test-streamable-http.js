@@ -7,7 +7,7 @@
 import http from 'http';
 
 const baseUrl = 'http://localhost:3001';
-const protocolVersion = '2024-11-05';
+const protocolVersion = '2025-06-18';
 
 async function makeRequest(method, data, headers = {}) {
   return new Promise((resolve, reject) => {

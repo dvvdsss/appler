@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * Basic MCP Protocol Test
- * Simple test to verify MCP 2024-11-05 compliance
+ * Simple test to verify MCP 2025-06-18 compliance
  */
 
 import http from 'http';
 
 const baseUrl = 'http://localhost:3001';
-const protocolVersion = '2024-11-05';
+const protocolVersion = '2025-06-18';
 
 async function makeRequest(data) {
   return new Promise((resolve, reject) => {

@@ -8,7 +8,7 @@ import http from 'http';
 import postgres from 'postgres';
 
 const baseUrl = 'http://localhost:3001';
-const protocolVersion = '2024-11-05';
+const protocolVersion = '2025-06-18';
 
 // Mock embedding generation based on text content
 function generateMockEmbedding(text) {

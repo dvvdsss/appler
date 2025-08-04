@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * MCP Protocol Compliance Test
- * Tests the server against MCP 2024-11-05 specification
+ * Tests the server against MCP 2025-06-18 specification
  */
 
 interface MCPRequest {
@@ -20,7 +20,7 @@ interface MCPResponse {
 
 class MCPComplianceTest {
   private baseUrl: string;
-  private protocolVersion = '2024-11-05';
+  private protocolVersion = '2025-06-18';
 
   constructor(baseUrl = 'http://localhost:3001') {
     this.baseUrl = baseUrl;
@@ -207,7 +207,7 @@ class MCPComplianceTest {
   }
 
   async runAllTests(): Promise<void> {
-    console.log('🚀 Starting MCP 2024-11-05 Compliance Tests\n');
+    console.log('🚀 Starting MCP 2025-06-18 Compliance Tests\n');
     
     const tests = [
       { name: 'Initialization', test: () => this.testInitialization() },
@@ -241,7 +241,7 @@ class MCPComplianceTest {
     console.log(`   📋 Total: ${passed + failed}`);
     
     if (failed === 0) {
-      console.log('\n🎉 All tests passed! Server is MCP 2024-11-05 compliant.');
+      console.log('\n🎉 All tests passed! Server is MCP 2025-06-18 compliant.');
     } else {
       console.log('\n⚠️  Some tests failed. Please review the implementation.');
       process.exit(1);

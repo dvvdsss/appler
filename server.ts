@@ -1,5 +1,5 @@
 /**
- * Apple RAG MCP Server - MCP 2024-11-05 Compliant
+ * Apple RAG MCP Server - MCP 2025-06-18 Compliant
  * High-performance VPS deployment with complete protocol support
  */
 
@@ -142,7 +142,7 @@ server.get('/health', async () => ({
   timestamp: new Date().toISOString(),
   environment: appConfig.NODE_ENV,
   version: '2.0.0',
-  protocolVersion: '2024-11-05',
+  protocolVersion: '2025-06-18',
   authorization: 'enabled'
 }));
 
@@ -188,7 +188,7 @@ const start = async () => {
     server.log.info(`🚀 Apple RAG MCP Server started`);
     server.log.info(`📡 Listening on http://0.0.0.0:${appConfig.PORT}`);
     server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
-    server.log.info(`📋 Protocol Version: 2024-11-05`);
+    server.log.info(`📋 Protocol Version: 2025-06-18`);
     server.log.info(`🔧 MCP Compliant: ✅`);
   } catch (error) {
     server.log.fatal('Failed to start server:', error);
