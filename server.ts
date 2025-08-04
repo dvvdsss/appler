@@ -58,6 +58,10 @@ server.options('/', async (_request, reply) => {
   reply.code(204).send();
 });
 
+server.options('/manifest', async (_request, reply) => {
+  reply.code(204).send();
+});
+
 // MCP protocol endpoint - supports GET, POST, DELETE as per Streamable HTTP spec
 server.get('/', async (request, reply) => {
   return mcpHandler.handle(request, reply);

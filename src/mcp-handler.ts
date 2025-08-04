@@ -222,18 +222,70 @@ export class MCPHandler {
         return;
       }
 
-      // Handle GET requests (for SSE streams - but we return 405 as we don't support SSE)
+      // Handle GET requests (for server info or SSE streams)
       if (request.method === 'GET') {
         const acceptHeader = request.headers.accept || '';
+
+        // If client wants SSE, we don't support it
         if (acceptHeader.includes('text/event-stream')) {
-          // We don't support SSE, return 405 Method Not Allowed
           reply.code(405).header('Allow', 'POST, OPTIONS').send({
             error: 'SSE not supported. Use POST with application/json.'
           });
           return;
         }
-        // Invalid GET request without SSE accept header
-        return this.sendError(reply, 'GET requests must include text/event-stream in Accept header', -32600, startTime);
+
+        // For regular GET requests, return server information (like manifest)
+        const serverInfo = {
+          name: 'Apple RAG MCP Server',
+          title: 'Apple Developer Documentation RAG Search',
+          version: '2.0.0',
+          description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
+          protocolVersion: this.supportedProtocolVersion,
+          capabilities: {
+            tools: {
+              listChanged: true
+            },
+            logging: {},
+            experimental: {}
+          },
+          serverInfo: {
+            name: 'Apple RAG MCP Server',
+            title: 'Apple Developer Documentation RAG Search',
+            version: '2.0.0'
+          },
+          endpoints: {
+            mcp: '/',
+            manifest: '/manifest',
+            health: '/health',
+            oauth: {
+              authorize: '/oauth/authorize',
+              token: '/oauth/token',
+              introspect: '/oauth/introspect',
+              jwks: '/oauth/jwks'
+            },
+            wellKnown: {
+              oauthProtectedResource: '/.well-known/oauth-protected-resource',
+              oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
+            }
+          },
+          transport: {
+            type: 'http',
+            methods: ['GET', 'POST', 'DELETE'],
+            headers: {
+              required: ['Content-Type'],
+              optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
+            }
+          },
+          authorization: {
+            enabled: true,
+            type: 'oauth2.1',
+            optional: true,
+            scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
+          }
+        };
+
+        reply.code(200).send(serverInfo);
+        return;
       }
 
       // Handle DELETE requests (session termination)
@@ -384,7 +436,7 @@ export class MCPHandler {
 
     // Security: create session state with user binding and connection health
     const sessionState: SessionState = {
-      initialized: false,
+      initialized: true, // Set to true after successful initialization
       userId: authContext.isAuthenticated ? authContext.subject : undefined,
       createdAt: now,
       lastActivity: now,
