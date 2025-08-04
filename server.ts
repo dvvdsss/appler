@@ -136,6 +136,59 @@ server.post('/demo/generate-token', async (request, reply) => {
   reply.code(200).send({ access_token: token, token_type: 'Bearer', expires_in: 3600 });
 });
 
+// MCP Manifest endpoint - for client discovery
+server.get('/manifest', async (_request, reply) => {
+  const manifest = {
+    name: 'Apple RAG MCP Server',
+    title: 'Apple Developer Documentation RAG Search',
+    version: '2.0.0',
+    description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
+    protocolVersion: '2025-06-18',
+    capabilities: {
+      tools: {
+        listChanged: true
+      },
+      logging: {},
+      experimental: {}
+    },
+    serverInfo: {
+      name: 'Apple RAG MCP Server',
+      title: 'Apple Developer Documentation RAG Search',
+      version: '2.0.0'
+    },
+    endpoints: {
+      mcp: '/',
+      health: '/health',
+      oauth: {
+        authorize: '/oauth/authorize',
+        token: '/oauth/token',
+        introspect: '/oauth/introspect',
+        jwks: '/oauth/jwks'
+      },
+      wellKnown: {
+        oauthProtectedResource: '/.well-known/oauth-protected-resource',
+        oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
+      }
+    },
+    transport: {
+      type: 'http',
+      methods: ['GET', 'POST', 'DELETE'],
+      headers: {
+        required: ['Content-Type'],
+        optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
+      }
+    },
+    authorization: {
+      enabled: true,
+      type: 'oauth2.1',
+      optional: true,
+      scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
+    }
+  };
+
+  reply.code(200).send(manifest);
+});
+
 // Health check endpoint
 server.get('/health', async () => ({
   status: 'healthy',
