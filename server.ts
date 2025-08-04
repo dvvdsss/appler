@@ -58,6 +58,7 @@ server.options('/', async (_request, reply) => {
   reply.code(204).send();
 });
 
+// CORS preflight for manifest endpoint
 server.options('/manifest', async (_request, reply) => {
   reply.code(204).send();
 });
@@ -140,57 +141,86 @@ server.post('/demo/generate-token', async (request, reply) => {
   reply.code(200).send({ access_token: token, token_type: 'Bearer', expires_in: 3600 });
 });
 
-// MCP Manifest endpoint - for client discovery
-server.get('/manifest', async (_request, reply) => {
-  const manifest = {
+// Shared manifest data
+const manifestData = {
+  name: 'Apple RAG MCP Server',
+  title: 'Apple Developer Documentation RAG Search',
+  version: '2.0.0',
+  description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
+  protocolVersion: '2025-06-18',
+  capabilities: {
+    tools: { listChanged: true },
+    logging: {},
+    experimental: {}
+  },
+  serverInfo: {
     name: 'Apple RAG MCP Server',
     title: 'Apple Developer Documentation RAG Search',
-    version: '2.0.0',
-    description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
-    protocolVersion: '2025-06-18',
-    capabilities: {
-      tools: {
-        listChanged: true
-      },
-      logging: {},
-      experimental: {}
+    version: '2.0.0'
+  },
+  endpoints: {
+    mcp: '/',
+    manifest: '/manifest',
+    health: '/health',
+    oauth: {
+      authorize: '/oauth/authorize',
+      token: '/oauth/token',
+      introspect: '/oauth/introspect',
+      jwks: '/oauth/jwks'
     },
-    serverInfo: {
-      name: 'Apple RAG MCP Server',
-      title: 'Apple Developer Documentation RAG Search',
-      version: '2.0.0'
-    },
-    endpoints: {
-      mcp: '/',
-      health: '/health',
-      oauth: {
-        authorize: '/oauth/authorize',
-        token: '/oauth/token',
-        introspect: '/oauth/introspect',
-        jwks: '/oauth/jwks'
-      },
-      wellKnown: {
-        oauthProtectedResource: '/.well-known/oauth-protected-resource',
-        oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
-      }
-    },
-    transport: {
-      type: 'http',
-      methods: ['GET', 'POST', 'DELETE'],
-      headers: {
-        required: ['Content-Type'],
-        optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
-      }
-    },
-    authorization: {
-      enabled: true,
-      type: 'oauth2.1',
-      optional: true,
-      scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
+    wellKnown: {
+      oauthProtectedResource: '/.well-known/oauth-protected-resource',
+      oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
     }
-  };
+  },
+  transport: {
+    type: 'http',
+    methods: ['GET', 'POST', 'DELETE'],
+    headers: {
+      required: ['Content-Type'],
+      optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
+    }
+  },
+  authorization: {
+    enabled: true,
+    type: 'oauth2.1',
+    optional: true,
+    scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
+  }
+};
 
-  reply.code(200).send(manifest);
+// Standard manifest endpoint
+server.get('/manifest', async (_request, reply) => {
+  reply.code(200).send(manifestData);
+});
+
+// Client compatibility: Handle non-standard POST /manifest requests
+server.post('/manifest', async (request, reply) => {
+  const body = request.body as any;
+
+  // Empty body → return manifest (common client behavior)
+  if (!body || Object.keys(body).length === 0) {
+    return reply.code(200).send(manifestData);
+  }
+
+  // MCP request to wrong endpoint → redirect to correct endpoint
+  if (body.jsonrpc === '2.0' && body.method) {
+    return reply.code(307).header('Location', '/').send({
+      error: 'Endpoint redirect',
+      message: 'MCP protocol requests should be sent to /',
+      redirect: '/'
+    });
+  }
+
+  // Any other POST data → helpful error
+  reply.code(400).send({
+    error: 'Invalid manifest request',
+    message: 'Use GET /manifest for server discovery or POST / for MCP communication',
+    endpoints: {
+      manifest: 'GET /manifest',
+      mcp: 'POST /'
+    }
+  });
 });
 
 // Health check endpoint

@@ -222,29 +222,26 @@ export class MCPHandler {
         return;
       }
 
-      // Handle GET requests (for server info or SSE streams)
+      // Handle GET requests - return server info or reject SSE
       if (request.method === 'GET') {
         const acceptHeader = request.headers.accept || '';
 
-        // If client wants SSE, we don't support it
+        // Reject SSE requests (not supported)
         if (acceptHeader.includes('text/event-stream')) {
-          reply.code(405).header('Allow', 'POST, OPTIONS').send({
+          return reply.code(405).header('Allow', 'POST, OPTIONS').send({
             error: 'SSE not supported. Use POST with application/json.'
           });
-          return;
         }
 
-        // For regular GET requests, return server information (like manifest)
-        const serverInfo = {
+        // Return server info (same as manifest)
+        return reply.code(200).send({
           name: 'Apple RAG MCP Server',
           title: 'Apple Developer Documentation RAG Search',
           version: '2.0.0',
           description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
           protocolVersion: this.supportedProtocolVersion,
           capabilities: {
-            tools: {
-              listChanged: true
-            },
+            tools: { listChanged: true },
             logging: {},
             experimental: {}
           },
@@ -256,36 +253,18 @@ export class MCPHandler {
           endpoints: {
             mcp: '/',
             manifest: '/manifest',
-            health: '/health',
-            oauth: {
-              authorize: '/oauth/authorize',
-              token: '/oauth/token',
-              introspect: '/oauth/introspect',
-              jwks: '/oauth/jwks'
-            },
-            wellKnown: {
-              oauthProtectedResource: '/.well-known/oauth-protected-resource',
-              oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
-            }
+            health: '/health'
           },
           transport: {
             type: 'http',
-            methods: ['GET', 'POST', 'DELETE'],
-            headers: {
-              required: ['Content-Type'],
-              optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
-            }
+            methods: ['GET', 'POST', 'DELETE']
           },
           authorization: {
             enabled: true,
             type: 'oauth2.1',
-            optional: true,
-            scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
+            optional: true
           }
-        };
-
-        reply.code(200).send(serverInfo);
-        return;
+        });
       }
 
       // Handle DELETE requests (session termination)
