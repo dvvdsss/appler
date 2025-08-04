@@ -137,13 +137,13 @@ export class MCPHandler {
     this.sessionService = new SessionService(config);
     this.authMiddleware = new AuthMiddleware(baseUrl);
 
-    // Initialize ping configuration
+    // Initialize ping configuration - More lenient for HTTP-based MCP clients
     this.pingConfig = {
       enabled: true,
-      interval: 30000, // 30 seconds
-      timeout: 5000, // 5 seconds
-      maxFailures: 3,
-      enableActiveProbing: true
+      interval: 60000, // 60 seconds (longer interval)
+      timeout: 30000, // 30 seconds (longer timeout)
+      maxFailures: 5, // More failures allowed
+      enableActiveProbing: false // Disable active probing for HTTP clients
     };
 
     // Initialize progress configuration with templates
@@ -970,12 +970,12 @@ export class MCPHandler {
   }
 
   /**
-   * Check if session is expired
+   * Check if session is expired - More lenient for HTTP clients
    */
   private isSessionExpired(sessionState: SessionState): boolean {
     const now = Date.now();
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-    const maxInactivity = 2 * 60 * 60 * 1000; // 2 hours
+    const maxInactivity = 4 * 60 * 60 * 1000; // 4 hours (more lenient)
 
     return (now - sessionState.createdAt > maxAge) ||
            (now - sessionState.lastActivity > maxInactivity);
@@ -1200,9 +1200,11 @@ export class MCPHandler {
       timeSinceLastActivity: now - sessionState.lastActivity
     });
 
-    // Check if session has been inactive for too long
+    // Check if session has been inactive for too long (more lenient for HTTP clients)
     const inactiveTime = now - sessionState.lastActivity;
-    if (inactiveTime > this.pingConfig.timeout * 3) {
+    const maxInactiveTime = 10 * 60 * 1000; // 10 minutes for HTTP clients
+
+    if (inactiveTime > maxInactiveTime) {
       sessionState.connectionHealth.isAlive = false;
       sessionState.connectionHealth.failedPings++;
 
@@ -1212,7 +1214,7 @@ export class MCPHandler {
         failedPings: sessionState.connectionHealth.failedPings
       });
 
-      // Terminate session if too many failures
+      // Terminate session if too many failures (more lenient)
       if (sessionState.connectionHealth.failedPings >= this.pingConfig.maxFailures) {
         logger.info('Terminating inactive session', {
           sessionId,
@@ -1235,15 +1237,17 @@ export class MCPHandler {
 
     for (const [sessionId, sessionState] of this.sessions.entries()) {
       const timeSinceLastActivity = now - sessionState.lastActivity;
-      const isHealthy = sessionState.connectionHealth.isAlive &&
-                       timeSinceLastActivity < (this.pingConfig.timeout * 2);
+      const maxHealthyInactivity = 15 * 60 * 1000; // 15 minutes for HTTP clients
+      const isHealthy = timeSinceLastActivity < maxHealthyInactivity;
 
       if (isHealthy) {
         healthySessions++;
+        // Keep session alive if it's been active recently
+        sessionState.connectionHealth.isAlive = true;
       } else {
         unhealthySessions++;
 
-        // Mark as unhealthy
+        // Mark as unhealthy only if really inactive
         sessionState.connectionHealth.isAlive = false;
 
         logger.debug('Unhealthy session detected', {
