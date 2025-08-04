@@ -8,9 +8,9 @@ module.exports = {
     name: 'apple-rag-mcp',
     script: 'dist/server.js',
     
-    // Clustering Configuration
-    instances: 'max',           // Use all CPU cores
-    exec_mode: 'cluster',       // Enable cluster mode
+    // Single Instance Configuration (Fixed: Session sharing issue)
+    instances: 1,               // Single instance for session consistency
+    exec_mode: 'fork',          // Fork mode for single instance
     
     // Environment Configuration
     // Note: NODE_ENV will be loaded from .env file
