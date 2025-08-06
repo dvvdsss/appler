@@ -80,10 +80,15 @@ export class RAGService {
     console.log(`✅ Validation Passed (${Date.now() - validationStart}ms)`);
 
     try {
-      // Initialize services
+      // Initialize services (if not already initialized)
       const initStart = Date.now();
       await this.initialize();
-      console.log(`🔧 Services Initialized (${Date.now() - initStart}ms)`);
+      const initTime = Date.now() - initStart;
+      if (initTime > 0) {
+        console.log(`🔧 Services Initialized (${initTime}ms)`);
+      } else {
+        console.log(`🔧 Services Already Initialized (0ms)`);
+      }
 
       if (!this.searchEngine) {
         throw new Error("Search engine not initialized");

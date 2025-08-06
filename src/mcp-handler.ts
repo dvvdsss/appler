@@ -123,6 +123,7 @@ export class MCPHandler {
   private sessionService: SessionService;
   private authMiddleware: AuthMiddleware;
   private isInitialized = false;
+  private ragInitialized = false;
   private supportedProtocolVersion = '2025-06-18';
   private sessions = new Map<string, SessionState>(); // Secure session tracking with user binding
   private activeRequests = new Map<string | number, RequestState>(); // Request cancellation tracking
@@ -134,6 +135,9 @@ export class MCPHandler {
   constructor(config: AppConfig, baseUrl: string) {
     this.ragService = new RAGService(config);
     this.sessionService = new SessionService(config);
+
+    // Pre-initialize RAG service for optimal performance
+    this.preInitializeRAGService();
 
     // Create Cloudflare D1 configuration for token validation
     const d1Config = {
@@ -190,6 +194,51 @@ export class MCPHandler {
     setInterval(() => this.cleanupCompletedRequests(), 60000); // 1 minute
     setInterval(() => this.performHealthChecks(), 60000); // 1 minute
     setInterval(() => this.cleanupCompletedProgress(), 60000); // 1 minute
+  }
+
+  /**
+   * Pre-initialize RAG service for optimal performance
+   */
+  private async preInitializeRAGService(): Promise<void> {
+    try {
+      const initStart = Date.now();
+      logger.info('Pre-initializing RAG service for optimal performance...');
+
+      await this.ragService.initialize();
+      this.ragInitialized = true;
+
+      logger.info('RAG service pre-initialization completed', {
+        initializationTime: Date.now() - initStart
+      });
+    } catch (error) {
+      logger.error('RAG service pre-initialization failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Don't throw - allow server to start even if RAG pre-init fails
+      // RAG service will attempt initialization on first query
+    }
+  }
+
+  /**
+   * Wait for RAG service initialization to complete
+   */
+  async waitForRAGInitialization(): Promise<void> {
+    // If already initialized, return immediately
+    if (this.ragInitialized) {
+      return;
+    }
+
+    // Wait for initialization with timeout
+    const timeout = 30000; // 30 seconds timeout
+    const startTime = Date.now();
+
+    while (!this.ragInitialized && (Date.now() - startTime) < timeout) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
+    }
+
+    if (!this.ragInitialized) {
+      logger.warn('RAG service pre-initialization did not complete within timeout');
+    }
   }
 
   /**
@@ -621,8 +670,8 @@ export class MCPHandler {
 
       const matchCount = Math.min(Math.max(args.match_count || 5, 1), 20);
 
-      // Get or create session
-      const session = await this.getOrCreateSession(httpRequest);
+      // Get or create session with authentication context
+      const session = await this.getOrCreateSession(httpRequest, authContext);
 
       // Get abort signal for cancellation support
       const abortSignal = request.id !== undefined ? this.getRequestAbortSignal(request.id) : undefined;
@@ -800,18 +849,53 @@ export class MCPHandler {
   }
 
   /**
-   * Get or create user session
+   * Get user information from API database
    */
-  private async getOrCreateSession(_request: FastifyRequest): Promise<any> {
-    // For demo purposes, create a default user
-    const defaultUser: UserContext = {
-      userId: 'demo-user',
-      username: 'Demo User',
-      tier: 'premium',
-      created_at: new Date().toISOString()
-    };
+  private async getUserInfo(userId: string): Promise<UserContext> {
+    try {
+      // Query user information from API database via token validator
+      const userToken = await this.authMiddleware.getUserTokenData(userId);
 
-    return this.sessionService.createSession(defaultUser);
+      return {
+        userId: userToken.userId,
+        username: userToken.name,
+        tier: userToken.tier,
+        created_at: new Date().toISOString()
+      };
+    } catch (error) {
+      logger.warn('Failed to get user info, using fallback', {
+        userId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      // Fallback to basic user info
+      return {
+        userId,
+        username: 'User',
+        tier: 'free',
+        created_at: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get or create user session based on authentication context
+   */
+  private async getOrCreateSession(_request: FastifyRequest, authContext: AuthContext): Promise<any> {
+    if (authContext.isAuthenticated && authContext.subject) {
+      // Create session for authenticated user
+      const userInfo = await this.getUserInfo(authContext.subject);
+      return this.sessionService.createSession(userInfo);
+    } else {
+      // Create anonymous session for unauthenticated access
+      const anonymousUser: UserContext = {
+        userId: `anon_${crypto.randomUUID()}`,
+        username: 'Anonymous User',
+        tier: 'free',
+        created_at: new Date().toISOString()
+      };
+      return this.sessionService.createSession(anonymousUser);
+    }
   }
 
   /**

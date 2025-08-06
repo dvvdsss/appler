@@ -220,4 +220,11 @@ export class AuthMiddleware {
   getTokenValidator(): TokenValidator {
     return this.tokenValidator;
   }
+
+  /**
+   * Get user token data by user ID
+   */
+  async getUserTokenData(userId: string): Promise<any> {
+    return await this.tokenValidator.getUserTokenData(userId);
+  }
 }

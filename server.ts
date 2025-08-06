@@ -37,6 +37,7 @@ const appConfig = loadConfig();
 const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
 
 // Initialize MCP handler with base URL for OAuth and API integration
+console.log('🔧 Initializing MCP handler with RAG pre-initialization...');
 const mcpHandler = new MCPHandler(appConfig, baseUrl);
 
 // Register CORS and security headers
@@ -283,6 +284,11 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const start = async () => {
   try {
+    // Wait for RAG service pre-initialization to complete
+    console.log('🔧 Waiting for RAG service pre-initialization...');
+    await mcpHandler.waitForRAGInitialization();
+    console.log('✅ RAG service pre-initialization completed');
+
     await server.listen({
       port: appConfig.PORT,
       host: '0.0.0.0'
@@ -293,6 +299,7 @@ const start = async () => {
     server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
     server.log.info(`📋 Protocol Version: 2025-06-18`);
     server.log.info(`🔧 MCP Compliant: ✅`);
+    server.log.info(`🎯 RAG Service: Pre-initialized and ready`);
   } catch (error) {
     console.error('Failed to start server:', error);
     server.log.fatal('Failed to start server:', error);

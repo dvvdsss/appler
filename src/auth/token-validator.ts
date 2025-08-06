@@ -303,4 +303,52 @@ export class TokenValidator {
     this.tokenCache.clear();
     logger.info('Token cache cleared');
   }
+
+  /**
+   * Get user token data by user ID
+   */
+  async getUserTokenData(userId: string): Promise<UserTokenData> {
+    try {
+      // Query user information from Cloudflare D1
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${this.d1Config.accountId}/d1/database/${this.d1Config.databaseId}/query`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.d1Config.apiToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sql: 'SELECT id, email, name, tier FROM users WHERE id = ?',
+            params: [userId]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`D1 API error: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+
+      if (!data.success || !data.result?.[0]?.results?.length) {
+        throw new Error('User not found');
+      }
+
+      const user = data.result[0].results[0];
+
+      return {
+        userId: user.id,
+        email: user.email,
+        name: user.name || user.email.split('@')[0],
+        tier: user.tier || 'free'
+      };
+    } catch (error) {
+      logger.error('Failed to get user token data', {
+        userId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
 }
