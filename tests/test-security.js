@@ -71,7 +71,7 @@ async function testSessionHijackingPrevention() {
   
   try {
     // Create session with user A
-    const userAToken = 'demo-admin-token-12345';
+    const userAToken = process.env.TEST_ADMIN_TOKEN || 'test-admin-token';
     const initResponseA = await makeRequest('POST', '/', {
       jsonrpc: '2.0',
       id: 1,
@@ -102,7 +102,7 @@ async function testSessionHijackingPrevention() {
     });
 
     // Try to hijack session with different user (user B)
-    const userBToken = 'demo-readonly-token-67890';
+    const userBToken = process.env.TEST_READONLY_TOKEN || 'test-readonly-token';
     const hijackResponse = await makeRequest('POST', '/', {
       jsonrpc: '2.0',
       id: 2,

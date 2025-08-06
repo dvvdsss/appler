@@ -95,7 +95,6 @@ web_modules/
 # dotenv environment variable files - COMPLETELY EXCLUDED FROM GIT
 
 .env
-.env.*
 .env.development
 .env.production
 .env.development.local

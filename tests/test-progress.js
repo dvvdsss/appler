@@ -193,7 +193,7 @@ async function testAdminStatsProgress() {
   console.log('🧪 Testing Admin Stats Progress Tracking...');
   
   try {
-    const token = 'demo-admin-token-12345';
+    const token = process.env.TEST_ADMIN_TOKEN || 'test-admin-token';
     
     // Initialize session with admin token
     const initResponse = await makeRequest('POST', '/', {

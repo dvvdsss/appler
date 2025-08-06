@@ -212,7 +212,7 @@ async function testPingWithAuthentication() {
   console.log('🧪 Testing Ping with Authentication...');
   
   try {
-    const token = 'demo-admin-token-12345';
+    const token = process.env.TEST_ADMIN_TOKEN || 'test-token';
     
     const startTime = Date.now();
     
