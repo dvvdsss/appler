@@ -92,16 +92,16 @@ web_modules/
 
 .yarn-integrity
 
-# dotenv environment variable files
+# dotenv environment variable files - COMPLETELY EXCLUDED FROM GIT
 
 .env
+.env.*
+.env.development
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
-
-# Allow production template
-!.env.production
 
 # Development variables
 .dev.vars
