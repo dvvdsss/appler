@@ -16,12 +16,16 @@ module.exports = {
     // Note: NODE_ENV will be loaded from .env file
     // PM2 will use the .env file in the project directory
     env: {
+      NODE_ENV: 'development',
       PORT: 3001,
     },
     env_production: {
       NODE_ENV: 'production',
       PORT: 3001,
     },
+
+    // Environment file configuration
+    env_file: '.env.production',
     
     // Performance Configuration
     max_memory_restart: '1G',   // Restart if memory exceeds 1GB

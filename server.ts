@@ -8,8 +8,9 @@ import { config } from 'dotenv';
 import { MCPHandler } from './src/mcp-handler.js';
 import { loadConfig } from './src/config.js';
 
-// Load environment variables
-config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+config({ path: envFile });
 
 // Initialize Fastify with production-optimized settings
 const server = fastify({

@@ -21,13 +21,21 @@ export class DatabaseService {
         database: config.EMBEDDING_DB_DATABASE,
         username: config.EMBEDDING_DB_USER,
         password: config.EMBEDDING_DB_PASSWORD,
-        ssl: config.EMBEDDING_DB_SSLMODE === "require" ? "require" : false,
+        ssl: config.EMBEDDING_DB_SSLMODE === "require" ? {
+          rejectUnauthorized: false,  // Allow self-signed certificates
+          checkServerIdentity: () => undefined,  // Skip hostname verification
+        } : false,
 
-        // VPS Performance Optimizations
+        // Local Database Performance Optimizations
         max: 20,                    // Increased connection pool for VPS
         idle_timeout: 300000,       // 5 minutes idle timeout
-        connect_timeout: 10000,     // 10 seconds connect timeout
+        connect_timeout: 5000,      // 5 seconds connect timeout (optimized for localhost)
         prepare: true,              // Enable prepared statements
+
+        // Connection retry configuration
+        connection: {
+          application_name: 'apple-rag-mcp',
+        },
 
         // Transform configuration
         transform: {
@@ -43,12 +51,45 @@ export class DatabaseService {
 
       logger.info('Database service initialized', {
         host: config.EMBEDDING_DB_HOST,
+        port: config.EMBEDDING_DB_PORT,
         database: config.EMBEDDING_DB_DATABASE,
-        ssl: config.EMBEDDING_DB_SSLMODE
+        user: config.EMBEDDING_DB_USER,
+        ssl: config.EMBEDDING_DB_SSLMODE,
+        maxConnections: 20,
+        connectTimeout: 30000
       });
     } catch (error) {
       logger.error('Failed to create database connection:', { error: error instanceof Error ? error.message : String(error) });
       throw new Error(`Database connection failed: ${error}`);
+    }
+  }
+
+  /**
+   * Test database connection
+   */
+  private async testConnection(retries = 3): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🔌 Testing Database Connection (Attempt ${attempt}/${retries})...`);
+        const testStart = Date.now();
+
+        // Simple connection test
+        await this.sql`SELECT 1 as test`;
+
+        console.log(`✅ Database Connection Test Successful (${Date.now() - testStart}ms)`);
+        return;
+      } catch (error) {
+        console.log(`❌ Database Connection Test Failed (Attempt ${attempt}/${retries}): ${error}`);
+
+        if (attempt === retries) {
+          throw new Error(`Database connection failed after ${retries} attempts: ${error}`);
+        }
+
+        // Wait before retry (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -65,6 +106,9 @@ export class DatabaseService {
     console.log(`🗄️ Database Initialization Started...`);
 
     try {
+      // Test connection first
+      await this.testConnection();
+
       // Enable pgvector extension
       const extensionStart = Date.now();
       await this.sql`CREATE EXTENSION IF NOT EXISTS vector`;
