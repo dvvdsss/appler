@@ -48,13 +48,6 @@ export class TokenValidator {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.d1Config = d1Config;
 
-    // DEBUG: Log the D1 configuration being used
-    console.log('🔍 TokenValidator initialized with D1 config:', {
-      accountId: d1Config.accountId?.substring(0, 8) + '...',
-      databaseId: d1Config.databaseId?.substring(0, 8) + '...',
-      hasApiToken: !!d1Config.apiToken
-    });
-
     // Start cache cleanup timer
     setInterval(() => this.cleanupExpiredCache(), 60000);
   }
