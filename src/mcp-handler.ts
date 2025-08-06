@@ -50,7 +50,6 @@ interface UserContext {
   username: string;
   tier: string;
   created_at: string;
-  is_active: boolean;
 }
 
 interface SessionState {
@@ -135,7 +134,15 @@ export class MCPHandler {
   constructor(config: AppConfig, baseUrl: string) {
     this.ragService = new RAGService(config);
     this.sessionService = new SessionService(config);
-    this.authMiddleware = new AuthMiddleware(baseUrl);
+
+    // Create Cloudflare D1 configuration for token validation
+    const d1Config = {
+      accountId: config.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: config.CLOUDFLARE_API_TOKEN,
+      databaseId: config.CLOUDFLARE_D1_DATABASE_ID
+    };
+
+    this.authMiddleware = new AuthMiddleware(baseUrl, d1Config);
 
     // Initialize ping configuration - More lenient for HTTP-based MCP clients
     this.pingConfig = {
@@ -801,8 +808,7 @@ export class MCPHandler {
       userId: 'demo-user',
       username: 'Demo User',
       tier: 'premium',
-      created_at: new Date().toISOString(),
-      is_active: true
+      created_at: new Date().toISOString()
     };
 
     return this.sessionService.createSession(defaultUser);

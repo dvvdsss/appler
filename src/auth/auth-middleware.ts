@@ -4,7 +4,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { TokenValidator } from './token-validator.js';
+import { TokenValidator, CloudflareD1Config } from './token-validator.js';
 import { OAuthMetadataService } from './oauth-metadata.js';
 import { logger } from '../logger.js';
 
@@ -20,8 +20,8 @@ export class AuthMiddleware {
   private tokenValidator: TokenValidator;
   private metadataService: OAuthMetadataService;
 
-  constructor(baseUrl: string) {
-    this.tokenValidator = new TokenValidator(baseUrl);
+  constructor(baseUrl: string, d1Config: CloudflareD1Config) {
+    this.tokenValidator = new TokenValidator(baseUrl, d1Config);
     this.metadataService = new OAuthMetadataService(baseUrl);
   }
 

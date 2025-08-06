@@ -35,7 +35,7 @@ const appConfig = loadConfig();
 // Determine base URL for OAuth metadata
 const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
 
-// Initialize MCP handler with base URL for OAuth
+// Initialize MCP handler with base URL for OAuth and API integration
 const mcpHandler = new MCPHandler(appConfig, baseUrl);
 
 // Register CORS and security headers
@@ -88,25 +88,25 @@ server.get('/.well-known/oauth-authorization-server', async (_request, reply) =>
   reply.code(200).send(metadata);
 });
 
-// OAuth endpoints (simplified implementation for demo)
+// OAuth endpoints (not implemented - tokens managed via apple-rag-api)
 server.get('/oauth/authorize', async (_request, reply) => {
   reply.code(501).send({
     error: 'not_implemented',
-    error_description: 'Authorization endpoint not implemented in this demo. Use demo tokens for testing.'
+    error_description: 'OAuth authorization is handled by apple-rag-api. Please use the web interface to manage tokens.'
   });
 });
 
 server.post('/oauth/token', async (_request, reply) => {
   reply.code(501).send({
     error: 'not_implemented',
-    error_description: 'Token endpoint not implemented in this demo. Use demo tokens for testing.'
+    error_description: 'Token issuance is handled by apple-rag-api. Please use the web interface to create MCP tokens.'
   });
 });
 
 server.get('/oauth/jwks', async (_request, reply) => {
   reply.code(501).send({
     error: 'not_implemented',
-    error_description: 'JWKS endpoint not implemented in this demo.'
+    error_description: 'JWKS endpoint not available. MCP tokens are validated directly with Cloudflare.'
   });
 });
 
@@ -116,8 +116,19 @@ server.post('/oauth/introspect', async (request, reply) => {
     return reply.code(400).send({ error: 'invalid_request', error_description: 'Missing token parameter' });
   }
 
-  const result = await mcpHandler.getAuthMiddleware().getTokenValidator().introspectToken(token);
-  reply.code(200).send(result);
+  const result = await mcpHandler.getAuthMiddleware().getTokenValidator().validateToken(token);
+  reply.code(200).send({
+    active: result.valid,
+    scope: result.claims?.scope,
+    client_id: result.claims?.client_id,
+    username: result.claims?.sub,
+    exp: result.claims?.exp,
+    iat: result.claims?.iat,
+    sub: result.claims?.sub,
+    aud: result.claims?.aud,
+    iss: result.claims?.iss,
+    jti: result.claims?.jti
+  });
 });
 
 server.post('/oauth/revoke', async (request, reply) => {
@@ -130,15 +141,19 @@ server.post('/oauth/revoke', async (request, reply) => {
   reply.code(success ? 200 : 400).send(success ? {} : { error: 'invalid_token' });
 });
 
-// Demo token generation endpoint (for testing only)
-server.post('/demo/generate-token', async (request, reply) => {
-  const { subject, scopes } = request.body as any;
-  if (!subject || !scopes) {
-    return reply.code(400).send({ error: 'Missing subject or scopes' });
-  }
+// Token management endpoints (handled by apple-rag-api)
+server.post('/tokens', async (_request, reply) => {
+  reply.code(501).send({
+    error: 'not_implemented',
+    error_description: 'Token management is handled by apple-rag-api. Please use the web interface.'
+  });
+});
 
-  const token = mcpHandler.getAuthMiddleware().getTokenValidator().generateDemoToken(subject, scopes);
-  reply.code(200).send({ access_token: token, token_type: 'Bearer', expires_in: 3600 });
+server.get('/tokens', async (_request, reply) => {
+  reply.code(501).send({
+    error: 'not_implemented',
+    error_description: 'Token listing is handled by apple-rag-api. Please use the web interface.'
+  });
 });
 
 // Shared manifest data
@@ -278,6 +293,7 @@ const start = async () => {
     server.log.info(`📋 Protocol Version: 2025-06-18`);
     server.log.info(`🔧 MCP Compliant: ✅`);
   } catch (error) {
+    console.error('Failed to start server:', error);
     server.log.fatal('Failed to start server:', error);
     process.exit(1);
   }

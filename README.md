@@ -1,6 +1,6 @@
-# Apple RAG MCP Server - Full MCP 2025-06-18 Compliant
+# Apple RAG MCP Server - Extreme Simplicity
 
-A production-ready, high-performance MCP (Model Context Protocol) server that provides intelligent search capabilities for Apple Developer Documentation using advanced RAG (Retrieval-Augmented Generation) technology. **Fully compliant with MCP 2025-06-18 specification including Streamable HTTP transport and OAuth 2.1 Authorization.**
+A production-ready, high-performance MCP (Model Context Protocol) server that provides intelligent search capabilities for Apple Developer Documentation using advanced RAG (Retrieval-Augmented Generation) technology. **Fully compliant with MCP 2025-06-18 specification with ultra-simple Cloudflare D1 authentication.**
 
 ## 🌟 Key Features
 

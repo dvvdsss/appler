@@ -7,11 +7,16 @@ export interface AppConfig {
   PORT: number;
   NODE_ENV: 'development' | 'production';
 
+  // Cloudflare D1 Configuration (for token validation)
+  CLOUDFLARE_ACCOUNT_ID: string;
+  CLOUDFLARE_API_TOKEN: string;
+  CLOUDFLARE_D1_DATABASE_ID: string;
+
   // SiliconFlow API Configuration
   SILICONFLOW_API_KEY: string;
   SILICONFLOW_TIMEOUT: number;
 
-  // Database Configuration (Environment-aware)
+  // Database Configuration (for embeddings only)
   EMBEDDING_DB_HOST: string;
   EMBEDDING_DB_PORT: number;
   EMBEDDING_DB_DATABASE: string;

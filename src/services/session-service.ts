@@ -11,7 +11,6 @@ interface UserContext {
   username: string;
   tier: string;
   created_at: string;
-  is_active: boolean;
 }
 
 interface Session {

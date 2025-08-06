@@ -14,11 +14,16 @@ export const loadConfig = (): AppConfig => {
     PORT: parseInt(process.env.PORT || '3001', 10),
     NODE_ENV: (process.env.NODE_ENV as 'development' | 'production') || 'development',
 
+    // Cloudflare D1 Configuration (for token validation)
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
+    CLOUDFLARE_D1_DATABASE_ID: process.env.CLOUDFLARE_D1_DATABASE_ID || '',
+
     // SiliconFlow API Configuration
     SILICONFLOW_API_KEY: process.env.SILICONFLOW_API_KEY || 'demo-key',
     SILICONFLOW_TIMEOUT: parseInt(process.env.SILICONFLOW_TIMEOUT || '30', 10),
 
-    // Database Configuration (Environment-aware)
+    // Database Configuration (for embeddings only)
     EMBEDDING_DB_HOST: process.env.EMBEDDING_DB_HOST || 'localhost',
     EMBEDDING_DB_PORT: parseInt(process.env.EMBEDDING_DB_PORT || '5432', 10),
     EMBEDDING_DB_DATABASE: process.env.EMBEDDING_DB_DATABASE || 'apple_rag_db',
@@ -58,6 +63,19 @@ const validateConfig = (config: AppConfig): void => {
 
   if (config.NODE_ENV === 'production' && config.SESSION_SECRET === 'apple-rag-mcp-secret-key') {
     throw new Error('SESSION_SECRET must be set to a secure value in production');
+  }
+
+  // Validate Cloudflare D1 configuration
+  if (!config.CLOUDFLARE_ACCOUNT_ID) {
+    throw new Error('CLOUDFLARE_ACCOUNT_ID is required for token validation');
+  }
+
+  if (!config.CLOUDFLARE_API_TOKEN) {
+    throw new Error('CLOUDFLARE_API_TOKEN is required for token validation');
+  }
+
+  if (!config.CLOUDFLARE_D1_DATABASE_ID) {
+    throw new Error('CLOUDFLARE_D1_DATABASE_ID is required for token validation');
   }
 };
 
