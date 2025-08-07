@@ -9,20 +9,28 @@ import { OAuthMetadataService } from './oauth-metadata.js';
 import { logger } from '../logger.js';
 
 export interface AuthContext {
-  isAuthenticated: boolean;
-  subject?: string;
-  scopes?: string[];
-  clientId?: string;
-  tokenClaims?: any;
+  readonly isAuthenticated: boolean;
+  readonly subject?: string;
+  readonly scopes?: string[];
+  readonly clientId?: string;
+  readonly tokenClaims?: any;
+  readonly mcpToken?: string;
 }
 
 export class AuthMiddleware {
-  private tokenValidator: TokenValidator;
-  private metadataService: OAuthMetadataService;
+  private readonly tokenValidator: TokenValidator;
+  private readonly metadataService: OAuthMetadataService;
 
   constructor(baseUrl: string, d1Config: CloudflareD1Config) {
     this.tokenValidator = new TokenValidator(baseUrl, d1Config);
     this.metadataService = new OAuthMetadataService(baseUrl);
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy(): void {
+    this.tokenValidator.destroy();
   }
 
   /**
@@ -45,7 +53,10 @@ export class AuthMiddleware {
 
     // No token provided - allow access with no authentication
     if (!token) {
-      logger.debug('No authentication token provided - allowing unauthenticated access');
+      logger.debug('No authentication token provided - allowing unauthenticated access', {
+      environment: process.env.NODE_ENV || 'development',
+      databaseId: this.config.CLOUDFLARE_D1_DATABASE_ID?.substring(0, 8) + '...'
+    });
       return {
         isAuthenticated: false
       };
@@ -97,7 +108,8 @@ export class AuthMiddleware {
       subject: validation.claims?.sub,
       scopes: validation.scopes,
       clientId: validation.claims?.client_id,
-      tokenClaims: validation.claims
+      tokenClaims: validation.claims,
+      mcpToken: token
     };
   }
 
@@ -156,7 +168,8 @@ export class AuthMiddleware {
       subject: validation.claims?.sub,
       scopes: validation.scopes,
       clientId: validation.claims?.client_id,
-      tokenClaims: validation.claims
+      tokenClaims: validation.claims,
+      mcpToken: token
     };
   }
 

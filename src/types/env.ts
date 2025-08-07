@@ -1,33 +1,30 @@
 /**
- * Modern VPS Configuration Interface
- * Type-safe environment configuration for Node.js deployment
+ * Modern Type-Safe Configuration Interface
+ * Immutable configuration for high-performance MCP server
  */
 export interface AppConfig {
   // Server Configuration
-  PORT: number;
-  NODE_ENV: 'development' | 'production';
+  readonly PORT: number;
+  readonly NODE_ENV: 'development' | 'production';
 
   // Cloudflare D1 Configuration (for token validation)
-  CLOUDFLARE_ACCOUNT_ID: string;
-  CLOUDFLARE_API_TOKEN: string;
-  CLOUDFLARE_D1_DATABASE_ID: string;
+  readonly CLOUDFLARE_ACCOUNT_ID: string;
+  readonly CLOUDFLARE_API_TOKEN: string;
+  readonly CLOUDFLARE_D1_DATABASE_ID: string;
 
   // SiliconFlow API Configuration
-  SILICONFLOW_API_KEY: string;
-  SILICONFLOW_TIMEOUT: number;
+  readonly SILICONFLOW_API_KEY: string;
+  readonly SILICONFLOW_TIMEOUT: number;
 
   // Database Configuration (for embeddings only)
-  EMBEDDING_DB_HOST: string;
-  EMBEDDING_DB_PORT: number;
-  EMBEDDING_DB_DATABASE: string;
-  EMBEDDING_DB_USER: string;
-  EMBEDDING_DB_PASSWORD: string;
-  EMBEDDING_DB_SSLMODE: 'disable' | 'require';
-
-  // Search Configuration
-  USE_HYBRID_SEARCH: boolean;
+  readonly EMBEDDING_DB_HOST: string;
+  readonly EMBEDDING_DB_PORT: number;
+  readonly EMBEDDING_DB_DATABASE: string;
+  readonly EMBEDDING_DB_USER: string;
+  readonly EMBEDDING_DB_PASSWORD: string;
+  readonly EMBEDDING_DB_SSLMODE: 'disable' | 'require';
 
   // Session Configuration
-  SESSION_SECRET: string;
-  SESSION_TIMEOUT: number;
+  readonly SESSION_SECRET: string;
+  readonly SESSION_TIMEOUT: number;
 }

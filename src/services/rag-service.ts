@@ -94,20 +94,18 @@ export class RAGService {
         throw new Error("Search engine not initialized");
       }
 
-      // Determine search mode
+      // Execute hybrid search (always enabled)
       const configStart = Date.now();
-      const useHybridSearch = this.config.USE_HYBRID_SEARCH;
       const matchCount = Math.min(Math.max(match_count, 1), 20);
-      console.log(`⚙️ Configuration Set: ${useHybridSearch ? 'hybrid' : 'vector'} search, ${matchCount} results (${Date.now() - configStart}ms)`);
+      console.log(`⚙️ Configuration Set: hybrid search, ${matchCount} results (${Date.now() - configStart}ms)`);
 
       // Execute search
       const searchStart = Date.now();
-      console.log(`🔍 Starting Search Operation...`);
+      console.log(`🔍 Starting Hybrid Search Operation...`);
       const results = await this.searchEngine.search(trimmedQuery, {
-        useHybridSearch,
         matchCount,
       });
-      console.log(`🔍 Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`);
+      console.log(`🔍 Hybrid Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`);
 
       // Format results
       const formatStart = Date.now();
@@ -120,7 +118,6 @@ export class RAGService {
       return {
         success: true,
         query: trimmedQuery,
-        search_mode: useHybridSearch ? "hybrid" : "vector",
         results: formattedResults,
         count: formattedResults.length,
         processing_time_ms: totalTime,
@@ -191,7 +188,6 @@ export class RAGService {
     return {
       success: false,
       query,
-      search_mode: "vector",
       results: [],
       count: 0,
       processing_time_ms: Date.now() - startTime,

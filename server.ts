@@ -7,10 +7,21 @@ import { fastify } from 'fastify';
 import { config } from 'dotenv';
 import { MCPHandler } from './src/mcp-handler.js';
 import { loadConfig } from './src/config.js';
+import { DatabaseAutoInit } from './src/services/database-auto-init.js';
+import { logger } from './src/logger.js';
 
-// Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+// Load environment variables based on NODE_ENV with validation
+const nodeEnv = process.env.NODE_ENV || 'development';
+const envFile = nodeEnv === 'production' ? '.env.production' : '.env.development';
 config({ path: envFile });
+
+// Validate environment configuration
+logger.info('Environment configuration loaded', {
+  nodeEnv,
+  envFile,
+  databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID?.substring(0, 8) + '...',
+  embeddingHost: process.env.EMBEDDING_DB_HOST
+});
 
 // Initialize Fastify with production-optimized settings
 const server = fastify({
@@ -32,6 +43,15 @@ const server = fastify({
 
 // Load configuration
 const appConfig = loadConfig();
+
+// Initialize database auto-init
+const d1Config = {
+  accountId: appConfig.CLOUDFLARE_ACCOUNT_ID,
+  apiToken: appConfig.CLOUDFLARE_API_TOKEN,
+  databaseId: appConfig.CLOUDFLARE_D1_DATABASE_ID
+};
+
+const dbAutoInit = new DatabaseAutoInit(d1Config);
 
 // Determine base URL for OAuth metadata
 const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
@@ -284,6 +304,11 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const start = async () => {
   try {
+    // Auto-initialize database tables and test data
+    console.log('🗄️ Auto-initializing database...');
+    await dbAutoInit.initialize();
+    console.log('✅ Database auto-initialization completed');
+
     // Wait for RAG service pre-initialization to complete
     console.log('🔧 Waiting for RAG service pre-initialization...');
     await mcpHandler.waitForRAGInitialization();
@@ -299,6 +324,7 @@ const start = async () => {
     server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
     server.log.info(`📋 Protocol Version: 2025-06-18`);
     server.log.info(`🔧 MCP Compliant: ✅`);
+    server.log.info(`🗄️ Database: Auto-initialized and ready`);
     server.log.info(`🎯 RAG Service: Pre-initialized and ready`);
   } catch (error) {
     console.error('Failed to start server:', error);

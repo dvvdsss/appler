@@ -17,22 +17,9 @@
     "clean": "rm -rf dist node_modules/.cache",
     "reinstall": "rm -rf node_modules pnpm-lock.yaml && pnpm install",
     "test": "scripts/run-tests.sh",
-    "test:all": "scripts/run-tests.sh",
-    "test:core": "scripts/run-tests.sh --category core",
-    "test:functionality": "scripts/run-tests.sh --category functionality",
-    "test:security": "scripts/run-tests.sh --category security",
-    "test:advanced": "scripts/run-tests.sh --category advanced",
-    "test:setup": "scripts/run-tests.sh --setup-data",
-    "test:progress": "cd tests && node test-progress.js",
-    "test:ping": "cd tests && node test-ping.js",
-    "test:cancellation": "cd tests && node test-cancellation.js",
-    "test:auth": "cd tests && node test-authorization.js",
-    "test:streamable": "cd tests && node test-streamable-http.js",
-    "test:basic": "cd tests && node test-basic-mcp.js",
-    "test:rag": "cd tests && node test-final-rag.js",
-    "test:mcp": "curl -X POST http://localhost:3001/ -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'MCP-Protocol-Version: 2025-06-18' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}}}'",
     "deploy": "scripts/deploy.sh",
-    "verify": "scripts/verify-deployment.sh"
+    "verify": "scripts/verify-deployment.sh",
+    "verify:env": "scripts/verify-environment.sh"
   },
   "keywords": [
     "mcp",
@@ -51,16 +38,17 @@
   "license": "MIT",
   "description": "Complete MCP 2025-06-18 compliant server with OAuth 2.1 Authorization for Apple Developer Documentation RAG search - Production ready",
   "dependencies": {
-    "fastify": "^4.24.3",
-    "postgres": "^3.4.5",
+    "@types/node": "^20.10.0",
     "dotenv": "^16.3.1",
-    "@types/node": "^20.10.0"
+    "fastify": "^4.24.3",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
-    "tsx": "^4.6.0",
+    "pino-pretty": "^10.2.3",
     "pm2": "^5.3.0",
-    "pino-pretty": "^10.2.3"
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^4.28.0"
   },
   "engines": {
     "node": ">=18.0.0"

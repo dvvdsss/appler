@@ -13,8 +13,6 @@ module.exports = {
     exec_mode: 'fork',          // Fork mode for single instance
     
     // Environment Configuration
-    // Note: NODE_ENV will be loaded from .env file
-    // PM2 will use the .env file in the project directory
     env: {
       NODE_ENV: 'development',
       PORT: 3001,
@@ -24,8 +22,8 @@ module.exports = {
       PORT: 3001,
     },
 
-    // Environment file configuration
-    env_file: '.env.production',
+    // Environment file configuration - dynamically loaded by server.ts
+    // No env_file specified to avoid conflicts with dynamic loading
     
     // Performance Configuration
     max_memory_restart: '1G',   // Restart if memory exceeds 1GB

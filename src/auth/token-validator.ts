@@ -5,6 +5,7 @@
  */
 
 import { logger } from '../logger.js';
+import { D1Connector, CloudflareD1Config } from '../services/d1-connector.js';
 
 export interface TokenClaims {
   sub: string;
@@ -32,122 +33,132 @@ export interface UserTokenData {
   tier: string;
 }
 
-export interface CloudflareD1Config {
-  accountId: string;
-  apiToken: string;
-  databaseId: string;
+
+
+interface CacheEntry {
+  readonly data: UserTokenData;
+  readonly expiry: number;
 }
 
 export class TokenValidator {
-  private baseUrl: string;
-  private d1Config: CloudflareD1Config;
-  private tokenCache = new Map<string, { data: UserTokenData; expiry: number }>();
-  private cacheTimeout = 300; // 5 minutes cache
+  private readonly baseUrl: string;
+  private readonly d1Connector: D1Connector;
+  private readonly tokenCache = new Map<string, CacheEntry>();
+  private readonly cacheTimeout = 300_000; // 5 minutes in milliseconds
+  private readonly cleanupInterval: NodeJS.Timeout;
 
   constructor(baseUrl: string, d1Config: CloudflareD1Config) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
-    this.d1Config = d1Config;
+    this.d1Connector = new D1Connector(d1Config);
 
-    // Start cache cleanup timer
-    setInterval(() => this.cleanupExpiredCache(), 60000);
+    // Start cache cleanup with proper cleanup on destruction
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredCache(), 60_000);
   }
 
   /**
-   * Validate MCP token via single D1 query - Maximum simplicity
+   * Cleanup resources
+   */
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+    this.tokenCache.clear();
+  }
+
+  /**
+   * Validate MCP token with modern async/await and type safety
    */
   async validateToken(token: string, _requiredResource?: string): Promise<TokenValidationResult> {
     try {
-      // Check cache first
-      const cached = this.tokenCache.get(token);
-      if (cached && Date.now() < cached.expiry) {
-        logger.debug('Token validation from cache', { userId: cached.data.userId });
-        const claims = this.convertUserDataToClaims(cached.data);
-        const scopes = this.getScopesForTier(cached.data.tier);
-        return { valid: true, claims, scopes };
+      // Fast cache lookup
+      const cached = this.getCachedToken(token);
+      if (cached) {
+        return this.createSuccessResult(cached);
       }
 
-      // Validate token format (at_[32 hex chars] = 35 total)
-      if (!token.startsWith('at_') || token.length !== 35) {
+      // Validate token format with modern regex
+      if (!this.isValidTokenFormat(token)) {
         return { valid: false, error: 'Invalid token format' };
       }
 
-      // Single D1 query to get all user data
+      // Single optimized D1 query
       const userData = await this.getUserDataFromD1(token);
       if (!userData) {
         return { valid: false, error: 'Token not found' };
       }
 
-      // Async update last_used_at (non-blocking)
+      // Non-blocking async operations
       this.updateTokenLastUsedAsync(token);
+      this.cacheToken(token, userData);
 
-      // Cache the validated token
-      this.tokenCache.set(token, {
-        data: userData,
-        expiry: Date.now() + (this.cacheTimeout * 1000)
-      });
-
-      // Convert to OAuth 2.1 claims and get scopes
-      const claims = this.convertUserDataToClaims(userData);
-      const scopes = this.getScopesForTier(userData.tier);
-
-      logger.info('Token validation successful', {
-        userId: userData.userId,
-        email: userData.email,
-        tier: userData.tier,
-        scopes
-      });
-
-      return { valid: true, claims, scopes };
+      return this.createSuccessResult(userData);
     } catch (error) {
-      logger.error('Token validation error:', {
+      logger.error('Token validation failed', {
         error: error instanceof Error ? error.message : String(error),
         tokenPrefix: token.substring(0, 8) + '...'
       });
-      return { valid: false, error: 'Token validation failed' };
+      return { valid: false, error: 'Validation failed' };
     }
   }
 
   /**
-   * Get user data from D1 with single optimized query
+   * Modern token format validation
+   */
+  private isValidTokenFormat(token: string): boolean {
+    return /^at_[a-f0-9]{32}$/.test(token);
+  }
+
+  /**
+   * Get cached token with expiry check
+   */
+  private getCachedToken(token: string): UserTokenData | null {
+    const cached = this.tokenCache.get(token);
+    if (cached && Date.now() < cached.expiry) {
+      logger.debug('Token validation from cache', { userId: cached.data.userId });
+      return cached.data;
+    }
+    return null;
+  }
+
+  /**
+   * Cache token with expiry
+   */
+  private cacheToken(token: string, userData: UserTokenData): void {
+    this.tokenCache.set(token, {
+      data: userData,
+      expiry: Date.now() + this.cacheTimeout
+    });
+  }
+
+  /**
+   * Create success result with claims and scopes
+   */
+  private createSuccessResult(userData: UserTokenData): TokenValidationResult {
+    const claims = this.convertUserDataToClaims(userData);
+    const scopes = this.getScopesForTier(userData.tier);
+    return { valid: true, claims, scopes };
+  }
+
+  /**
+   * Get user data from D1 with environment-aware connection
    */
   private async getUserDataFromD1(token: string): Promise<UserTokenData | null> {
     try {
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${this.d1Config.accountId}/d1/database/${this.d1Config.databaseId}/query`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.d1Config.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            sql: `
-              SELECT
-                u.id as user_id,
-                u.email,
-                u.name,
-                'free' as tier
-              FROM mcp_tokens t
-              JOIN users u ON t.user_id = u.id
-              WHERE t.token = ?
-            `,
-            params: [token]
-          })
-        }
+      const result = await this.d1Connector.query(
+        `SELECT
+           u.id as user_id,
+           u.email,
+           u.name,
+           'free' as tier
+         FROM mcp_tokens t
+         JOIN users u ON t.user_id = u.id
+         WHERE t.mcp_token = ?`,
+        [token]
       );
 
-      if (!response.ok) {
-        throw new Error(`D1 query failed: ${response.status}`);
-      }
-
-      const data = await response.json() as any;
-      const results = data.result?.[0]?.results;
-
-      if (!results || results.length === 0) {
+      if (!result.success || !result.results || result.results.length === 0) {
         return null;
       }
 
-      const row = results[0];
+      const row = result.results[0];
       return {
         userId: row.user_id,
         email: row.email || 'unknown',
@@ -165,26 +176,17 @@ export class TokenValidator {
 
 
   /**
-   * Update token last_used_at asynchronously (non-blocking)
+   * Non-blocking token usage update
    */
   private updateTokenLastUsedAsync(token: string): void {
-    // Fire and forget - don't block the validation response
-    fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${this.d1Config.accountId}/d1/database/${this.d1Config.databaseId}/query`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.d1Config.apiToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sql: "UPDATE mcp_tokens SET last_used_at = datetime('now') WHERE token = ?",
-          params: [token]
-        })
-      }
+    // Fire and forget - don't block validation response
+    this.d1Connector.query(
+      "UPDATE mcp_tokens SET last_used_at = datetime('now') WHERE mcp_token = ?",
+      [token]
     ).catch(error => {
       logger.warn('Failed to update token last_used_at', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        tokenPrefix: token.substring(0, 8) + '...'
       });
     });
   }
@@ -254,23 +256,12 @@ export class TokenValidator {
    */
   async revokeToken(token: string): Promise<boolean> {
     try {
-      // Delete token from D1 (simple deletion, no soft delete)
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${this.d1Config.accountId}/d1/database/${this.d1Config.databaseId}/query`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.d1Config.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            sql: "DELETE FROM mcp_tokens WHERE token = ?",
-            params: [token]
-          })
-        }
+      const result = await this.d1Connector.query(
+        "DELETE FROM mcp_tokens WHERE mcp_token = ?",
+        [token]
       );
 
-      if (response.ok) {
+      if (result.success) {
         // Remove from cache
         this.tokenCache.delete(token);
 
@@ -309,33 +300,16 @@ export class TokenValidator {
    */
   async getUserTokenData(userId: string): Promise<UserTokenData> {
     try {
-      // Query user information from Cloudflare D1
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${this.d1Config.accountId}/d1/database/${this.d1Config.databaseId}/query`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.d1Config.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            sql: 'SELECT id, email, name, tier FROM users WHERE id = ?',
-            params: [userId]
-          })
-        }
+      const result = await this.d1Connector.query(
+        'SELECT id, email, name, tier FROM users WHERE id = ?',
+        [userId]
       );
 
-      if (!response.ok) {
-        throw new Error(`D1 API error: ${response.status}`);
-      }
-
-      const data = await response.json() as any;
-
-      if (!data.success || !data.result?.[0]?.results?.length) {
+      if (!result.success || !result.results || result.results.length === 0) {
         throw new Error('User not found');
       }
 
-      const user = data.result[0].results[0];
+      const user = result.results[0];
 
       return {
         userId: user.id,

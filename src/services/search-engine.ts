@@ -17,19 +17,14 @@ export class SearchEngine {
   ) {}
 
   /**
-   * Perform intelligent search (vector or hybrid)
+   * Perform hybrid search (always enabled)
    */
   async search(
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchResultWithScore[]> {
-    const { useHybridSearch = false, matchCount = 5 } = options;
-
-    if (useHybridSearch) {
-      return this.hybridSearch(query, matchCount);
-    } else {
-      return this.vectorSearch(query, matchCount);
-    }
+    const { matchCount = 5 } = options;
+    return this.hybridSearch(query, matchCount);
   }
 
   /**

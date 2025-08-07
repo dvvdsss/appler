@@ -8,6 +8,7 @@ import { AppConfig } from './types/env.js';
 import { RAGService } from './services/rag-service.js';
 import { SessionService } from './services/session-service.js';
 import { AuthMiddleware, AuthContext } from './auth/auth-middleware.js';
+import { QueryLogger } from './services/query-logger.js';
 import { logger } from './logger.js';
 
 interface MCPRequest {
@@ -122,6 +123,7 @@ export class MCPHandler {
   private ragService: RAGService;
   private sessionService: SessionService;
   private authMiddleware: AuthMiddleware;
+  private queryLogger: QueryLogger;
   private isInitialized = false;
   private ragInitialized = false;
   private supportedProtocolVersion = '2025-06-18';
@@ -147,6 +149,7 @@ export class MCPHandler {
     };
 
     this.authMiddleware = new AuthMiddleware(baseUrl, d1Config);
+    this.queryLogger = new QueryLogger(d1Config);
 
     // Initialize ping configuration - More lenient for HTTP-based MCP clients
     this.pingConfig = {
@@ -724,12 +727,36 @@ export class MCPHandler {
         }
       };
 
+      // Log successful query to D1 (non-blocking)
+      const responseTime = Date.now() - startTime;
+      const statusCode = ragResult?.success ? 200 : 500;
+
+      if (authContext.isAuthenticated && authContext.subject && authContext.mcpToken) {
+        await this.queryLogger.logQuery({
+          userId: authContext.subject,
+          mcpToken: authContext.mcpToken,
+          queryText: args.query.trim(),
+          resultCount: ragResult?.count || 0,
+          responseTimeMs: responseTime,
+          statusCode
+        });
+      } else {
+        // For anonymous users, use a placeholder token
+        await this.queryLogger.logAnonymousQuery(
+          'anonymous_token',
+          args.query.trim(),
+          ragResult?.count || 0,
+          responseTime,
+          statusCode
+        );
+      }
+
       logger.info('Query Tool Success', {
         query: args.query,
         resultCount: ragResult?.count || 0,
         authenticated: authContext.isAuthenticated,
         subject: authContext.subject,
-        processingTime: Date.now() - startTime,
+        processingTime: responseTime,
         sessionId: session.id
       });
 
@@ -744,12 +771,35 @@ export class MCPHandler {
         this.completeRequest(request.id);
       }
 
+      // Log failed query to D1 (non-blocking)
+      const responseTime = Date.now() - startTime;
+      if (args?.query && !(error instanceof Error && error.message === 'Query cancelled')) {
+        if (authContext.isAuthenticated && authContext.subject && authContext.mcpToken) {
+          await this.queryLogger.logQuery({
+            userId: authContext.subject,
+            mcpToken: authContext.mcpToken,
+            queryText: args.query.trim(),
+            resultCount: 0,
+            responseTimeMs: responseTime,
+            statusCode: 500
+          });
+        } else {
+          await this.queryLogger.logAnonymousQuery(
+            'anonymous_token',
+            args.query.trim(),
+            0,
+            responseTime,
+            500
+          );
+        }
+      }
+
       // Handle cancellation gracefully
       if (error instanceof Error && error.message === 'Query cancelled') {
         logger.info('Query cancelled by user', {
           requestId: request.id,
           query: args?.query,
-          processingTime: Date.now() - startTime
+          processingTime: responseTime
         });
         return; // Don't send error response for cancelled requests
       }
@@ -913,7 +963,6 @@ export class MCPHandler {
     let response = `🔍 Apple Developer Documentation Search\n\n`;
     response += `**Query:** "${ragResult.query}"\n`;
     response += `**Results:** ${ragResult.count} found\n`;
-    response += `**Search Mode:** ${ragResult.search_mode}\n\n`;
 
     ragResult.results.forEach((result: any, index: number) => {
       response += `### ${index + 1}. ${result.title || 'Documentation'}\n`;

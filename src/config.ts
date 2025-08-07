@@ -31,9 +31,6 @@ export const loadConfig = (): AppConfig => {
     EMBEDDING_DB_PASSWORD: process.env.EMBEDDING_DB_PASSWORD || 'password',
     EMBEDDING_DB_SSLMODE: (process.env.EMBEDDING_DB_SSLMODE as 'disable' | 'require') || 'disable',
 
-    // Search Configuration
-    USE_HYBRID_SEARCH: process.env.USE_HYBRID_SEARCH === 'true',
-
     // Session Configuration
     SESSION_SECRET: process.env.SESSION_SECRET || 'apple-rag-mcp-secret-key',
     SESSION_TIMEOUT: parseInt(process.env.SESSION_TIMEOUT || '1800', 10), // 30 minutes
@@ -49,33 +46,39 @@ export const loadConfig = (): AppConfig => {
  * Validate configuration values
  */
 const validateConfig = (config: AppConfig): void => {
+  const errors: string[] = [];
+
   if (config.PORT < 1 || config.PORT > 65535) {
-    throw new Error(`Invalid PORT: ${config.PORT}. Must be between 1 and 65535.`);
+    errors.push(`Invalid PORT: ${config.PORT}. Must be between 1 and 65535.`);
   }
 
   if (config.SILICONFLOW_TIMEOUT < 1 || config.SILICONFLOW_TIMEOUT > 300) {
-    throw new Error(`Invalid SILICONFLOW_TIMEOUT: ${config.SILICONFLOW_TIMEOUT}. Must be between 1 and 300 seconds.`);
+    errors.push(`Invalid SILICONFLOW_TIMEOUT: ${config.SILICONFLOW_TIMEOUT}. Must be between 1 and 300 seconds.`);
   }
 
   if (config.SESSION_TIMEOUT < 60 || config.SESSION_TIMEOUT > 86400) {
-    throw new Error(`Invalid SESSION_TIMEOUT: ${config.SESSION_TIMEOUT}. Must be between 60 and 86400 seconds.`);
+    errors.push(`Invalid SESSION_TIMEOUT: ${config.SESSION_TIMEOUT}. Must be between 60 and 86400 seconds.`);
   }
 
   if (config.NODE_ENV === 'production' && config.SESSION_SECRET === 'apple-rag-mcp-secret-key') {
-    throw new Error('SESSION_SECRET must be set to a secure value in production');
+    errors.push('SESSION_SECRET must be set to a secure value in production');
   }
 
-  // Validate Cloudflare D1 configuration
-  if (!config.CLOUDFLARE_ACCOUNT_ID) {
-    throw new Error('CLOUDFLARE_ACCOUNT_ID is required for token validation');
+  // Validate required Cloudflare D1 configuration
+  const requiredD1Fields = [
+    { field: 'CLOUDFLARE_ACCOUNT_ID', value: config.CLOUDFLARE_ACCOUNT_ID },
+    { field: 'CLOUDFLARE_API_TOKEN', value: config.CLOUDFLARE_API_TOKEN },
+    { field: 'CLOUDFLARE_D1_DATABASE_ID', value: config.CLOUDFLARE_D1_DATABASE_ID }
+  ];
+
+  for (const { field, value } of requiredD1Fields) {
+    if (!value) {
+      errors.push(`${field} is required for token validation`);
+    }
   }
 
-  if (!config.CLOUDFLARE_API_TOKEN) {
-    throw new Error('CLOUDFLARE_API_TOKEN is required for token validation');
-  }
-
-  if (!config.CLOUDFLARE_D1_DATABASE_ID) {
-    throw new Error('CLOUDFLARE_D1_DATABASE_ID is required for token validation');
+  if (errors.length > 0) {
+    throw new Error(`Configuration validation failed:\n${errors.join('\n')}`);
   }
 };
 

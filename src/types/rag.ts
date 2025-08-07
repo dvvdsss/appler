@@ -11,7 +11,6 @@ export interface RAGQueryRequest {
 export interface RAGQueryResponse {
   success: boolean;
   query: string;
-  search_mode: "vector" | "hybrid";
   results: RAGResult[];
   count: number;
   processing_time_ms: number;
@@ -39,7 +38,6 @@ export interface SearchResult {
 
 export interface SearchOptions {
   matchCount?: number;
-  useHybridSearch?: boolean;
 }
 
 export interface EmbeddingConfig {
