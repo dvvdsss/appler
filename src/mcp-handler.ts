@@ -3,30 +3,30 @@
  * Implements complete lifecycle management, capability negotiation, and Authorization
  */
 
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { AppConfig } from './types/env.js';
-import { RAGService } from './services/rag-service.js';
-import { SessionService } from './services/session-service.js';
-import { AuthMiddleware, AuthContext } from './auth/auth-middleware.js';
-import { QueryLogger } from './services/query-logger.js';
-import { logger } from './logger.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { AppConfig } from "./types/env.js";
+import { RAGService } from "./services/rag-service.js";
+import { SessionService } from "./services/session-service.js";
+import { AuthMiddleware, AuthContext } from "./auth/auth-middleware.js";
+import { QueryLogger } from "./services/query-logger.js";
+import { logger } from "./logger.js";
 
 interface MCPRequest {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id?: string | number;
   method: string;
   params?: any;
 }
 
 interface MCPResponse {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id?: string | number;
   result?: any;
   error?: { code: number; message: string; data?: any };
 }
 
 interface MCPNotification {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   method: string;
   params?: any;
 }
@@ -126,7 +126,7 @@ export class MCPHandler {
   private queryLogger: QueryLogger;
   private isInitialized = false;
   private ragInitialized = false;
-  private supportedProtocolVersion = '2025-06-18';
+  private supportedProtocolVersion = "2025-06-18";
   private sessions = new Map<string, SessionState>(); // Secure session tracking with user binding
   private activeRequests = new Map<string | number, RequestState>(); // Request cancellation tracking
   private pingConfig: PingConfig;
@@ -145,7 +145,7 @@ export class MCPHandler {
     const d1Config = {
       accountId: config.CLOUDFLARE_ACCOUNT_ID,
       apiToken: config.CLOUDFLARE_API_TOKEN,
-      databaseId: config.CLOUDFLARE_D1_DATABASE_ID
+      databaseId: config.CLOUDFLARE_D1_DATABASE_ID,
     };
 
     this.authMiddleware = new AuthMiddleware(baseUrl, d1Config);
@@ -157,7 +157,7 @@ export class MCPHandler {
       interval: 60000, // 60 seconds (longer interval)
       timeout: 30000, // 30 seconds (longer timeout)
       maxFailures: 5, // More failures allowed
-      enableActiveProbing: false // Disable active probing for HTTP clients
+      enableActiveProbing: false, // Disable active probing for HTTP clients
     };
 
     // Initialize progress configuration with templates
@@ -170,26 +170,26 @@ export class MCPHandler {
         rag_query: {
           total: 100,
           phases: [
-            { progress: 0, message: 'Initializing query...' },
-            { progress: 10, message: 'Validating query...' },
-            { progress: 20, message: 'Connecting to database...' },
-            { progress: 30, message: 'Executing vector search...' },
-            { progress: 80, message: 'Processing results...' },
-            { progress: 100, message: 'Formatting response...' }
-          ]
+            { progress: 0, message: "Initializing query..." },
+            { progress: 10, message: "Validating query..." },
+            { progress: 20, message: "Connecting to database..." },
+            { progress: 30, message: "Executing vector search..." },
+            { progress: 80, message: "Processing results..." },
+            { progress: 100, message: "Formatting response..." },
+          ],
         },
         admin_stats: {
           total: 100,
           phases: [
-            { progress: 0, message: 'Gathering server statistics...' },
-            { progress: 25, message: 'Collecting server metrics...' },
-            { progress: 50, message: 'Analyzing sessions...' },
-            { progress: 75, message: 'Analyzing requests...' },
-            { progress: 90, message: 'Analyzing progress tracking...' },
-            { progress: 100, message: 'Finalizing statistics...' }
-          ]
-        }
-      }
+            { progress: 0, message: "Gathering server statistics..." },
+            { progress: 25, message: "Collecting server metrics..." },
+            { progress: 50, message: "Analyzing sessions..." },
+            { progress: 75, message: "Analyzing requests..." },
+            { progress: 90, message: "Analyzing progress tracking..." },
+            { progress: 100, message: "Finalizing statistics..." },
+          ],
+        },
+      },
     };
 
     // Start cleanup and health check timers
@@ -205,17 +205,17 @@ export class MCPHandler {
   private async preInitializeRAGService(): Promise<void> {
     try {
       const initStart = Date.now();
-      logger.info('Pre-initializing RAG service for optimal performance...');
+      logger.info("Pre-initializing RAG service for optimal performance...");
 
       await this.ragService.initialize();
       this.ragInitialized = true;
 
-      logger.info('RAG service pre-initialization completed', {
-        initializationTime: Date.now() - initStart
+      logger.info("RAG service pre-initialization completed", {
+        initializationTime: Date.now() - initStart,
       });
     } catch (error) {
-      logger.error('RAG service pre-initialization failed:', {
-        error: error instanceof Error ? error.message : String(error)
+      logger.error("RAG service pre-initialization failed:", {
+        error: error instanceof Error ? error.message : String(error),
       });
       // Don't throw - allow server to start even if RAG pre-init fails
       // RAG service will attempt initialization on first query
@@ -235,12 +235,14 @@ export class MCPHandler {
     const timeout = 30000; // 30 seconds timeout
     const startTime = Date.now();
 
-    while (!this.ragInitialized && (Date.now() - startTime) < timeout) {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
+    while (!this.ragInitialized && Date.now() - startTime < timeout) {
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Check every 100ms
     }
 
     if (!this.ragInitialized) {
-      logger.warn('RAG service pre-initialization did not complete within timeout');
+      logger.warn(
+        "RAG service pre-initialization did not complete within timeout"
+      );
     }
   }
 
@@ -252,21 +254,37 @@ export class MCPHandler {
 
     try {
       // Validate protocol version header
-      const protocolVersion = request.headers['mcp-protocol-version'] as string;
-      if (protocolVersion && protocolVersion !== this.supportedProtocolVersion) {
-        return this.sendError(reply, `Unsupported protocol version: ${protocolVersion}`, -32602, startTime, {
-          supported: [this.supportedProtocolVersion],
-          requested: protocolVersion
-        });
+      const protocolVersion = request.headers["mcp-protocol-version"] as string;
+      if (
+        protocolVersion &&
+        protocolVersion !== this.supportedProtocolVersion
+      ) {
+        return this.sendError(
+          reply,
+          `Unsupported protocol version: ${protocolVersion}`,
+          -32602,
+          startTime,
+          {
+            supported: [this.supportedProtocolVersion],
+            requested: protocolVersion,
+          }
+        );
       }
 
       // Handle session management - Security: validate session exists and is not expired
-      const sessionId = request.headers['mcp-session-id'] as string;
+      const sessionId = request.headers["mcp-session-id"] as string;
       if (sessionId) {
         const sessionState = this.sessions.get(sessionId);
         if (!sessionState || this.isSessionExpired(sessionState)) {
           if (sessionState) this.sessions.delete(sessionId); // Cleanup expired session
-          return this.sendError(reply, 'Session not found or expired', -32002, startTime, {}, 404);
+          return this.sendError(
+            reply,
+            "Session not found or expired",
+            -32002,
+            startTime,
+            {},
+            404
+          );
         }
         // Update session activity
         sessionState.lastActivity = Date.now();
@@ -282,132 +300,208 @@ export class MCPHandler {
       }
 
       // Handle GET requests - return server info or reject SSE
-      if (request.method === 'GET') {
-        const acceptHeader = request.headers.accept || '';
+      if (request.method === "GET") {
+        const acceptHeader = request.headers.accept || "";
 
         // Reject SSE requests (not supported)
-        if (acceptHeader.includes('text/event-stream')) {
-          return reply.code(405).header('Allow', 'POST, OPTIONS').send({
-            error: 'SSE not supported. Use POST with application/json.'
+        if (acceptHeader.includes("text/event-stream")) {
+          return reply.code(405).header("Allow", "POST, OPTIONS").send({
+            error: "SSE not supported. Use POST with application/json.",
           });
         }
 
         // Return server info (same as manifest)
         return reply.code(200).send({
-          name: 'Apple RAG MCP Server',
-          title: 'Apple Developer Documentation RAG Search',
-          version: '2.0.0',
-          description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
+          name: "Apple RAG MCP Server",
+          title: "Apple Developer Documentation RAG Search",
+          version: "2.0.0",
+          description:
+            "A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.",
           protocolVersion: this.supportedProtocolVersion,
           capabilities: {
             tools: { listChanged: true },
             logging: {},
-            experimental: {}
+            experimental: {},
           },
           serverInfo: {
-            name: 'Apple RAG MCP Server',
-            title: 'Apple Developer Documentation RAG Search',
-            version: '2.0.0'
+            name: "Apple RAG MCP Server",
+            title: "Apple Developer Documentation RAG Search",
+            version: "2.0.0",
           },
           endpoints: {
-            mcp: '/',
-            manifest: '/manifest',
-            health: '/health'
+            mcp: "/",
+            manifest: "/manifest",
+            health: "/health",
           },
           transport: {
-            type: 'http',
-            methods: ['GET', 'POST', 'DELETE']
+            type: "http",
+            methods: ["GET", "POST", "DELETE"],
           },
           authorization: {
             enabled: true,
-            type: 'oauth2.1',
-            optional: true
-          }
+            type: "oauth2.1",
+            optional: true,
+          },
         });
       }
 
       // Handle DELETE requests (session termination)
-      if (request.method === 'DELETE') {
+      if (request.method === "DELETE") {
         if (!sessionId) {
-          return this.sendError(reply, 'Session ID required for DELETE', -32602, startTime);
+          return this.sendError(
+            reply,
+            "Session ID required for DELETE",
+            -32602,
+            startTime
+          );
         }
         return this.handleSessionTermination(sessionId, reply, startTime);
       }
 
       // Handle POST requests
-      if (request.method !== 'POST') {
-        reply.code(405).header('Allow', 'GET, POST, DELETE, OPTIONS').send({
-          error: 'Method not allowed'
+      if (request.method !== "POST") {
+        reply.code(405).header("Allow", "GET, POST, DELETE, OPTIONS").send({
+          error: "Method not allowed",
         });
         return;
       }
 
       // Validate Accept header for POST requests
-      const acceptHeader = request.headers.accept || '';
-      if (!acceptHeader.includes('application/json') && !acceptHeader.includes('text/event-stream') && acceptHeader !== '*/*') {
-        return this.sendError(reply, 'Accept header must include application/json or text/event-stream', -32600, startTime);
+      const acceptHeader = request.headers.accept || "";
+      if (
+        !acceptHeader.includes("application/json") &&
+        !acceptHeader.includes("text/event-stream") &&
+        acceptHeader !== "*/*"
+      ) {
+        return this.sendError(
+          reply,
+          "Accept header must include application/json or text/event-stream",
+          -32600,
+          startTime
+        );
       }
 
       const body = request.body as MCPRequest | MCPNotification;
 
       // Validate JSON-RPC 2.0 format
-      if (!body || body.jsonrpc !== '2.0' || !body.method) {
-        return this.sendError(reply, 'Invalid JSON-RPC 2.0 request', -32600, startTime);
+      if (!body || body.jsonrpc !== "2.0" || !body.method) {
+        return this.sendError(
+          reply,
+          "Invalid JSON-RPC 2.0 request",
+          -32600,
+          startTime
+        );
       }
 
       // Handle notifications (no response required)
-      if (!('id' in body)) {
-        return this.handleNotification(body as MCPNotification, reply, startTime, sessionId, authContext);
+      if (!("id" in body)) {
+        return this.handleNotification(
+          body as MCPNotification,
+          reply,
+          startTime,
+          sessionId,
+          authContext
+        );
       }
 
       // Handle requests (response required)
       const mcpRequest = body as MCPRequest;
 
       // Track request for cancellation and progress support (except initialize which cannot be cancelled)
-      if (mcpRequest.method !== 'initialize' && mcpRequest.id !== undefined) {
+      if (mcpRequest.method !== "initialize" && mcpRequest.id !== undefined) {
         this.trackRequest(mcpRequest, sessionId, authContext);
 
         // Track progress token if provided
         const progressToken = mcpRequest.params?._meta?.progressToken;
         if (progressToken && this.progressConfig.enabled) {
-          this.trackProgressToken(progressToken, mcpRequest.id, sessionId, authContext);
+          this.trackProgressToken(
+            progressToken,
+            mcpRequest.id,
+            sessionId,
+            authContext
+          );
         }
       }
 
       switch (mcpRequest.method) {
-        case 'initialize':
-          return this.handleInitialize(mcpRequest, reply, startTime, authContext);
+        case "initialize":
+          return this.handleInitialize(
+            mcpRequest,
+            reply,
+            startTime,
+            authContext
+          );
 
-        case 'ping':
-          return this.handlePing(mcpRequest, reply, startTime, sessionId, authContext);
+        case "ping":
+          return this.handlePing(
+            mcpRequest,
+            reply,
+            startTime,
+            sessionId,
+            authContext
+          );
 
-        case 'tools/list':
+        case "tools/list":
           if (!this.isSessionInitialized(sessionId, authContext)) {
-            return this.sendError(reply, 'Server not initialized', -32002, startTime);
+            return this.sendError(
+              reply,
+              "Server not initialized",
+              -32002,
+              startTime
+            );
           }
-          return this.handleToolsList(mcpRequest, reply, startTime, authContext);
+          return this.handleToolsList(
+            mcpRequest,
+            reply,
+            startTime,
+            authContext
+          );
 
-        case 'tools/call':
+        case "tools/call":
           if (!this.isSessionInitialized(sessionId, authContext)) {
-            return this.sendError(reply, 'Server not initialized', -32002, startTime);
+            return this.sendError(
+              reply,
+              "Server not initialized",
+              -32002,
+              startTime
+            );
           }
-          return this.handleToolsCall(mcpRequest, reply, request, startTime, authContext);
+          return this.handleToolsCall(
+            mcpRequest,
+            reply,
+            request,
+            startTime,
+            authContext
+          );
 
         default:
-          return this.sendError(reply, `Method not found: ${mcpRequest.method}`, -32601, startTime);
+          return this.sendError(
+            reply,
+            `Method not found: ${mcpRequest.method}`,
+            -32601,
+            startTime
+          );
       }
     } catch (error) {
-      logger.error('MCP Handler Error:', { error: error instanceof Error ? error.message : String(error) });
-      return this.sendError(reply, 'Internal server error', -32603, startTime);
+      logger.error("MCP Handler Error:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(reply, "Internal server error", -32603, startTime);
     }
   }
 
   /**
    * Handle notifications (no response required) - Security compliant
    */
-  private async handleNotification(notification: MCPNotification, reply: FastifyReply, startTime: number, sessionId?: string, authContext?: AuthContext): Promise<void> {
+  private async handleNotification(
+    notification: MCPNotification,
+    reply: FastifyReply,
+    startTime: number,
+    sessionId?: string,
+    authContext?: AuthContext
+  ): Promise<void> {
     switch (notification.method) {
-      case 'notifications/initialized':
+      case "notifications/initialized":
         if (sessionId) {
           const sessionState = this.sessions.get(sessionId);
           if (sessionState) {
@@ -421,32 +515,37 @@ export class MCPHandler {
         } else {
           this.isInitialized = true;
         }
-        logger.info('MCP Client Initialized', {
+        logger.info("MCP Client Initialized", {
           sessionId,
           userId: authContext?.subject,
           authenticated: authContext?.isAuthenticated,
-          processingTime: Date.now() - startTime
+          processingTime: Date.now() - startTime,
         });
         break;
 
-      case 'notifications/cancelled':
-        this.handleRequestCancellation(notification.params, sessionId, authContext, startTime);
+      case "notifications/cancelled":
+        this.handleRequestCancellation(
+          notification.params,
+          sessionId,
+          authContext,
+          startTime
+        );
         break;
 
-      case 'notifications/progress':
+      case "notifications/progress":
         // Progress notifications are sent by server, not received
-        logger.debug('Progress notification received (unexpected)', {
+        logger.debug("Progress notification received (unexpected)", {
           params: notification.params,
           sessionId,
-          userId: authContext?.subject
+          userId: authContext?.subject,
         });
         break;
 
       default:
-        logger.warn('Unknown notification', {
+        logger.warn("Unknown notification", {
           method: notification.method,
           sessionId,
-          userId: authContext?.subject
+          userId: authContext?.subject,
         });
     }
 
@@ -457,15 +556,26 @@ export class MCPHandler {
   /**
    * Handle initialize method with session management and authorization - MCP 2025-06-18 compliant
    */
-  private async handleInitialize(request: MCPRequest, reply: FastifyReply, startTime: number, authContext: AuthContext): Promise<void> {
+  private async handleInitialize(
+    request: MCPRequest,
+    reply: FastifyReply,
+    startTime: number,
+    authContext: AuthContext
+  ): Promise<void> {
     const params = request.params as InitializeParams;
 
     // Validate protocol version
     if (params.protocolVersion !== this.supportedProtocolVersion) {
-      return this.sendError(reply, 'Unsupported protocol version', -32602, startTime, {
-        supported: [this.supportedProtocolVersion],
-        requested: params.protocolVersion
-      });
+      return this.sendError(
+        reply,
+        "Unsupported protocol version",
+        -32602,
+        startTime,
+        {
+          supported: [this.supportedProtocolVersion],
+          requested: params.protocolVersion,
+        }
+      );
     }
 
     // Generate secure session ID for Streamable HTTP
@@ -484,8 +594,8 @@ export class MCPHandler {
         lastPongTime: now,
         pingCount: 0,
         failedPings: 0,
-        averageLatency: 0
-      }
+        averageLatency: 0,
+      },
     };
 
     this.sessions.set(sessionId, sessionState);
@@ -496,115 +606,129 @@ export class MCPHandler {
     }
 
     const response: MCPResponse = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id: request.id,
       result: {
         protocolVersion: this.supportedProtocolVersion,
         capabilities: {
           tools: {
-            listChanged: true
+            listChanged: true,
           },
           logging: {},
-          experimental: {}
+          experimental: {},
         },
         serverInfo: {
-          name: 'Apple RAG MCP Server',
-          title: 'Apple Developer Documentation RAG Search',
-          version: '2.0.0'
+          name: "Apple RAG MCP Server",
+          title: "Apple Developer Documentation RAG Search",
+          version: "2.0.0",
         },
         instructions: authContext.isAuthenticated
           ? `Authenticated as ${authContext.subject}. Use the "query" tool to search Apple Developer Documentation with advanced RAG technology.`
-          : 'Use the "query" tool to search Apple Developer Documentation with advanced RAG technology. Authentication is optional but provides enhanced features.'
-      }
+          : 'Use the "query" tool to search Apple Developer Documentation with advanced RAG technology. Authentication is optional but provides enhanced features.',
+      },
     };
 
-    logger.info('MCP Initialize', {
+    logger.info("MCP Initialize", {
       clientInfo: params.clientInfo,
       protocolVersion: params.protocolVersion,
       sessionId,
       authenticated: authContext.isAuthenticated,
       subject: authContext.subject,
       scopes: authContext.scopes,
-      processingTime: Date.now() - startTime
+      processingTime: Date.now() - startTime,
     });
 
     // Set session ID header as per Streamable HTTP spec
-    reply.header('Mcp-Session-Id', sessionId);
+    reply.header("Mcp-Session-Id", sessionId);
     reply.code(200).send(response);
   }
 
   /**
    * Handle tools/list method with authorization context and cancellation support
    */
-  private async handleToolsList(request: MCPRequest, reply: FastifyReply, startTime: number, authContext: AuthContext): Promise<void> {
+  private async handleToolsList(
+    request: MCPRequest,
+    reply: FastifyReply,
+    startTime: number,
+    authContext: AuthContext
+  ): Promise<void> {
     try {
       // Check if request was cancelled before processing
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before tools/list processing', { requestId: request.id });
+        logger.debug("Request cancelled before tools/list processing", {
+          requestId: request.id,
+        });
         return; // Don't send response for cancelled requests
       }
 
       const tools: any[] = [
         {
-          name: 'query',
-          description: 'Search Apple Developer Documentation using advanced RAG technology with semantic understanding',
+          name: "query",
+          description:
+            "Search Apple Developer Documentation using advanced RAG technology with semantic understanding",
           inputSchema: {
-            type: 'object',
+            type: "object",
             properties: {
               query: {
-                type: 'string',
-                description: 'Search query for Apple Developer Documentation. Use natural language for best results.'
+                type: "string",
+                description:
+                  "Search query for Apple Developer Documentation. Use natural language for best results.",
               },
               match_count: {
-                type: 'number',
-                description: 'Number of results to return (1-20)',
+                type: "number",
+                description: "Number of results to return (1-20)",
                 minimum: 1,
                 maximum: 20,
-                default: 5
-              }
+                default: 5,
+              },
             },
-            required: ['query'],
-            additionalProperties: false
-          }
-        }
+            required: ["query"],
+            additionalProperties: false,
+          },
+        },
       ];
 
       // Add admin-only tools for authenticated users with admin scope
-      if (authContext.isAuthenticated && authContext.scopes?.includes('mcp:admin')) {
+      if (
+        authContext.isAuthenticated &&
+        authContext.scopes?.includes("mcp:admin")
+      ) {
         tools.push({
-          name: 'admin_stats',
-          description: 'Get server statistics and usage metrics (admin only)',
+          name: "admin_stats",
+          description: "Get server statistics and usage metrics (admin only)",
           inputSchema: {
-            type: 'object',
+            type: "object",
             properties: {
               detailed: {
-                type: 'boolean',
-                description: 'Include detailed statistics',
-                default: false
-              }
+                type: "boolean",
+                description: "Include detailed statistics",
+                default: false,
+              },
             },
-            additionalProperties: false
-          }
+            additionalProperties: false,
+          },
         });
       }
 
       // Final cancellation check before sending response
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before tools/list response', { requestId: request.id });
+        logger.debug("Request cancelled before tools/list response", {
+          requestId: request.id,
+        });
         return;
       }
 
       const response: MCPResponse = {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         id: request.id,
-        result: { tools }
+        result: { tools },
       };
 
-      logger.info('MCP Tools List', {
+      logger.info("MCP Tools List", {
         toolCount: tools.length,
         authenticated: authContext.isAuthenticated,
         subject: authContext.subject,
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
       });
 
       reply.code(200).send(response);
@@ -624,50 +748,98 @@ export class MCPHandler {
   /**
    * Handle tools/call method with authorization context
    */
-  private async handleToolsCall(request: MCPRequest, reply: FastifyReply, httpRequest: FastifyRequest, startTime: number, authContext: AuthContext): Promise<void> {
+  private async handleToolsCall(
+    request: MCPRequest,
+    reply: FastifyReply,
+    httpRequest: FastifyRequest,
+    startTime: number,
+    authContext: AuthContext
+  ): Promise<void> {
     try {
       const { name, arguments: args } = request.params || {};
 
       // Handle different tools based on authentication and authorization
       switch (name) {
-        case 'query':
-          return this.handleQueryTool(request, reply, httpRequest, startTime, authContext, args);
+        case "query":
+          return this.handleQueryTool(
+            request,
+            reply,
+            httpRequest,
+            startTime,
+            authContext,
+            args
+          );
 
-        case 'admin_stats':
+        case "admin_stats":
           // Admin-only tool - require authentication and admin scope
           if (!authContext.isAuthenticated) {
-            return this.sendError(reply, 'Authentication required for admin tools', -32001, startTime);
+            return this.sendError(
+              reply,
+              "Authentication required for admin tools",
+              -32001,
+              startTime
+            );
           }
-          if (!this.authMiddleware.requireScope(authContext, 'mcp:admin', reply)) {
+          if (
+            !this.authMiddleware.requireScope(authContext, "mcp:admin", reply)
+          ) {
             return; // Error response already sent by requireScope
           }
-          return this.handleAdminStatsTool(request, reply, startTime, authContext);
+          return this.handleAdminStatsTool(
+            request,
+            reply,
+            startTime,
+            authContext
+          );
 
         default:
-          return this.sendError(reply, `Unknown tool: ${name}`, -32602, startTime);
+          return this.sendError(
+            reply,
+            `Unknown tool: ${name}`,
+            -32602,
+            startTime
+          );
       }
     } catch (error) {
-      logger.error('Tools Call Error:', {
+      logger.error("Tools Call Error:", {
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
-      return this.sendError(reply, 'Tool execution failed', -32603, startTime);
+      return this.sendError(reply, "Tool execution failed", -32603, startTime);
     }
   }
 
   /**
    * Handle query tool - available to all users with cancellation support
    */
-  private async handleQueryTool(request: MCPRequest, reply: FastifyReply, httpRequest: FastifyRequest, startTime: number, authContext: AuthContext, args: any): Promise<void> {
+  private async handleQueryTool(
+    request: MCPRequest,
+    reply: FastifyReply,
+    httpRequest: FastifyRequest,
+    startTime: number,
+    authContext: AuthContext,
+    args: any
+  ): Promise<void> {
     try {
       // Validate arguments
-      if (!args || typeof args.query !== 'string' || args.query.trim().length === 0) {
-        return this.sendError(reply, 'Invalid query parameter', -32602, startTime);
+      if (
+        !args ||
+        typeof args.query !== "string" ||
+        args.query.trim().length === 0
+      ) {
+        return this.sendError(
+          reply,
+          "Invalid query parameter",
+          -32602,
+          startTime
+        );
       }
 
       // Check if request was cancelled before processing
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before query processing', { requestId: request.id });
+        logger.debug("Request cancelled before query processing", {
+          requestId: request.id,
+        });
         return;
       }
 
@@ -677,35 +849,43 @@ export class MCPHandler {
       const session = await this.getOrCreateSession(httpRequest, authContext);
 
       // Get abort signal for cancellation support
-      const abortSignal = request.id !== undefined ? this.getRequestAbortSignal(request.id) : undefined;
+      const abortSignal =
+        request.id !== undefined
+          ? this.getRequestAbortSignal(request.id)
+          : undefined;
 
       // Check for progress token
       const progressToken = request.params?._meta?.progressToken;
 
       // Execute RAG query with progress tracking, timeout and cancellation support
-      const ragResult = await Promise.race([
-        this.executeWithProgress('rag_query', progressToken, async () => {
+      const ragResult = (await Promise.race([
+        this.executeWithProgress("rag_query", progressToken, async () => {
           return this.ragService.query({
             query: args.query.trim(),
-            match_count: matchCount
+            match_count: matchCount,
           });
         }),
         new Promise((_, reject) => {
-          const timeout = setTimeout(() => reject(new Error('Query timeout')), 30000);
+          const timeout = setTimeout(
+            () => reject(new Error("Query timeout")),
+            30000
+          );
 
           // Handle cancellation
           if (abortSignal) {
-            abortSignal.addEventListener('abort', () => {
+            abortSignal.addEventListener("abort", () => {
               clearTimeout(timeout);
-              reject(new Error('Query cancelled'));
+              reject(new Error("Query cancelled"));
             });
           }
-        })
-      ]) as any;
+        }),
+      ])) as any;
 
       // Final cancellation check before sending response
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before query response', { requestId: request.id });
+        logger.debug("Request cancelled before query response", {
+          requestId: request.id,
+        });
         return;
       }
 
@@ -715,35 +895,39 @@ export class MCPHandler {
         : this.formatRAGResponse(ragResult);
 
       const response: MCPResponse = {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         id: request.id,
         result: {
           content: [
             {
-              type: 'text',
-              text: responseText
-            }
-          ]
-        }
+              type: "text",
+              text: responseText,
+            },
+          ],
+        },
       };
 
       // Log successful query to D1 (non-blocking)
       const responseTime = Date.now() - startTime;
       const statusCode = ragResult?.success ? 200 : 500;
 
-      if (authContext.isAuthenticated && authContext.subject && authContext.mcpToken) {
+      if (
+        authContext.isAuthenticated &&
+        authContext.subject &&
+        authContext.mcpToken
+      ) {
         await this.queryLogger.logQuery({
           userId: authContext.subject,
           mcpToken: authContext.mcpToken,
           queryText: args.query.trim(),
           resultCount: ragResult?.count || 0,
           responseTimeMs: responseTime,
-          statusCode
+          statusCode,
         });
       } else {
         // For anonymous users, use a placeholder token
         await this.queryLogger.logAnonymousQuery(
-          'anonymous_token',
+          "anonymous_token",
           args.query.trim(),
           ragResult?.count || 0,
           responseTime,
@@ -751,13 +935,13 @@ export class MCPHandler {
         );
       }
 
-      logger.info('Query Tool Success', {
+      logger.info("Query Tool Success", {
         query: args.query,
         resultCount: ragResult?.count || 0,
         authenticated: authContext.isAuthenticated,
         subject: authContext.subject,
         processingTime: responseTime,
-        sessionId: session.id
+        sessionId: session.id,
       });
 
       reply.code(200).send(response);
@@ -773,19 +957,26 @@ export class MCPHandler {
 
       // Log failed query to D1 (non-blocking)
       const responseTime = Date.now() - startTime;
-      if (args?.query && !(error instanceof Error && error.message === 'Query cancelled')) {
-        if (authContext.isAuthenticated && authContext.subject && authContext.mcpToken) {
+      if (
+        args?.query &&
+        !(error instanceof Error && error.message === "Query cancelled")
+      ) {
+        if (
+          authContext.isAuthenticated &&
+          authContext.subject &&
+          authContext.mcpToken
+        ) {
           await this.queryLogger.logQuery({
             userId: authContext.subject,
             mcpToken: authContext.mcpToken,
             queryText: args.query.trim(),
             resultCount: 0,
             responseTimeMs: responseTime,
-            statusCode: 500
+            statusCode: 500,
           });
         } else {
           await this.queryLogger.logAnonymousQuery(
-            'anonymous_token',
+            "anonymous_token",
             args.query.trim(),
             0,
             responseTime,
@@ -795,11 +986,11 @@ export class MCPHandler {
       }
 
       // Handle cancellation gracefully
-      if (error instanceof Error && error.message === 'Query cancelled') {
-        logger.info('Query cancelled by user', {
+      if (error instanceof Error && error.message === "Query cancelled") {
+        logger.info("Query cancelled by user", {
           requestId: request.id,
           query: args?.query,
-          processingTime: responseTime
+          processingTime: responseTime,
         });
         return; // Don't send error response for cancelled requests
       }
@@ -811,11 +1002,18 @@ export class MCPHandler {
   /**
    * Handle admin stats tool - admin only with cancellation support
    */
-  private async handleAdminStatsTool(request: MCPRequest, reply: FastifyReply, startTime: number, authContext: AuthContext): Promise<void> {
+  private async handleAdminStatsTool(
+    request: MCPRequest,
+    reply: FastifyReply,
+    startTime: number,
+    authContext: AuthContext
+  ): Promise<void> {
     try {
       // Check if request was cancelled before processing
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before admin stats processing', { requestId: request.id });
+        logger.debug("Request cancelled before admin stats processing", {
+          requestId: request.id,
+        });
         return;
       }
 
@@ -823,65 +1021,77 @@ export class MCPHandler {
       const progressToken = request.params?._meta?.progressToken;
 
       // Execute admin stats with progress tracking
-      const stats = await this.executeWithProgress('admin_stats', progressToken, async () => {
-        // Collect all statistics
-        const serverStats = {
-          uptime: process.uptime(),
-          memory: process.memoryUsage(),
-          version: '2.0.0',
-          protocol: this.supportedProtocolVersion
-        };
+      const stats = await this.executeWithProgress(
+        "admin_stats",
+        progressToken,
+        async () => {
+          // Collect all statistics
+          const serverStats = {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            version: "2.0.0",
+            protocol: this.supportedProtocolVersion,
+          };
 
-        const sessionStats = {
-          total: this.sessions.size,
-          active: Array.from(this.sessions.values()).filter(s => s.initialized).length
-        };
+          const sessionStats = {
+            total: this.sessions.size,
+            active: Array.from(this.sessions.values()).filter(
+              (s) => s.initialized
+            ).length,
+          };
 
-        const requestStats = {
-          active: this.activeRequests.size,
-          tracked: Array.from(this.activeRequests.values()).filter(r => !r.isCompleted).length
-        };
+          const requestStats = {
+            active: this.activeRequests.size,
+            tracked: Array.from(this.activeRequests.values()).filter(
+              (r) => !r.isCompleted
+            ).length,
+          };
 
-        const progressStats = {
-          active: this.progressStates.size,
-          completed: Array.from(this.progressStates.values()).filter(p => p.isCompleted).length
-        };
+          const progressStats = {
+            active: this.progressStates.size,
+            completed: Array.from(this.progressStates.values()).filter(
+              (p) => p.isCompleted
+            ).length,
+          };
 
-        return {
-          server: serverStats,
-          sessions: sessionStats,
-          requests: requestStats,
-          progress: progressStats,
-          authentication: {
-            enabled: true,
-            currentUser: authContext.subject,
-            scopes: authContext.scopes
-          }
-        };
-      });
+          return {
+            server: serverStats,
+            sessions: sessionStats,
+            requests: requestStats,
+            progress: progressStats,
+            authentication: {
+              enabled: true,
+              currentUser: authContext.subject,
+              scopes: authContext.scopes,
+            },
+          };
+        }
+      );
 
       // Final cancellation check before sending response
       if (request.id !== undefined && this.isRequestCancelled(request.id)) {
-        logger.debug('Request cancelled before admin stats response', { requestId: request.id });
+        logger.debug("Request cancelled before admin stats response", {
+          requestId: request.id,
+        });
         return;
       }
 
       const response: MCPResponse = {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         id: request.id,
         result: {
           content: [
             {
-              type: 'text',
-              text: `Server Statistics:\n\n${JSON.stringify(stats, null, 2)}`
-            }
-          ]
-        }
+              type: "text",
+              text: `Server Statistics:\n\n${JSON.stringify(stats, null, 2)}`,
+            },
+          ],
+        },
       };
 
-      logger.info('Admin Stats Tool Success', {
+      logger.info("Admin Stats Tool Success", {
         admin: authContext.subject,
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
       });
 
       reply.code(200).send(response);
@@ -910,20 +1120,20 @@ export class MCPHandler {
         userId: userToken.userId,
         username: userToken.name,
         tier: userToken.tier,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
     } catch (error) {
-      logger.warn('Failed to get user info, using fallback', {
+      logger.warn("Failed to get user info, using fallback", {
         userId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
 
       // Fallback to basic user info
       return {
         userId,
-        username: 'User',
-        tier: 'free',
-        created_at: new Date().toISOString()
+        username: "User",
+        tier: "free",
+        created_at: new Date().toISOString(),
       };
     }
   }
@@ -931,7 +1141,10 @@ export class MCPHandler {
   /**
    * Get or create user session based on authentication context
    */
-  private async getOrCreateSession(_request: FastifyRequest, authContext: AuthContext): Promise<any> {
+  private async getOrCreateSession(
+    _request: FastifyRequest,
+    authContext: AuthContext
+  ): Promise<any> {
     if (authContext.isAuthenticated && authContext.subject) {
       // Create session for authenticated user
       const userInfo = await this.getUserInfo(authContext.subject);
@@ -940,9 +1153,9 @@ export class MCPHandler {
       // Create anonymous session for unauthenticated access
       const anonymousUser: UserContext = {
         userId: `anon_${crypto.randomUUID()}`,
-        username: 'Anonymous User',
-        tier: 'free',
-        created_at: new Date().toISOString()
+        username: "Anonymous User",
+        tier: "free",
+        created_at: new Date().toISOString(),
       };
       return this.sessionService.createSession(anonymousUser);
     }
@@ -953,11 +1166,11 @@ export class MCPHandler {
    */
   private formatRAGResponse(ragResult: any): string {
     if (!ragResult.success) {
-      return `❌ Search failed: ${ragResult.error || 'Unknown error'}`;
+      return `❌ Search failed: ${ragResult.error || "Unknown error"}`;
     }
 
     if (ragResult.results.length === 0) {
-      return '🔍 No results found for your query. Try using different keywords or broader terms.';
+      return "🔍 No results found for your query. Try using different keywords or broader terms.";
     }
 
     let response = `🔍 Apple Developer Documentation Search\n\n`;
@@ -965,7 +1178,7 @@ export class MCPHandler {
     response += `**Results:** ${ragResult.count} found\n`;
 
     ragResult.results.forEach((result: any, index: number) => {
-      response += `### ${index + 1}. ${result.title || 'Documentation'}\n`;
+      response += `### ${index + 1}. ${result.title || "Documentation"}\n`;
       response += `**URL:** ${result.url}\n`;
       response += `**Relevance:** ${(result.similarity * 100).toFixed(1)}%\n\n`;
       response += `${result.content.substring(0, 300)}...\n\n`;
@@ -973,14 +1186,20 @@ export class MCPHandler {
     });
 
     response += `⚡ *Processed in ${ragResult.processing_time_ms}ms*`;
-    
+
     return response;
   }
 
   /**
    * Handle ping request - MCP Ping specification compliant
    */
-  private async handlePing(request: MCPRequest, reply: FastifyReply, startTime: number, sessionId?: string, authContext?: AuthContext): Promise<void> {
+  private async handlePing(
+    request: MCPRequest,
+    reply: FastifyReply,
+    startTime: number,
+    sessionId?: string,
+    authContext?: AuthContext
+  ): Promise<void> {
     try {
       // Update connection health if session exists
       if (sessionId) {
@@ -1000,7 +1219,8 @@ export class MCPHandler {
             sessionState.connectionHealth.averageLatency = latency;
           } else {
             sessionState.connectionHealth.averageLatency =
-              (sessionState.connectionHealth.averageLatency * 0.8) + (latency * 0.2);
+              sessionState.connectionHealth.averageLatency * 0.8 +
+              latency * 0.2;
           }
 
           // Reset failed ping count on successful response
@@ -1010,17 +1230,17 @@ export class MCPHandler {
 
       // MCP Ping specification: respond with empty result
       const response: MCPResponse = {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         id: request.id,
-        result: {}
+        result: {},
       };
 
-      logger.debug('Ping request handled', {
+      logger.debug("Ping request handled", {
         requestId: request.id,
         sessionId,
         userId: authContext?.subject,
         latency: Date.now() - startTime,
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
       });
 
       reply.code(200).send(response);
@@ -1040,7 +1260,11 @@ export class MCPHandler {
   /**
    * Handle session termination - Security compliant
    */
-  private async handleSessionTermination(sessionId: string, reply: FastifyReply, startTime: number): Promise<void> {
+  private async handleSessionTermination(
+    sessionId: string,
+    reply: FastifyReply,
+    startTime: number
+  ): Promise<void> {
     const sessionState = this.sessions.get(sessionId);
 
     if (sessionState) {
@@ -1048,22 +1272,32 @@ export class MCPHandler {
       this.stopPingMonitoring(sessionId);
 
       this.sessions.delete(sessionId);
-      logger.info('Session terminated', {
+      logger.info("Session terminated", {
         sessionId,
         userId: sessionState.userId,
         connectionHealth: sessionState.connectionHealth,
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
       });
-      reply.code(200).send({ message: 'Session terminated successfully' });
+      reply.code(200).send({ message: "Session terminated successfully" });
     } else {
-      return this.sendError(reply, 'Session not found', -32002, startTime, {}, 404);
+      return this.sendError(
+        reply,
+        "Session not found",
+        -32002,
+        startTime,
+        {},
+        404
+      );
     }
   }
 
   /**
    * Check if session is initialized - Security: validate user binding
    */
-  private isSessionInitialized(sessionId?: string, authContext?: AuthContext): boolean {
+  private isSessionInitialized(
+    sessionId?: string,
+    authContext?: AuthContext
+  ): boolean {
     if (sessionId) {
       const sessionState = this.sessions.get(sessionId);
       if (!sessionState || this.isSessionExpired(sessionState)) {
@@ -1073,10 +1307,10 @@ export class MCPHandler {
       // Security: if session has user binding, verify it matches current auth context
       if (sessionState.userId && authContext?.isAuthenticated) {
         if (sessionState.userId !== authContext.subject) {
-          logger.warn('Session user mismatch detected', {
+          logger.warn("Session user mismatch detected", {
             sessionId,
             sessionUser: sessionState.userId,
-            authUser: authContext.subject
+            authUser: authContext.subject,
           });
           return false;
         }
@@ -1095,8 +1329,10 @@ export class MCPHandler {
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
     const maxInactivity = 4 * 60 * 60 * 1000; // 4 hours (more lenient)
 
-    return (now - sessionState.createdAt > maxAge) ||
-           (now - sessionState.lastActivity > maxInactivity);
+    return (
+      now - sessionState.createdAt > maxAge ||
+      now - sessionState.lastActivity > maxInactivity
+    );
   }
 
   /**
@@ -1115,10 +1351,10 @@ export class MCPHandler {
     }
 
     if (cleanedCount > 0) {
-      logger.info('Cleaned up expired sessions', {
+      logger.info("Cleaned up expired sessions", {
         cleanedCount,
         remainingSessions: this.sessions.size,
-        activePingMonitors: this.pingTimers.size
+        activePingMonitors: this.pingTimers.size,
       });
     }
   }
@@ -1126,7 +1362,11 @@ export class MCPHandler {
   /**
    * Track request for cancellation support
    */
-  private trackRequest(request: MCPRequest, sessionId?: string, authContext?: AuthContext): void {
+  private trackRequest(
+    request: MCPRequest,
+    sessionId?: string,
+    authContext?: AuthContext
+  ): void {
     if (request.id === undefined) return;
 
     const requestState: RequestState = {
@@ -1136,28 +1376,36 @@ export class MCPHandler {
       abortController: new AbortController(),
       sessionId,
       userId: authContext?.subject,
-      isCompleted: false
+      isCompleted: false,
     };
 
     this.activeRequests.set(request.id, requestState);
 
-    logger.debug('Request tracked for cancellation', {
+    logger.debug("Request tracked for cancellation", {
       requestId: request.id,
       method: request.method,
       sessionId,
-      userId: authContext?.subject
+      userId: authContext?.subject,
     });
   }
 
   /**
    * Handle request cancellation notification
    */
-  private handleRequestCancellation(params: any, sessionId?: string, authContext?: AuthContext, startTime?: number): void {
+  private handleRequestCancellation(
+    params: any,
+    sessionId?: string,
+    authContext?: AuthContext,
+    startTime?: number
+  ): void {
     const requestId = params?.requestId;
     const reason = params?.reason;
 
     if (!requestId) {
-      logger.warn('Cancellation notification missing requestId', { sessionId, userId: authContext?.subject });
+      logger.warn("Cancellation notification missing requestId", {
+        sessionId,
+        userId: authContext?.subject,
+      });
       return;
     }
 
@@ -1165,32 +1413,40 @@ export class MCPHandler {
 
     if (!requestState) {
       // Request not found - may have already completed or never existed
-      logger.debug('Cancellation for unknown/completed request', {
+      logger.debug("Cancellation for unknown/completed request", {
         requestId,
         reason,
         sessionId,
-        userId: authContext?.subject
+        userId: authContext?.subject,
       });
       return;
     }
 
     // Security: Verify cancellation is from the same session/user
-    if (sessionId && requestState.sessionId && requestState.sessionId !== sessionId) {
-      logger.warn('Cancellation attempt from different session', {
+    if (
+      sessionId &&
+      requestState.sessionId &&
+      requestState.sessionId !== sessionId
+    ) {
+      logger.warn("Cancellation attempt from different session", {
         requestId,
         requestSession: requestState.sessionId,
         cancelSession: sessionId,
-        userId: authContext?.subject
+        userId: authContext?.subject,
       });
       return;
     }
 
-    if (authContext?.subject && requestState.userId && requestState.userId !== authContext.subject) {
-      logger.warn('Cancellation attempt from different user', {
+    if (
+      authContext?.subject &&
+      requestState.userId &&
+      requestState.userId !== authContext.subject
+    ) {
+      logger.warn("Cancellation attempt from different user", {
         requestId,
         requestUser: requestState.userId,
         cancelUser: authContext.subject,
-        sessionId
+        sessionId,
       });
       return;
     }
@@ -1199,14 +1455,14 @@ export class MCPHandler {
     requestState.abortController.abort();
     requestState.isCompleted = true;
 
-    logger.info('Request cancelled successfully', {
+    logger.info("Request cancelled successfully", {
       requestId,
       method: requestState.method,
       reason,
       sessionId,
       userId: authContext?.subject,
       requestAge: Date.now() - requestState.startTime,
-      processingTime: startTime ? Date.now() - startTime : undefined
+      processingTime: startTime ? Date.now() - startTime : undefined,
     });
 
     // Clean up immediately
@@ -1238,7 +1494,9 @@ export class MCPHandler {
   /**
    * Get abort signal for request
    */
-  private getRequestAbortSignal(requestId: string | number): AbortSignal | undefined {
+  private getRequestAbortSignal(
+    requestId: string | number
+  ): AbortSignal | undefined {
     return this.activeRequests.get(requestId)?.abortController.signal;
   }
 
@@ -1251,14 +1509,14 @@ export class MCPHandler {
     const maxAge = 300000; // 5 minutes
 
     for (const [requestId, requestState] of this.activeRequests.entries()) {
-      if (requestState.isCompleted || (now - requestState.startTime > maxAge)) {
+      if (requestState.isCompleted || now - requestState.startTime > maxAge) {
         this.activeRequests.delete(requestId);
         cleanedCount++;
       }
     }
 
     if (cleanedCount > 0) {
-      logger.debug('Cleaned up completed/expired requests', { cleanedCount });
+      logger.debug("Cleaned up completed/expired requests", { cleanedCount });
     }
   }
 
@@ -1276,9 +1534,9 @@ export class MCPHandler {
 
     this.pingTimers.set(sessionId, timer);
 
-    logger.debug('Started ping monitoring', {
+    logger.debug("Started ping monitoring", {
       sessionId,
-      interval: this.pingConfig.interval
+      interval: this.pingConfig.interval,
     });
   }
 
@@ -1291,7 +1549,7 @@ export class MCPHandler {
       clearInterval(timer);
       this.pingTimers.delete(sessionId);
 
-      logger.debug('Stopped ping monitoring', { sessionId });
+      logger.debug("Stopped ping monitoring", { sessionId });
     }
   }
 
@@ -1312,10 +1570,10 @@ export class MCPHandler {
     // For HTTP-based MCP, this is conceptual as the server doesn't initiate requests
     // This method serves as a placeholder for WebSocket or other bidirectional transports
 
-    logger.debug('Ping monitoring check', {
+    logger.debug("Ping monitoring check", {
       sessionId,
       connectionHealth: sessionState.connectionHealth,
-      timeSinceLastActivity: now - sessionState.lastActivity
+      timeSinceLastActivity: now - sessionState.lastActivity,
     });
 
     // Check if session has been inactive for too long (more lenient for HTTP clients)
@@ -1326,17 +1584,19 @@ export class MCPHandler {
       sessionState.connectionHealth.isAlive = false;
       sessionState.connectionHealth.failedPings++;
 
-      logger.warn('Session appears inactive', {
+      logger.warn("Session appears inactive", {
         sessionId,
         inactiveTime,
-        failedPings: sessionState.connectionHealth.failedPings
+        failedPings: sessionState.connectionHealth.failedPings,
       });
 
       // Terminate session if too many failures (more lenient)
-      if (sessionState.connectionHealth.failedPings >= this.pingConfig.maxFailures) {
-        logger.info('Terminating inactive session', {
+      if (
+        sessionState.connectionHealth.failedPings >= this.pingConfig.maxFailures
+      ) {
+        logger.info("Terminating inactive session", {
           sessionId,
-          failedPings: sessionState.connectionHealth.failedPings
+          failedPings: sessionState.connectionHealth.failedPings,
         });
 
         this.stopPingMonitoring(sessionId);
@@ -1368,20 +1628,20 @@ export class MCPHandler {
         // Mark as unhealthy only if really inactive
         sessionState.connectionHealth.isAlive = false;
 
-        logger.debug('Unhealthy session detected', {
+        logger.debug("Unhealthy session detected", {
           sessionId,
           timeSinceLastActivity,
-          connectionHealth: sessionState.connectionHealth
+          connectionHealth: sessionState.connectionHealth,
         });
       }
     }
 
     if (healthySessions > 0 || unhealthySessions > 0) {
-      logger.debug('Health check completed', {
+      logger.debug("Health check completed", {
         totalSessions: this.sessions.size,
         healthySessions,
         unhealthySessions,
-        activePingMonitors: this.pingTimers.size
+        activePingMonitors: this.pingTimers.size,
       });
     }
   }
@@ -1399,17 +1659,22 @@ export class MCPHandler {
   public updatePingConfig(config: Partial<PingConfig>): void {
     this.pingConfig = { ...this.pingConfig, ...config };
 
-    logger.info('Ping configuration updated', {
-      newConfig: this.pingConfig
+    logger.info("Ping configuration updated", {
+      newConfig: this.pingConfig,
     });
   }
 
   /**
    * Track progress token for a request
    */
-  private trackProgressToken(token: string | number, requestId: string | number, sessionId?: string, authContext?: AuthContext): void {
+  private trackProgressToken(
+    token: string | number,
+    requestId: string | number,
+    sessionId?: string,
+    authContext?: AuthContext
+  ): void {
     if (this.progressStates.has(token)) {
-      logger.warn('Progress token already exists', { token, requestId });
+      logger.warn("Progress token already exists", { token, requestId });
       return;
     }
 
@@ -1422,42 +1687,50 @@ export class MCPHandler {
       progress: 0,
       startTime: now,
       lastUpdate: now,
-      isCompleted: false
+      isCompleted: false,
     };
 
     this.progressStates.set(token, progressState);
 
-    logger.debug('Progress token tracked', {
+    logger.debug("Progress token tracked", {
       token,
       requestId,
       sessionId,
-      userId: authContext?.subject
+      userId: authContext?.subject,
     });
   }
 
   /**
    * Send progress notification
    */
-  private async sendProgressNotification(token: string | number, progress: number, total?: number, message?: string): Promise<void> {
+  private async sendProgressNotification(
+    token: string | number,
+    progress: number,
+    total?: number,
+    message?: string
+  ): Promise<void> {
     const progressState = this.progressStates.get(token);
     if (!progressState) {
-      logger.warn('Progress notification for unknown token', { token });
+      logger.warn("Progress notification for unknown token", { token });
       return;
     }
 
     const now = Date.now();
 
     // Rate limiting: check minimum interval
-    if (now - progressState.lastUpdate < this.progressConfig.minUpdateInterval) {
+    if (
+      now - progressState.lastUpdate <
+      this.progressConfig.minUpdateInterval
+    ) {
       return; // Skip this update due to rate limiting
     }
 
     // Validate progress value (must be monotonically increasing)
     if (progress < progressState.progress) {
-      logger.warn('Progress value decreased, ignoring', {
+      logger.warn("Progress value decreased, ignoring", {
         token,
         currentProgress: progressState.progress,
-        newProgress: progress
+        newProgress: progress,
       });
       return;
     }
@@ -1468,22 +1741,22 @@ export class MCPHandler {
     progressState.message = message;
     progressState.lastUpdate = now;
 
-    logger.debug('Progress notification sent', {
+    logger.debug("Progress notification sent", {
       token,
       progress,
       total,
       message,
       sessionId: progressState.sessionId,
       notification: {
-        jsonrpc: '2.0',
-        method: 'notifications/progress',
+        jsonrpc: "2.0",
+        method: "notifications/progress",
         params: {
           progressToken: token,
           progress,
           ...(total !== undefined && { total }),
-          ...(message && { message })
-        }
-      }
+          ...(message && { message }),
+        },
+      },
     });
 
     // Note: In HTTP-based MCP, progress notifications would be sent via SSE or WebSocket
@@ -1505,7 +1778,7 @@ export class MCPHandler {
 
     const template = this.progressConfig.templates[templateName];
     if (!template) {
-      logger.warn('Progress template not found', { templateName });
+      logger.warn("Progress template not found", { templateName });
       return operation(-1);
     }
 
@@ -1532,14 +1805,13 @@ export class MCPHandler {
           continue;
         } else {
           // Intermediate phases - add small delay for realistic progress
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 50));
         }
       }
 
       // Complete progress tracking
       this.completeProgress(progressToken);
       return result!;
-
     } catch (error) {
       // Complete progress on error
       this.completeProgress(progressToken);
@@ -1557,7 +1829,12 @@ export class MCPHandler {
 
       // Send final progress notification if total was known
       if (progressState.total !== undefined) {
-        this.sendProgressNotification(token, progressState.total, progressState.total, 'Completed');
+        this.sendProgressNotification(
+          token,
+          progressState.total,
+          progressState.total,
+          "Completed"
+        );
       }
 
       // Schedule cleanup
@@ -1565,15 +1842,13 @@ export class MCPHandler {
         this.progressStates.delete(token);
       }, this.progressConfig.autoCleanupDelay);
 
-      logger.debug('Progress completed', {
+      logger.debug("Progress completed", {
         token,
         finalProgress: progressState.progress,
-        total: progressState.total
+        total: progressState.total,
       });
     }
   }
-
-
 
   /**
    * Cleanup completed progress states
@@ -1584,14 +1859,16 @@ export class MCPHandler {
     const maxAge = 300000; // 5 minutes
 
     for (const [token, progressState] of this.progressStates.entries()) {
-      if (progressState.isCompleted || (now - progressState.startTime > maxAge)) {
+      if (progressState.isCompleted || now - progressState.startTime > maxAge) {
         this.progressStates.delete(token);
         cleanedCount++;
       }
     }
 
     if (cleanedCount > 0) {
-      logger.debug('Cleaned up completed/expired progress states', { cleanedCount });
+      logger.debug("Cleaned up completed/expired progress states", {
+        cleanedCount,
+      });
     }
   }
 
@@ -1608,15 +1885,18 @@ export class MCPHandler {
   public updateProgressConfig(config: Partial<ProgressConfig>): void {
     // Deep merge templates if provided
     if (config.templates) {
-      this.progressConfig.templates = { ...this.progressConfig.templates, ...config.templates };
+      this.progressConfig.templates = {
+        ...this.progressConfig.templates,
+        ...config.templates,
+      };
       delete config.templates; // Remove from shallow merge
     }
 
     this.progressConfig = { ...this.progressConfig, ...config };
 
-    logger.info('Progress configuration updated', {
+    logger.info("Progress configuration updated", {
       templateCount: Object.keys(this.progressConfig.templates).length,
-      enabled: this.progressConfig.enabled
+      enabled: this.progressConfig.enabled,
     });
   }
 
@@ -1626,38 +1906,45 @@ export class MCPHandler {
   public setProgressTemplate(name: string, template: ProgressTemplate): void {
     this.progressConfig.templates[name] = template;
 
-    logger.debug('Progress template updated', {
+    logger.debug("Progress template updated", {
       templateName: name,
       phaseCount: template.phases.length,
-      total: template.total
+      total: template.total,
     });
   }
 
   /**
    * Send error response according to MCP specification
    */
-  private sendError(reply: FastifyReply, message: string, code: number, startTime: number, data?: any, httpStatus?: number): void {
+  private sendError(
+    reply: FastifyReply,
+    message: string,
+    code: number,
+    startTime: number,
+    data?: any,
+    httpStatus?: number
+  ): void {
     const response: MCPResponse = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       error: {
         code,
         message,
         data: {
           processingTime: Date.now() - startTime,
-          ...data
-        }
-      }
+          ...data,
+        },
+      },
     };
 
     // Use provided HTTP status or map from error code
     const status = httpStatus || this.getHttpStatusFromErrorCode(code);
 
-    logger.error('MCP Error Response', {
+    logger.error("MCP Error Response", {
       code,
       message,
       httpStatus: status,
       processingTime: Date.now() - startTime,
-      data
+      data,
     });
 
     reply.code(status).send(response);

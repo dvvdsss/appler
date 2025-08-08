@@ -3,38 +3,42 @@
  * High-performance VPS deployment with complete protocol support
  */
 
-import { fastify } from 'fastify';
-import { config } from 'dotenv';
-import { MCPHandler } from './src/mcp-handler.js';
-import { loadConfig } from './src/config.js';
-import { DatabaseAutoInit } from './src/services/database-auto-init.js';
-import { logger } from './src/logger.js';
+import { fastify } from "fastify";
+import { config } from "dotenv";
+import { MCPHandler } from "./src/mcp-handler.js";
+import { loadConfig } from "./src/config.js";
+import { DatabaseAutoInit } from "./src/services/database-auto-init.js";
+import { logger } from "./src/logger.js";
 
 // Load environment variables based on NODE_ENV with validation
-const nodeEnv = process.env.NODE_ENV || 'development';
-const envFile = nodeEnv === 'production' ? '.env.production' : '.env.development';
+const nodeEnv = process.env.NODE_ENV || "development";
+const envFile =
+  nodeEnv === "production" ? ".env.production" : ".env.development";
 config({ path: envFile });
 
 // Validate environment configuration
-logger.info('Environment configuration loaded', {
+logger.info("Environment configuration loaded", {
   nodeEnv,
   envFile,
-  databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID?.substring(0, 8) + '...',
-  embeddingHost: process.env.EMBEDDING_DB_HOST
+  databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID?.substring(0, 8) + "...",
+  embeddingHost: process.env.EMBEDDING_DB_HOST,
 });
 
 // Initialize Fastify with production-optimized settings
 const server = fastify({
-  logger: process.env.NODE_ENV === 'production' ? {
-    level: 'info',
-    redact: ['req.headers.authorization']
-  } : {
-    level: 'debug',
-    transport: {
-      target: 'pino-pretty',
-      options: { colorize: true }
-    }
-  },
+  logger:
+    process.env.NODE_ENV === "production"
+      ? {
+          level: "info",
+          redact: ["req.headers.authorization"],
+        }
+      : {
+          level: "debug",
+          transport: {
+            target: "pino-pretty",
+            options: { colorize: true },
+          },
+        },
   trustProxy: true,
   keepAliveTimeout: 30000,
   requestTimeout: 60000,
@@ -48,7 +52,7 @@ const appConfig = loadConfig();
 const d1Config = {
   accountId: appConfig.CLOUDFLARE_ACCOUNT_ID,
   apiToken: appConfig.CLOUDFLARE_API_TOKEN,
-  databaseId: appConfig.CLOUDFLARE_D1_DATABASE_ID
+  databaseId: appConfig.CLOUDFLARE_D1_DATABASE_ID,
 };
 
 const dbAutoInit = new DatabaseAutoInit(d1Config);
@@ -57,88 +61,109 @@ const dbAutoInit = new DatabaseAutoInit(d1Config);
 const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
 
 // Initialize MCP handler with base URL for OAuth and API integration
-console.log('🔧 Initializing MCP handler with RAG pre-initialization...');
+console.log("🔧 Initializing MCP handler with RAG pre-initialization...");
 const mcpHandler = new MCPHandler(appConfig, baseUrl);
 
 // Register CORS and security headers
-server.addHook('preHandler', async (_request, reply) => {
+server.addHook("preHandler", async (_request, reply) => {
   // CORS headers for MCP clients - Streamable HTTP compliant
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  reply.header('Access-Control-Allow-Headers', 'Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Authorization, Last-Event-ID');
-  reply.header('Access-Control-Expose-Headers', 'Mcp-Session-Id');
-  reply.header('Access-Control-Max-Age', '86400');
+  reply.header("Access-Control-Allow-Origin", "*");
+  reply.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  reply.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Authorization, Last-Event-ID"
+  );
+  reply.header("Access-Control-Expose-Headers", "Mcp-Session-Id");
+  reply.header("Access-Control-Max-Age", "86400");
 
   // Security headers
-  reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-Frame-Options', 'DENY');
-  reply.header('X-XSS-Protection', '1; mode=block');
+  reply.header("X-Content-Type-Options", "nosniff");
+  reply.header("X-Frame-Options", "DENY");
+  reply.header("X-XSS-Protection", "1; mode=block");
 });
 
 // Handle preflight requests
-server.options('/', async (_request, reply) => {
+server.options("/", async (_request, reply) => {
   reply.code(204).send();
 });
 
 // CORS preflight for manifest endpoint
-server.options('/manifest', async (_request, reply) => {
+server.options("/manifest", async (_request, reply) => {
   reply.code(204).send();
 });
 
 // MCP protocol endpoint - supports GET, POST, DELETE as per Streamable HTTP spec
-server.get('/', async (request, reply) => {
+server.get("/", async (request, reply) => {
   return mcpHandler.handle(request, reply);
 });
 
-server.post('/', async (request, reply) => {
+server.post("/", async (request, reply) => {
   return mcpHandler.handle(request, reply);
 });
 
-server.delete('/', async (request, reply) => {
+server.delete("/", async (request, reply) => {
   return mcpHandler.handle(request, reply);
 });
 
 // OAuth 2.1 Protected Resource Metadata endpoint (RFC9728)
-server.get('/.well-known/oauth-protected-resource', async (_request, reply) => {
-  const metadata = mcpHandler.getAuthMiddleware().getMetadataService().getProtectedResourceMetadata();
+server.get("/.well-known/oauth-protected-resource", async (_request, reply) => {
+  const metadata = mcpHandler
+    .getAuthMiddleware()
+    .getMetadataService()
+    .getProtectedResourceMetadata();
   reply.code(200).send(metadata);
 });
 
 // OAuth 2.1 Authorization Server Metadata endpoint (RFC8414)
-server.get('/.well-known/oauth-authorization-server', async (_request, reply) => {
-  const metadata = mcpHandler.getAuthMiddleware().getMetadataService().getAuthorizationServerMetadata();
-  reply.code(200).send(metadata);
-});
+server.get(
+  "/.well-known/oauth-authorization-server",
+  async (_request, reply) => {
+    const metadata = mcpHandler
+      .getAuthMiddleware()
+      .getMetadataService()
+      .getAuthorizationServerMetadata();
+    reply.code(200).send(metadata);
+  }
+);
 
 // OAuth endpoints (not implemented - tokens managed via apple-rag-api)
-server.get('/oauth/authorize', async (_request, reply) => {
+server.get("/oauth/authorize", async (_request, reply) => {
   reply.code(501).send({
-    error: 'not_implemented',
-    error_description: 'OAuth authorization is handled by apple-rag-api. Please use the web interface to manage tokens.'
+    error: "not_implemented",
+    error_description:
+      "OAuth authorization is handled by apple-rag-api. Please use the web interface to manage tokens.",
   });
 });
 
-server.post('/oauth/token', async (_request, reply) => {
+server.post("/oauth/token", async (_request, reply) => {
   reply.code(501).send({
-    error: 'not_implemented',
-    error_description: 'Token issuance is handled by apple-rag-api. Please use the web interface to create MCP tokens.'
+    error: "not_implemented",
+    error_description:
+      "Token issuance is handled by apple-rag-api. Please use the web interface to create MCP tokens.",
   });
 });
 
-server.get('/oauth/jwks', async (_request, reply) => {
+server.get("/oauth/jwks", async (_request, reply) => {
   reply.code(501).send({
-    error: 'not_implemented',
-    error_description: 'JWKS endpoint not available. MCP tokens are validated directly with Cloudflare.'
+    error: "not_implemented",
+    error_description:
+      "JWKS endpoint not available. MCP tokens are validated directly with Cloudflare.",
   });
 });
 
-server.post('/oauth/introspect', async (request, reply) => {
+server.post("/oauth/introspect", async (request, reply) => {
   const { token } = request.body as any;
   if (!token) {
-    return reply.code(400).send({ error: 'invalid_request', error_description: 'Missing token parameter' });
+    return reply.code(400).send({
+      error: "invalid_request",
+      error_description: "Missing token parameter",
+    });
   }
 
-  const result = await mcpHandler.getAuthMiddleware().getTokenValidator().validateToken(token);
+  const result = await mcpHandler
+    .getAuthMiddleware()
+    .getTokenValidator()
+    .validateToken(token);
   reply.code(200).send({
     active: result.valid,
     scope: result.claims?.scope,
@@ -149,90 +174,101 @@ server.post('/oauth/introspect', async (request, reply) => {
     sub: result.claims?.sub,
     aud: result.claims?.aud,
     iss: result.claims?.iss,
-    jti: result.claims?.jti
+    jti: result.claims?.jti,
   });
 });
 
-server.post('/oauth/revoke', async (request, reply) => {
+server.post("/oauth/revoke", async (request, reply) => {
   const { token } = request.body as any;
   if (!token) {
-    return reply.code(400).send({ error: 'invalid_request', error_description: 'Missing token parameter' });
+    return reply.code(400).send({
+      error: "invalid_request",
+      error_description: "Missing token parameter",
+    });
   }
 
-  const success = await mcpHandler.getAuthMiddleware().getTokenValidator().revokeToken(token);
-  reply.code(success ? 200 : 400).send(success ? {} : { error: 'invalid_token' });
+  const success = await mcpHandler
+    .getAuthMiddleware()
+    .getTokenValidator()
+    .revokeToken(token);
+  reply
+    .code(success ? 200 : 400)
+    .send(success ? {} : { error: "invalid_token" });
 });
 
 // Token management endpoints (handled by apple-rag-api)
-server.post('/tokens', async (_request, reply) => {
+server.post("/tokens", async (_request, reply) => {
   reply.code(501).send({
-    error: 'not_implemented',
-    error_description: 'Token management is handled by apple-rag-api. Please use the web interface.'
+    error: "not_implemented",
+    error_description:
+      "Token management is handled by apple-rag-api. Please use the web interface.",
   });
 });
 
-server.get('/tokens', async (_request, reply) => {
+server.get("/tokens", async (_request, reply) => {
   reply.code(501).send({
-    error: 'not_implemented',
-    error_description: 'Token listing is handled by apple-rag-api. Please use the web interface.'
+    error: "not_implemented",
+    error_description:
+      "Token listing is handled by apple-rag-api. Please use the web interface.",
   });
 });
 
 // Shared manifest data
 const manifestData = {
-  name: 'Apple RAG MCP Server',
-  title: 'Apple Developer Documentation RAG Search',
-  version: '2.0.0',
-  description: 'A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.',
-  protocolVersion: '2025-06-18',
+  name: "Apple RAG MCP Server",
+  title: "Apple Developer Documentation RAG Search",
+  version: "2.0.0",
+  description:
+    "A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.",
+  protocolVersion: "2025-06-18",
   capabilities: {
     tools: { listChanged: true },
     logging: {},
-    experimental: {}
+    experimental: {},
   },
   serverInfo: {
-    name: 'Apple RAG MCP Server',
-    title: 'Apple Developer Documentation RAG Search',
-    version: '2.0.0'
+    name: "Apple RAG MCP Server",
+    title: "Apple Developer Documentation RAG Search",
+    version: "2.0.0",
   },
   endpoints: {
-    mcp: '/',
-    manifest: '/manifest',
-    health: '/health',
+    mcp: "/",
+    manifest: "/manifest",
+    health: "/health",
     oauth: {
-      authorize: '/oauth/authorize',
-      token: '/oauth/token',
-      introspect: '/oauth/introspect',
-      jwks: '/oauth/jwks'
+      authorize: "/oauth/authorize",
+      token: "/oauth/token",
+      introspect: "/oauth/introspect",
+      jwks: "/oauth/jwks",
     },
     wellKnown: {
-      oauthProtectedResource: '/.well-known/oauth-protected-resource',
-      oauthAuthorizationServer: '/.well-known/oauth-authorization-server'
-    }
+      oauthProtectedResource: "/.well-known/oauth-protected-resource",
+      oauthAuthorizationServer: "/.well-known/oauth-authorization-server",
+    },
   },
   transport: {
-    type: 'http',
-    methods: ['GET', 'POST', 'DELETE'],
+    type: "http",
+    methods: ["GET", "POST", "DELETE"],
     headers: {
-      required: ['Content-Type'],
-      optional: ['Authorization', 'MCP-Protocol-Version', 'Mcp-Session-Id']
-    }
+      required: ["Content-Type"],
+      optional: ["Authorization", "MCP-Protocol-Version", "Mcp-Session-Id"],
+    },
   },
   authorization: {
     enabled: true,
-    type: 'oauth2.1',
+    type: "oauth2.1",
     optional: true,
-    scopes: ['mcp:read', 'mcp:write', 'mcp:admin']
-  }
+    scopes: ["mcp:read", "mcp:write", "mcp:admin"],
+  },
 };
 
 // Standard manifest endpoint
-server.get('/manifest', async (_request, reply) => {
+server.get("/manifest", async (_request, reply) => {
   reply.code(200).send(manifestData);
 });
 
 // Client compatibility: Handle non-standard POST /manifest requests
-server.post('/manifest', async (request, reply) => {
+server.post("/manifest", async (request, reply) => {
   const body = request.body as any;
 
   // Empty body → return manifest (common client behavior)
@@ -241,33 +277,34 @@ server.post('/manifest', async (request, reply) => {
   }
 
   // MCP request to wrong endpoint → redirect to correct endpoint
-  if (body.jsonrpc === '2.0' && body.method) {
-    return reply.code(307).header('Location', '/').send({
-      error: 'Endpoint redirect',
-      message: 'MCP protocol requests should be sent to /',
-      redirect: '/'
+  if (body.jsonrpc === "2.0" && body.method) {
+    return reply.code(307).header("Location", "/").send({
+      error: "Endpoint redirect",
+      message: "MCP protocol requests should be sent to /",
+      redirect: "/",
     });
   }
 
   // Any other POST data → helpful error
   reply.code(400).send({
-    error: 'Invalid manifest request',
-    message: 'Use GET /manifest for server discovery or POST / for MCP communication',
+    error: "Invalid manifest request",
+    message:
+      "Use GET /manifest for server discovery or POST / for MCP communication",
     endpoints: {
-      manifest: 'GET /manifest',
-      mcp: 'POST /'
-    }
+      manifest: "GET /manifest",
+      mcp: "POST /",
+    },
   });
 });
 
 // Health check endpoint
-server.get('/health', async () => ({
-  status: 'healthy',
+server.get("/health", async () => ({
+  status: "healthy",
   timestamp: new Date().toISOString(),
   environment: appConfig.NODE_ENV,
-  version: '2.0.0',
-  protocolVersion: '2025-06-18',
-  authorization: 'enabled'
+  version: "2.0.0",
+  protocolVersion: "2025-06-18",
+  authorization: "enabled",
 }));
 
 // Graceful shutdown with proper MCP lifecycle management
@@ -277,27 +314,27 @@ const gracefulShutdown = async (signal: string) => {
   try {
     // Close server and wait for existing connections to finish
     await server.close();
-    server.log.info('Server closed successfully');
+    server.log.info("Server closed successfully");
     process.exit(0);
   } catch (error) {
-    server.log.error('Error during shutdown:', error);
+    server.log.error("Error during shutdown:", error);
     process.exit(1);
   }
 };
 
 // Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  server.log.fatal('Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  server.log.fatal("Uncaught Exception:", error);
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  server.log.fatal('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  server.log.fatal("Unhandled Rejection at:", promise, "reason:", reason);
   process.exit(1);
 });
 
@@ -305,18 +342,18 @@ process.on('unhandledRejection', (reason, promise) => {
 const start = async () => {
   try {
     // Auto-initialize database tables and test data
-    console.log('🗄️ Auto-initializing database...');
+    console.log("🗄️ Auto-initializing database...");
     await dbAutoInit.initialize();
-    console.log('✅ Database auto-initialization completed');
+    console.log("✅ Database auto-initialization completed");
 
     // Wait for RAG service pre-initialization to complete
-    console.log('🔧 Waiting for RAG service pre-initialization...');
+    console.log("🔧 Waiting for RAG service pre-initialization...");
     await mcpHandler.waitForRAGInitialization();
-    console.log('✅ RAG service pre-initialization completed');
+    console.log("✅ RAG service pre-initialization completed");
 
     await server.listen({
       port: appConfig.PORT,
-      host: '0.0.0.0'
+      host: "0.0.0.0",
     });
 
     server.log.info(`🚀 Apple RAG MCP Server started`);
@@ -327,8 +364,8 @@ const start = async () => {
     server.log.info(`🗄️ Database: Auto-initialized and ready`);
     server.log.info(`🎯 RAG Service: Pre-initialized and ready`);
   } catch (error) {
-    console.error('Failed to start server:', error);
-    server.log.fatal('Failed to start server:', error);
+    console.error("Failed to start server:", error);
+    server.log.fatal("Failed to start server:", error);
     process.exit(1);
   }
 };

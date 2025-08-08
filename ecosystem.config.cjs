@@ -4,73 +4,76 @@
  */
 
 module.exports = {
-  apps: [{
-    name: 'apple-rag-mcp',
-    script: 'dist/server.js',
-    
-    // Single Instance Configuration (Fixed: Session sharing issue)
-    instances: 1,               // Single instance for session consistency
-    exec_mode: 'fork',          // Fork mode for single instance
-    
-    // Environment Configuration
-    env: {
-      NODE_ENV: 'development',
-      PORT: 3001,
-    },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3001,
-    },
+  apps: [
+    {
+      name: "apple-rag-mcp",
+      script: "dist/server.js",
 
-    // Environment file configuration - dynamically loaded by server.ts
-    // No env_file specified to avoid conflicts with dynamic loading
-    
-    // Performance Configuration
-    max_memory_restart: '1G',   // Restart if memory exceeds 1GB
-    min_uptime: '10s',          // Minimum uptime before considering stable
-    max_restarts: 10,           // Maximum restart attempts
-    restart_delay: 4000,        // Delay between restarts
-    
-    // Logging Configuration
-    log_file: './logs/combined.log',
-    out_file: './logs/out.log',
-    error_file: './logs/error.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    merge_logs: true,
-    
-    // Monitoring Configuration
-    watch: false,               // Don't watch files in production
-    ignore_watch: ['node_modules', 'logs', '.git'],
-    
-    // Auto-restart Configuration
-    autorestart: true,
-    
-    // Health Check
-    health_check_grace_period: 3000,
-    
-    // Advanced Options
-    kill_timeout: 5000,         // Time to wait before force killing
-    listen_timeout: 3000,       // Time to wait for app to listen
-    
-    // Source Map Support
-    source_map_support: true,
-    
-    // Instance Variables
-    instance_var: 'INSTANCE_ID',
-  }],
-  
+      // Single Instance Configuration (Fixed: Session sharing issue)
+      instances: 1, // Single instance for session consistency
+      exec_mode: "fork", // Fork mode for single instance
+
+      // Environment Configuration
+      env: {
+        NODE_ENV: "development",
+        PORT: 3001,
+      },
+      env_production: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+
+      // Environment file configuration - dynamically loaded by server.ts
+      // No env_file specified to avoid conflicts with dynamic loading
+
+      // Performance Configuration
+      max_memory_restart: "1G", // Restart if memory exceeds 1GB
+      min_uptime: "10s", // Minimum uptime before considering stable
+      max_restarts: 10, // Maximum restart attempts
+      restart_delay: 4000, // Delay between restarts
+
+      // Logging Configuration
+      log_file: "./logs/combined.log",
+      out_file: "./logs/out.log",
+      error_file: "./logs/error.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      merge_logs: true,
+
+      // Monitoring Configuration
+      watch: false, // Don't watch files in production
+      ignore_watch: ["node_modules", "logs", ".git"],
+
+      // Auto-restart Configuration
+      autorestart: true,
+
+      // Health Check
+      health_check_grace_period: 3000,
+
+      // Advanced Options
+      kill_timeout: 5000, // Time to wait before force killing
+      listen_timeout: 3000, // Time to wait for app to listen
+
+      // Source Map Support
+      source_map_support: true,
+
+      // Instance Variables
+      instance_var: "INSTANCE_ID",
+    },
+  ],
+
   // Deployment Configuration (Optional)
   deploy: {
     production: {
-      user: 'deploy',
-      host: 'your-server.com',
-      ref: 'origin/main',
-      repo: 'https://github.com/your-username/apple-rag-mcp.git',
-      path: '/var/www/apple-rag-mcp',
-      'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
+      user: "deploy",
+      host: "your-server.com",
+      ref: "origin/main",
+      repo: "https://github.com/your-username/apple-rag-mcp.git",
+      path: "/var/www/apple-rag-mcp",
+      "post-deploy":
+        "npm install && npm run build && pm2 reload ecosystem.config.js --env production",
       env: {
-        NODE_ENV: 'production'
-      }
-    }
-  }
+        NODE_ENV: "production",
+      },
+    },
+  },
 };

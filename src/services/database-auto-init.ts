@@ -16,11 +16,22 @@ const REQUIRED_TABLES: TableSchema[] = [
     sql: `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      tier TEXT DEFAULT 'free',
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    )`
+      password_hash TEXT,
+      name TEXT,
+      avatar TEXT,
+      provider TEXT NOT NULL DEFAULT 'email',
+      provider_id TEXT,
+      tier TEXT NOT NULL DEFAULT 'free',
+      oauth_provider TEXT,
+      oauth_id TEXT,
+      stripe_customer_id TEXT,
+      reset_token TEXT,
+      reset_token_expires_at TEXT,
+      last_login TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      deleted_at TEXT
+    )`,
   },
   {
     name: "mcp_tokens",
@@ -33,7 +44,7 @@ const REQUIRED_TABLES: TableSchema[] = [
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )`
+    )`,
   },
   {
     name: "usage_logs",
@@ -49,8 +60,8 @@ const REQUIRED_TABLES: TableSchema[] = [
       ip_address TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )`
-  }
+    )`,
+  },
 ];
 
 const TEST_DATA = {
@@ -58,14 +69,14 @@ const TEST_DATA = {
     id: "auto-init-test-user",
     email: "test@apple-rag-mcp.dev",
     name: "Auto Init Test User",
-    tier: "free"
+    tier: "free",
   },
   token: {
     id: "auto-init-test-token",
     user_id: "auto-init-test-user",
     name: "Auto Generated Test Token",
-    mcp_token: "at_0f4f7b87f0fe4818b3fd38960cff3c55"
-  }
+    mcp_token: "at_0f4f7b87f0fe4818b3fd38960cff3c55",
+  },
 };
 
 export class DatabaseAutoInit {
@@ -84,14 +95,16 @@ export class DatabaseAutoInit {
 
       // Check if tables exist
       const missingTables = await this.checkMissingTables();
-      
+
       if (missingTables.length === 0) {
         logger.info("All required tables exist, skipping initialization");
         await this.ensureTestData();
         return;
       }
 
-      logger.info("Missing tables detected, creating...", { tables: missingTables });
+      logger.info("Missing tables detected, creating...", {
+        tables: missingTables,
+      });
 
       // Create missing tables
       await this.createTables(missingTables);
@@ -102,7 +115,7 @@ export class DatabaseAutoInit {
       logger.info("Database initialization completed successfully");
     } catch (error) {
       logger.error("Database initialization failed", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -119,7 +132,7 @@ export class DatabaseAutoInit {
 
       const existingTables = response.results.map((row: any) => row.name);
       const missingTables = REQUIRED_TABLES.filter(
-        table => !existingTables.includes(table.name)
+        (table) => !existingTables.includes(table.name)
       );
 
       return missingTables;
@@ -140,7 +153,7 @@ export class DatabaseAutoInit {
         logger.info(`Created table: ${table.name}`);
       } catch (error) {
         logger.error(`Failed to create table: ${table.name}`, {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       }
@@ -156,23 +169,33 @@ export class DatabaseAutoInit {
       await this.executeQuery(
         `INSERT OR REPLACE INTO users (id, email, name, tier, created_at, updated_at)
          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
-        [TEST_DATA.user.id, TEST_DATA.user.email, TEST_DATA.user.name, TEST_DATA.user.tier]
+        [
+          TEST_DATA.user.id,
+          TEST_DATA.user.email,
+          TEST_DATA.user.name,
+          TEST_DATA.user.tier,
+        ]
       );
 
       // Insert test MCP token
       await this.executeQuery(
         `INSERT OR REPLACE INTO mcp_tokens (id, user_id, name, mcp_token, created_at, updated_at)
          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
-        [TEST_DATA.token.id, TEST_DATA.token.user_id, TEST_DATA.token.name, TEST_DATA.token.mcp_token]
+        [
+          TEST_DATA.token.id,
+          TEST_DATA.token.user_id,
+          TEST_DATA.token.name,
+          TEST_DATA.token.mcp_token,
+        ]
       );
 
       logger.info("Test data inserted successfully", {
         user: TEST_DATA.user.email,
-        token: TEST_DATA.token.mcp_token.substring(0, 8) + "..."
+        token: TEST_DATA.token.mcp_token.substring(0, 8) + "...",
       });
     } catch (error) {
       logger.error("Failed to insert test data", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -197,7 +220,7 @@ export class DatabaseAutoInit {
       }
     } catch (error) {
       logger.warn("Failed to check test data, continuing...", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -209,22 +232,24 @@ export class DatabaseAutoInit {
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${this.config.accountId}/d1/database/${this.config.databaseId}/query`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${this.config.apiToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${this.config.apiToken}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sql, params })
+        body: JSON.stringify({ sql, params }),
       }
     );
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`D1 API error: ${response.status} ${response.statusText} - ${errorText}`);
+      const errorText = await response.text().catch(() => "Unknown error");
+      throw new Error(
+        `D1 API error: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
     const data = await response.json();
-    
+
     if (data.errors?.length) {
       const error = data.errors[0];
       throw new Error(`D1 API error: ${error.code} - ${error.message}`);
@@ -233,7 +258,7 @@ export class DatabaseAutoInit {
     return {
       results: data.result?.[0]?.results || [],
       success: data.result?.[0]?.success || false,
-      meta: data.result?.[0]?.meta
+      meta: data.result?.[0]?.meta,
     };
   }
 }

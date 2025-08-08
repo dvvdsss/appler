@@ -24,7 +24,7 @@ export class RAGService {
     if (this.initialized) return;
 
     const initStart = Date.now();
-    logger.info('Initializing RAG service...');
+    logger.info("Initializing RAG service...");
 
     try {
       // Initialize services in optimal order
@@ -36,11 +36,13 @@ export class RAGService {
 
       this.initialized = true;
 
-      logger.info('RAG service initialized successfully', {
-        initializationTime: Date.now() - initStart
+      logger.info("RAG service initialized successfully", {
+        initializationTime: Date.now() - initStart,
       });
     } catch (error) {
-      logger.error('RAG service initialization failed:', { error: error instanceof Error ? error.message : String(error) });
+      logger.error("RAG service initialization failed:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(`RAG service initialization failed: ${error}`);
     }
   }
@@ -52,13 +54,17 @@ export class RAGService {
     const startTime = Date.now();
     const { query, match_count = 5 } = request;
 
-    console.log(`🚀 RAG Query Started: "${query}" at ${new Date().toISOString()}`);
+    console.log(
+      `🚀 RAG Query Started: "${query}" at ${new Date().toISOString()}`
+    );
     console.log(`⏱️ Start Time: ${startTime}ms`);
 
     // Input validation
     const validationStart = Date.now();
     if (!query?.trim()) {
-      console.log(`❌ Validation Failed: Empty query (${Date.now() - validationStart}ms)`);
+      console.log(
+        `❌ Validation Failed: Empty query (${Date.now() - validationStart}ms)`
+      );
       return this.createErrorResponse(
         query,
         "Query cannot be empty. Please provide a search query to find relevant Apple Developer Documentation.",
@@ -69,7 +75,9 @@ export class RAGService {
 
     const trimmedQuery = query.trim();
     if (trimmedQuery.length > 1000) {
-      console.log(`❌ Validation Failed: Query too long (${Date.now() - validationStart}ms)`);
+      console.log(
+        `❌ Validation Failed: Query too long (${Date.now() - validationStart}ms)`
+      );
       return this.createErrorResponse(
         query,
         "Query is too long. Please limit your query to 1000 characters or less.",
@@ -97,7 +105,9 @@ export class RAGService {
       // Execute hybrid search (always enabled)
       const configStart = Date.now();
       const matchCount = Math.min(Math.max(match_count, 1), 20);
-      console.log(`⚙️ Configuration Set: hybrid search, ${matchCount} results (${Date.now() - configStart}ms)`);
+      console.log(
+        `⚙️ Configuration Set: hybrid search, ${matchCount} results (${Date.now() - configStart}ms)`
+      );
 
       // Execute search
       const searchStart = Date.now();
@@ -105,7 +115,9 @@ export class RAGService {
       const results = await this.searchEngine.search(trimmedQuery, {
         matchCount,
       });
-      console.log(`🔍 Hybrid Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`);
+      console.log(
+        `🔍 Hybrid Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`
+      );
 
       // Format results
       const formatStart = Date.now();
@@ -124,7 +136,9 @@ export class RAGService {
       };
     } catch (error) {
       const errorTime = Date.now() - startTime;
-      console.log(`❌ RAG Query Failed: ${error instanceof Error ? error.message : "Unknown error"} (${errorTime}ms)`);
+      console.log(
+        `❌ RAG Query Failed: ${error instanceof Error ? error.message : "Unknown error"} (${errorTime}ms)`
+      );
       return this.createErrorResponse(
         trimmedQuery,
         `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -156,8 +170,8 @@ export class RAGService {
   private extractTitleFromUrl(url: string): string | undefined {
     try {
       const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      return pathParts[pathParts.length - 1]?.replace(/-/g, ' ') || undefined;
+      const pathParts = urlObj.pathname.split("/").filter(Boolean);
+      return pathParts[pathParts.length - 1]?.replace(/-/g, " ") || undefined;
     } catch {
       return undefined;
     }
@@ -169,8 +183,8 @@ export class RAGService {
   private extractSectionFromUrl(url: string): string | undefined {
     try {
       const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      return pathParts[pathParts.length - 2]?.replace(/-/g, ' ') || undefined;
+      const pathParts = urlObj.pathname.split("/").filter(Boolean);
+      return pathParts[pathParts.length - 2]?.replace(/-/g, " ") || undefined;
     } catch {
       return undefined;
     }

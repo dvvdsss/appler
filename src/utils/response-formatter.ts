@@ -13,7 +13,13 @@ export function formatRAGResponse(
   isAnonymous: boolean
 ): string {
   if (!result.success) {
-    return createErrorResponse(result.query, userInfo, isAnonymous, result.error, result.suggestion);
+    return createErrorResponse(
+      result.query,
+      userInfo,
+      isAnonymous,
+      result.error,
+      result.suggestion
+    );
   }
 
   const header = `🔍 Apple Developer Documentation Search
@@ -27,20 +33,23 @@ ${isAnonymous ? "\n⚠️ *Anonymous access - consider getting a token for unlim
 
 `;
 
-  const results = result.results.map((doc, index) => {
-    const similarity = `${(doc.similarity * 100).toFixed(1)}%`;
-    const preview = doc.content.length > 200 
-      ? doc.content.substring(0, 200) + "..." 
-      : doc.content;
+  const results = result.results
+    .map((doc, index) => {
+      const similarity = `${(doc.similarity * 100).toFixed(1)}%`;
+      const preview =
+        doc.content.length > 200
+          ? doc.content.substring(0, 200) + "..."
+          : doc.content;
 
-    return `**${index + 1}. Document**
+      return `**${index + 1}. Document**
 • **Relevance:** ${similarity}
 • **Source:** ${doc.url}
 • **Content:** ${preview}
 ${doc.metadata?.title ? `• **Title:** ${doc.metadata.title}` : ""}
 ${doc.metadata?.section ? `• **Section:** ${doc.metadata.section}` : ""}
 `;
-  }).join("\n");
+    })
+    .join("\n");
 
   const footer = `
 ✅ Search completed successfully!
@@ -71,9 +80,13 @@ ${isAnonymous ? "\n⚠️ *Anonymous access - consider getting a token for prior
 
 ${error || "An unexpected error occurred during the search."}
 
-${suggestion ? `💡 **Suggestion**
+${
+  suggestion
+    ? `💡 **Suggestion**
 
-${suggestion}` : ""}
+${suggestion}`
+    : ""
+}
 
 **For developers:**
 This demonstrates the importance of proper error handling in RAG systems. The MCP server is functioning correctly, but the search operation encountered an issue.

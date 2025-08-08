@@ -5,7 +5,7 @@
 export interface AppConfig {
   // Server Configuration
   readonly PORT: number;
-  readonly NODE_ENV: 'development' | 'production';
+  readonly NODE_ENV: "development" | "production";
 
   // Cloudflare D1 Configuration (for token validation)
   readonly CLOUDFLARE_ACCOUNT_ID: string;
@@ -22,7 +22,7 @@ export interface AppConfig {
   readonly EMBEDDING_DB_DATABASE: string;
   readonly EMBEDDING_DB_USER: string;
   readonly EMBEDDING_DB_PASSWORD: string;
-  readonly EMBEDDING_DB_SSLMODE: 'disable' | 'require';
+  readonly EMBEDDING_DB_SSLMODE: "disable" | "require";
 
   // Session Configuration
   readonly SESSION_SECRET: string;

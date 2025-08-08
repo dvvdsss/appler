@@ -55,9 +55,13 @@ class MCPLogger {
       // Pretty formatted output for development
       const timestamp = new Date(entry.timestamp).toLocaleTimeString();
       const levelColor = this.getLevelColor(entry.level);
-      const contextStr = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
+      const contextStr = entry.context
+        ? ` ${JSON.stringify(entry.context)}`
+        : "";
 
-      console.log(`${levelColor}[${timestamp}] ${entry.level.toUpperCase()}\x1b[0m ${entry.message}${contextStr}`);
+      console.log(
+        `${levelColor}[${timestamp}] ${entry.level.toUpperCase()}\x1b[0m ${entry.message}${contextStr}`
+      );
     } else {
       // Structured JSON for production
       const logData = {
@@ -93,11 +97,16 @@ class MCPLogger {
    */
   private getLevelColor(level: string): string {
     switch (level) {
-      case "error": return "\x1b[31m"; // Red
-      case "warn": return "\x1b[33m";  // Yellow
-      case "info": return "\x1b[36m";  // Cyan
-      case "debug": return "\x1b[90m"; // Gray
-      default: return "\x1b[0m";       // Reset
+      case "error":
+        return "\x1b[31m"; // Red
+      case "warn":
+        return "\x1b[33m"; // Yellow
+      case "info":
+        return "\x1b[36m"; // Cyan
+      case "debug":
+        return "\x1b[90m"; // Gray
+      default:
+        return "\x1b[0m"; // Reset
     }
   }
 

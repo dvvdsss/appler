@@ -43,17 +43,17 @@ export class OAuthMetadataService {
   private authServerMetadata: AuthorizationServerMetadata;
 
   constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-    
+    this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
+
     this.resourceMetadata = {
       resource: this.baseUrl,
       authorization_servers: [`${this.baseUrl}/oauth`],
-      bearer_methods_supported: ['header'],
+      bearer_methods_supported: ["header"],
       resource_documentation: `${this.baseUrl}/docs`,
       jwks_uri: `${this.baseUrl}/oauth/jwks`,
       revocation_endpoint: `${this.baseUrl}/oauth/revoke`,
       introspection_endpoint: `${this.baseUrl}/oauth/introspect`,
-      code_challenge_methods_supported: ['S256']
+      code_challenge_methods_supported: ["S256"],
     };
 
     this.authServerMetadata = {
@@ -62,15 +62,19 @@ export class OAuthMetadataService {
       token_endpoint: `${this.baseUrl}/oauth/token`,
       jwks_uri: `${this.baseUrl}/oauth/jwks`,
       registration_endpoint: `${this.baseUrl}/oauth/register`,
-      scopes_supported: ['mcp:read', 'mcp:write', 'mcp:admin'],
-      response_types_supported: ['code'],
-      response_modes_supported: ['query', 'fragment'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
-      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
+      scopes_supported: ["mcp:read", "mcp:write", "mcp:admin"],
+      response_types_supported: ["code"],
+      response_modes_supported: ["query", "fragment"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      token_endpoint_auth_methods_supported: [
+        "client_secret_basic",
+        "client_secret_post",
+        "none",
+      ],
       revocation_endpoint: `${this.baseUrl}/oauth/revoke`,
       introspection_endpoint: `${this.baseUrl}/oauth/introspect`,
-      code_challenge_methods_supported: ['S256'],
-      resource_parameter_supported: true
+      code_challenge_methods_supported: ["S256"],
+      resource_parameter_supported: true,
     };
   }
 
@@ -87,15 +91,15 @@ export class OAuthMetadataService {
   }
 
   updateBaseUrl(newBaseUrl: string): void {
-    this.baseUrl = newBaseUrl.replace(/\/$/, '');
-    
+    this.baseUrl = newBaseUrl.replace(/\/$/, "");
+
     // Update all URLs in metadata
     this.resourceMetadata.resource = this.baseUrl;
     this.resourceMetadata.authorization_servers = [`${this.baseUrl}/oauth`];
     this.resourceMetadata.jwks_uri = `${this.baseUrl}/oauth/jwks`;
     this.resourceMetadata.revocation_endpoint = `${this.baseUrl}/oauth/revoke`;
     this.resourceMetadata.introspection_endpoint = `${this.baseUrl}/oauth/introspect`;
-    
+
     this.authServerMetadata.issuer = `${this.baseUrl}/oauth`;
     this.authServerMetadata.authorization_endpoint = `${this.baseUrl}/oauth/authorize`;
     this.authServerMetadata.token_endpoint = `${this.baseUrl}/oauth/token`;

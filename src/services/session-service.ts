@@ -3,8 +3,8 @@
  * High-performance in-memory session storage for VPS deployment
  */
 
-import { AppConfig } from '../types/env.js';
-import { logger } from '../logger.js';
+import { AppConfig } from "../types/env.js";
+import { logger } from "../logger.js";
 
 interface UserContext {
   userId: string;
@@ -43,11 +43,11 @@ export class SessionService {
     };
 
     this.sessions.set(session.id, session);
-    
-    logger.debug('Session created', {
+
+    logger.debug("Session created", {
       sessionId: session.id,
       userId: user.userId,
-      username: user.username
+      username: user.username,
     });
 
     return session;
@@ -58,7 +58,7 @@ export class SessionService {
    */
   async getSession(sessionId: string): Promise<Session | null> {
     const session = this.sessions.get(sessionId);
-    
+
     if (!session) {
       return null;
     }
@@ -66,7 +66,7 @@ export class SessionService {
     // Check if session is expired
     if (this.isSessionExpired(session)) {
       this.sessions.delete(sessionId);
-      logger.debug('Session expired and removed', { sessionId });
+      logger.debug("Session expired and removed", { sessionId });
       return null;
     }
 
@@ -94,7 +94,7 @@ export class SessionService {
   async deleteSession(sessionId: string): Promise<void> {
     const deleted = this.sessions.delete(sessionId);
     if (deleted) {
-      logger.debug('Session deleted', { sessionId });
+      logger.debug("Session deleted", { sessionId });
     }
   }
 
@@ -112,7 +112,7 @@ export class SessionService {
 
     return {
       total: this.sessions.size,
-      active
+      active,
     };
   }
 
@@ -122,7 +122,7 @@ export class SessionService {
   private isSessionExpired(session: Session): boolean {
     const now = Date.now();
     const sessionAge = now - session.lastActivity;
-    return sessionAge > (this.config.SESSION_TIMEOUT * 1000);
+    return sessionAge > this.config.SESSION_TIMEOUT * 1000;
   }
 
   /**
@@ -139,9 +139,9 @@ export class SessionService {
     }
 
     if (cleanedCount > 0) {
-      logger.debug('Cleaned up expired sessions', {
+      logger.debug("Cleaned up expired sessions", {
         cleanedCount,
-        remainingSessions: this.sessions.size
+        remainingSessions: this.sessions.size,
       });
     }
   }
@@ -154,6 +154,6 @@ export class SessionService {
       clearInterval(this.cleanupInterval);
     }
     this.sessions.clear();
-    logger.info('Session service destroyed');
+    logger.info("Session service destroyed");
   }
 }

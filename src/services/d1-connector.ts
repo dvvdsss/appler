@@ -44,23 +44,26 @@ export class D1Connector {
     this.config = config;
     this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/d1/database/${config.databaseId}`;
     this.defaultHeaders = {
-      'Authorization': `Bearer ${config.apiToken}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'apple-rag-mcp/2.0.0'
+      Authorization: `Bearer ${config.apiToken}`,
+      "Content-Type": "application/json",
+      "User-Agent": "apple-rag-mcp/2.0.0",
     };
 
-    logger.info('Ultra-modern D1Connector initialized', {
-      environment: process.env.NODE_ENV || 'development',
-      databaseId: config.databaseId.substring(0, 8) + '...',
-      method: 'REST API (Cloudflare official)',
-      features: ['type-safe', 'high-performance', 'error-resilient']
+    logger.info("Ultra-modern D1Connector initialized", {
+      environment: process.env.NODE_ENV || "development",
+      databaseId: config.databaseId.substring(0, 8) + "...",
+      method: "REST API (Cloudflare official)",
+      features: ["type-safe", "high-performance", "error-resilient"],
     });
   }
 
   /**
    * Execute optimized SQL query with advanced error handling
    */
-  async query<T = any>(sql: string, params: readonly any[] = []): Promise<D1QueryResult<T>> {
+  async query<T = any>(
+    sql: string,
+    params: readonly any[] = []
+  ): Promise<D1QueryResult<T>> {
     const startTime = performance.now();
 
     try {
@@ -69,22 +72,22 @@ export class D1Connector {
 
       const duration = performance.now() - startTime;
 
-      logger.debug('D1 query executed successfully', {
+      logger.debug("D1 query executed successfully", {
         duration: `${duration.toFixed(2)}ms`,
         resultCount: data.results.length,
-        sqlPreview: sql.substring(0, 50) + (sql.length > 50 ? '...' : '')
+        sqlPreview: sql.substring(0, 50) + (sql.length > 50 ? "..." : ""),
       });
 
       return data as D1QueryResult<T>;
     } catch (error) {
       const duration = performance.now() - startTime;
 
-      logger.error('D1 query failed', {
+      logger.error("D1 query failed", {
         error: error instanceof Error ? error.message : String(error),
         duration: `${duration.toFixed(2)}ms`,
-        sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),
+        sql: sql.substring(0, 100) + (sql.length > 100 ? "..." : ""),
         paramsCount: params.length,
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || "development",
       });
 
       throw error;
@@ -94,16 +97,21 @@ export class D1Connector {
   /**
    * Execute HTTP request to D1 API
    */
-  private async executeRequest(sql: string, params: readonly any[]): Promise<Response> {
+  private async executeRequest(
+    sql: string,
+    params: readonly any[]
+  ): Promise<Response> {
     const response = await fetch(`${this.baseUrl}/query`, {
-      method: 'POST',
+      method: "POST",
       headers: this.defaultHeaders,
-      body: JSON.stringify({ sql, params })
+      body: JSON.stringify({ sql, params }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`D1 API error: ${response.status} ${response.statusText} - ${errorText}`);
+      const errorText = await response.text().catch(() => "Unknown error");
+      throw new Error(
+        `D1 API error: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
     return response;
@@ -112,8 +120,10 @@ export class D1Connector {
   /**
    * Parse D1 API response with type safety
    */
-  private async parseResponse<T>(response: Response): Promise<D1QueryResult<T>> {
-    const data = await response.json() as D1ApiResponse;
+  private async parseResponse<T>(
+    response: Response
+  ): Promise<D1QueryResult<T>> {
+    const data = (await response.json()) as D1ApiResponse;
 
     if (data.errors?.length) {
       const error = data.errors[0];
@@ -122,13 +132,13 @@ export class D1Connector {
 
     const result = data.result?.[0];
     if (!result) {
-      throw new Error('Invalid D1 API response: missing result');
+      throw new Error("Invalid D1 API response: missing result");
     }
 
     return {
       results: result.results as T[],
       success: result.success,
-      meta: result.meta
+      meta: result.meta,
     };
   }
 
@@ -139,28 +149,29 @@ export class D1Connector {
     const startTime = performance.now();
 
     try {
-      const result = await this.query<{ test: number }>('SELECT 1 as test');
+      const result = await this.query<{ test: number }>("SELECT 1 as test");
       const duration = performance.now() - startTime;
 
-      const isHealthy = result.success &&
-                       result.results.length > 0 &&
-                       result.results[0].test === 1;
+      const isHealthy =
+        result.success &&
+        result.results.length > 0 &&
+        result.results[0].test === 1;
 
-      logger.info('Database connection test completed', {
+      logger.info("Database connection test completed", {
         healthy: isHealthy,
         duration: `${duration.toFixed(2)}ms`,
         resultCount: result.results.length,
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || "development",
       });
 
       return isHealthy;
     } catch (error) {
       const duration = performance.now() - startTime;
 
-      logger.error('Database connection test failed', {
+      logger.error("Database connection test failed", {
         error: error instanceof Error ? error.message : String(error),
         duration: `${duration.toFixed(2)}ms`,
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || "development",
       });
 
       return false;
@@ -184,7 +195,7 @@ export class D1Connector {
       return {
         healthy: true,
         responseTime: Math.round(responseTime * 100) / 100,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       const responseTime = performance.now() - startTime;
@@ -192,7 +203,7 @@ export class D1Connector {
       return {
         healthy: false,
         responseTime: Math.round(responseTime * 100) / 100,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -200,10 +211,12 @@ export class D1Connector {
   /**
    * Execute multiple queries in a transaction-like manner
    */
-  async executeTransaction<T = any>(queries: Array<{
-    readonly sql: string;
-    readonly params?: readonly any[];
-  }>): Promise<D1QueryResult<T>[]> {
+  async executeTransaction<T = any>(
+    queries: Array<{
+      readonly sql: string;
+      readonly params?: readonly any[];
+    }>
+  ): Promise<D1QueryResult<T>[]> {
     const results: D1QueryResult<T>[] = [];
 
     for (const { sql, params = [] } of queries) {
@@ -211,13 +224,15 @@ export class D1Connector {
       results.push(result);
 
       if (!result.success) {
-        throw new Error(`Transaction failed at query: ${sql.substring(0, 50)}...`);
+        throw new Error(
+          `Transaction failed at query: ${sql.substring(0, 50)}...`
+        );
       }
     }
 
-    logger.info('Transaction completed successfully', {
+    logger.info("Transaction completed successfully", {
       queryCount: queries.length,
-      totalResults: results.reduce((sum, r) => sum + r.results.length, 0)
+      totalResults: results.reduce((sum, r) => sum + r.results.length, 0),
     });
 
     return results;

@@ -26,12 +26,12 @@ export class QueryLogger {
    */
   async logQuery(entry: QueryLogEntry): Promise<void> {
     // Fire-and-forget logging to avoid blocking main query flow
-    this.executeLog(entry).catch(error => {
-      logger.warn('Query logging failed (non-blocking)', {
+    this.executeLog(entry).catch((error) => {
+      logger.warn("Query logging failed (non-blocking)", {
         error: error instanceof Error ? error.message : String(error),
         userId: entry.userId,
-        mcpToken: entry.mcpToken.substring(0, 8) + '...',
-        query: entry.queryText.substring(0, 50) + '...'
+        mcpToken: entry.mcpToken.substring(0, 8) + "...",
+        query: entry.queryText.substring(0, 50) + "...",
       });
     });
   }
@@ -51,39 +51,47 @@ export class QueryLogger {
           entry.queryText,
           entry.resultCount,
           entry.responseTimeMs,
-          entry.statusCode
+          entry.statusCode,
         ]
       );
 
       if (!result.success) {
-        throw new Error('D1 query execution failed');
+        throw new Error("D1 query execution failed");
       }
 
-      logger.debug('Query logged successfully', {
+      logger.debug("Query logged successfully", {
         userId: entry.userId,
-        mcpToken: entry.mcpToken.substring(0, 8) + '...',
-        query: entry.queryText.substring(0, 50) + '...',
+        mcpToken: entry.mcpToken.substring(0, 8) + "...",
+        query: entry.queryText.substring(0, 50) + "...",
         resultCount: entry.resultCount,
         responseTime: entry.responseTimeMs,
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || "development",
       });
     } catch (error) {
       // Re-throw for caller's catch block
-      throw new Error(`D1 logging failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `D1 logging failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   /**
    * Log anonymous query (for unauthenticated users)
    */
-  async logAnonymousQuery(mcpToken: string, queryText: string, resultCount: number, responseTimeMs: number, statusCode: number): Promise<void> {
+  async logAnonymousQuery(
+    mcpToken: string,
+    queryText: string,
+    resultCount: number,
+    responseTimeMs: number,
+    statusCode: number
+  ): Promise<void> {
     await this.logQuery({
-      userId: 'anonymous',
+      userId: "anonymous",
       mcpToken,
       queryText,
       resultCount,
       responseTimeMs,
-      statusCode
+      statusCode,
     });
   }
 }

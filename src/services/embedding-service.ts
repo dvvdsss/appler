@@ -21,9 +21,9 @@ export class EmbeddingService {
       throw new Error("SILICONFLOW_API_KEY is required");
     }
 
-    logger.info('Embedding service initialized', {
+    logger.info("Embedding service initialized", {
       model: this.config.model,
-      timeout: this.config.timeout
+      timeout: this.config.timeout,
     });
   }
 
@@ -32,7 +32,9 @@ export class EmbeddingService {
    */
   async createEmbedding(text: string): Promise<number[]> {
     const embeddingStart = Date.now();
-    console.log(`🧠 Embedding Generation Started: "${text.substring(0, 50)}..."`);
+    console.log(
+      `🧠 Embedding Generation Started: "${text.substring(0, 50)}..."`
+    );
 
     if (!text?.trim()) {
       throw new Error("Text cannot be empty for embedding generation");
@@ -59,7 +61,9 @@ export class EmbeddingService {
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(this.config.timeout),
       });
-      console.log(`📡 SiliconFlow API Response Received (${Date.now() - requestStart}ms)`);
+      console.log(
+        `📡 SiliconFlow API Response Received (${Date.now() - requestStart}ms)`
+      );
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "Unknown error");
@@ -69,24 +73,32 @@ export class EmbeddingService {
       }
 
       const parseStart = Date.now();
-      const result = await response.json() as EmbeddingResponse;
+      const result = (await response.json()) as EmbeddingResponse;
       const embedding = result.data?.[0]?.embedding;
 
       if (!embedding) {
-        throw new Error('No embedding data received from SiliconFlow API');
+        throw new Error("No embedding data received from SiliconFlow API");
       }
 
-      console.log(`📊 API Response Parsed: ${embedding.length}D vector (${Date.now() - parseStart}ms)`);
+      console.log(
+        `📊 API Response Parsed: ${embedding.length}D vector (${Date.now() - parseStart}ms)`
+      );
 
       // L2 normalization for optimal vector search
       const normalizeStart = Date.now();
       const normalizedEmbedding = this.normalizeL2(embedding);
-      console.log(`🔧 L2 Normalization Completed (${Date.now() - normalizeStart}ms)`);
-      console.log(`✅ Embedding Generation Completed (${Date.now() - embeddingStart}ms)`);
+      console.log(
+        `🔧 L2 Normalization Completed (${Date.now() - normalizeStart}ms)`
+      );
+      console.log(
+        `✅ Embedding Generation Completed (${Date.now() - embeddingStart}ms)`
+      );
 
       return normalizedEmbedding;
     } catch (error) {
-      console.log(`❌ Embedding Generation Failed: ${error instanceof Error ? error.message : "Unknown error"} (${Date.now() - embeddingStart}ms)`);
+      console.log(
+        `❌ Embedding Generation Failed: ${error instanceof Error ? error.message : "Unknown error"} (${Date.now() - embeddingStart}ms)`
+      );
       if (error instanceof Error) {
         throw new Error(`Embedding generation failed: ${error.message}`);
       }

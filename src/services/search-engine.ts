@@ -40,7 +40,9 @@ export class SearchEngine {
     // Generate query embedding
     const embeddingStart = Date.now();
     const queryEmbedding = await this.embedding.createEmbedding(query);
-    console.log(`🧠 Query Embedding Generated (${Date.now() - embeddingStart}ms)`);
+    console.log(
+      `🧠 Query Embedding Generated (${Date.now() - embeddingStart}ms)`
+    );
 
     // Perform vector search
     const searchStart = Date.now();
@@ -55,7 +57,9 @@ export class SearchEngine {
       similarity: result.similarity || 0,
     }));
     console.log(`🔄 Vector Results Mapped (${Date.now() - mappingStart}ms)`);
-    console.log(`✅ Vector Search Completed: ${mappedResults.length} results (${Date.now() - vectorStart}ms)`);
+    console.log(
+      `✅ Vector Search Completed: ${mappedResults.length} results (${Date.now() - vectorStart}ms)`
+    );
 
     return mappedResults;
   }
