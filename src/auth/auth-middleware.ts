@@ -4,7 +4,8 @@
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";
-import { TokenValidator, CloudflareD1Config } from "./token-validator.js";
+import { TokenValidator } from "./token-validator.js";
+import { CloudflareD1Config } from "../services/d1-connector.js";
 import { OAuthMetadataService } from "./oauth-metadata.js";
 import { logger } from "../logger.js";
 
@@ -20,8 +21,10 @@ export interface AuthContext {
 export class AuthMiddleware {
   private readonly tokenValidator: TokenValidator;
   private readonly metadataService: OAuthMetadataService;
+  private readonly config: CloudflareD1Config;
 
   constructor(baseUrl: string, d1Config: CloudflareD1Config) {
+    this.config = d1Config;
     this.tokenValidator = new TokenValidator(baseUrl, d1Config);
     this.metadataService = new OAuthMetadataService(baseUrl);
   }
@@ -60,8 +63,7 @@ export class AuthMiddleware {
         "No authentication token provided - allowing unauthenticated access",
         {
           environment: process.env.NODE_ENV || "development",
-          databaseId:
-            this.config.CLOUDFLARE_D1_DATABASE_ID?.substring(0, 8) + "...",
+          databaseId: this.config.databaseId?.substring(0, 8) + "...",
         }
       );
       return {

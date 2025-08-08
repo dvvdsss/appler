@@ -36,12 +36,10 @@ interface D1ApiResponse {
  * Ultra-modern D1 database connector with advanced features
  */
 export class D1Connector {
-  private readonly config: CloudflareD1Config;
   private readonly baseUrl: string;
   private readonly defaultHeaders: Record<string, string>;
 
   constructor(config: CloudflareD1Config) {
-    this.config = config;
     this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/d1/database/${config.databaseId}`;
     this.defaultHeaders = {
       Authorization: `Bearer ${config.apiToken}`,

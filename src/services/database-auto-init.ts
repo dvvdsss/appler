@@ -248,7 +248,10 @@ export class DatabaseAutoInit {
       );
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      errors?: Array<{ code: number; message: string }>;
+      result?: Array<{ results: any[]; success: boolean; meta?: any }>;
+    };
 
     if (data.errors?.length) {
       const error = data.errors[0];

@@ -18,6 +18,9 @@ export class QueryLogger {
   private d1Connector: D1Connector;
 
   constructor(d1Config?: CloudflareD1Config) {
+    if (!d1Config) {
+      throw new Error("CloudflareD1Config is required for QueryLogger");
+    }
     this.d1Connector = new D1Connector(d1Config);
   }
 

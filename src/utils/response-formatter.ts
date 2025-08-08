@@ -28,7 +28,6 @@ export function formatRAGResponse(
 **User:** ${userInfo}
 **Results:** ${result.count} documents found
 **Processing Time:** ${result.processing_time_ms}ms
-**Search Mode:** ${result.search_mode}
 ${isAnonymous ? "\n⚠️ *Anonymous access - consider getting a token for unlimited queries*" : ""}
 
 `;
