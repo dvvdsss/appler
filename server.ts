@@ -7,7 +7,6 @@ import { fastify } from "fastify";
 import { config } from "dotenv";
 import { MCPHandler } from "./src/mcp-handler.js";
 import { loadConfig } from "./src/config.js";
-import { DatabaseAutoInit } from "./src/services/database-auto-init.js";
 import { logger } from "./src/logger.js";
 
 // Load environment variables based on NODE_ENV with validation
@@ -48,14 +47,8 @@ const server = fastify({
 // Load configuration
 const appConfig = loadConfig();
 
-// Initialize database auto-init
-const d1Config = {
-  accountId: appConfig.CLOUDFLARE_ACCOUNT_ID,
-  apiToken: appConfig.CLOUDFLARE_API_TOKEN,
-  databaseId: appConfig.CLOUDFLARE_D1_DATABASE_ID,
-};
-
-const dbAutoInit = new DatabaseAutoInit(d1Config);
+// Database configuration is handled by API project
+// MCP project only connects to existing database
 
 // Determine base URL for OAuth metadata
 const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
@@ -341,10 +334,8 @@ process.on("unhandledRejection", (reason, promise) => {
 // Start server
 const start = async () => {
   try {
-    // Auto-initialize database tables and test data
-    console.log("🗄️ Auto-initializing database...");
-    await dbAutoInit.initialize();
-    console.log("✅ Database auto-initialization completed");
+    // Database tables are managed by API project
+    // MCP project connects to existing database
 
     // Wait for RAG service pre-initialization to complete
     console.log("🔧 Waiting for RAG service pre-initialization...");

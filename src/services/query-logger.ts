@@ -12,6 +12,7 @@ export interface QueryLogEntry {
   resultCount: number;
   responseTimeMs: number;
   statusCode: number;
+  ipAddress?: string;
 }
 
 export class QueryLogger {
@@ -46,8 +47,8 @@ export class QueryLogger {
     try {
       const result = await this.d1Connector.query(
         `INSERT INTO usage_logs
-         (user_id, mcp_token, query_text, result_count, response_time_ms, status_code)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         (user_id, mcp_token, query_text, result_count, response_time_ms, status_code, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           entry.userId,
           entry.mcpToken,
@@ -55,6 +56,7 @@ export class QueryLogger {
           entry.resultCount,
           entry.responseTimeMs,
           entry.statusCode,
+          entry.ipAddress || null,
         ]
       );
 
@@ -86,7 +88,8 @@ export class QueryLogger {
     queryText: string,
     resultCount: number,
     responseTimeMs: number,
-    statusCode: number
+    statusCode: number,
+    ipAddress?: string
   ): Promise<void> {
     await this.logQuery({
       userId: "anonymous",
@@ -95,6 +98,7 @@ export class QueryLogger {
       resultCount,
       responseTimeMs,
       statusCode,
+      ipAddress,
     });
   }
 }

@@ -43,11 +43,11 @@ pm2 status apple-rag-mcp
 echo ""
 echo "✅ Deployment completed successfully!"
 echo "📋 Service status:"
-pm2 info apple-rag-mcp --no-colors
+pm2 info apple-rag-mcp --no-color
 
 echo ""
 echo "📊 Recent logs:"
-pm2 logs apple-rag-mcp --lines 5 --no-colors
+pm2 logs apple-rag-mcp --lines 5 --no-color
 
 echo ""
 echo "🌐 Health check:"

@@ -175,12 +175,13 @@ dist
 # Build artifacts and cache
 .wrangler/
 
-# Wrangler 4.x - NO LOCAL DATABASES EVER
+# Wrangler 4.x - ABSOLUTELY NO LOCAL DATABASES EVER
+.wrangler/
 *.db
 *.sqlite*
 miniflare-*
-# Wrangler 4.x with experimental_remote = true
-# Absolutely no local databases allowed - Remote only
+# FORCE REMOTE ONLY - Local databases completely prohibited
+# All development and production use Cloudflare D1 remote databases only
 
 # External documentation (from API projects)
 

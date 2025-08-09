@@ -910,6 +910,7 @@ export class MCPHandler {
       // Log successful query to D1 (non-blocking)
       const responseTime = Date.now() - startTime;
       const statusCode = ragResult?.success ? 200 : 500;
+      const clientIP = this.getClientIP(httpRequest);
 
       if (
         authContext.isAuthenticated &&
@@ -923,6 +924,7 @@ export class MCPHandler {
           resultCount: ragResult?.count || 0,
           responseTimeMs: responseTime,
           statusCode,
+          ipAddress: clientIP,
         });
       } else {
         // For anonymous users, use a placeholder token
@@ -931,7 +933,8 @@ export class MCPHandler {
           args.query.trim(),
           ragResult?.count || 0,
           responseTime,
-          statusCode
+          statusCode,
+          clientIP
         );
       }
 
@@ -957,6 +960,8 @@ export class MCPHandler {
 
       // Log failed query to D1 (non-blocking)
       const responseTime = Date.now() - startTime;
+      const clientIP = this.getClientIP(httpRequest);
+
       if (
         args?.query &&
         !(error instanceof Error && error.message === "Query cancelled")
@@ -973,6 +978,7 @@ export class MCPHandler {
             resultCount: 0,
             responseTimeMs: responseTime,
             statusCode: 500,
+            ipAddress: clientIP,
           });
         } else {
           await this.queryLogger.logAnonymousQuery(
@@ -980,7 +986,8 @@ export class MCPHandler {
             args.query.trim(),
             0,
             responseTime,
-            500
+            500,
+            clientIP
           );
         }
       }
@@ -1106,6 +1113,26 @@ export class MCPHandler {
       }
       throw error;
     }
+  }
+
+  /**
+   * Extract client IP address from Fastify request
+   */
+  private getClientIP(request: FastifyRequest): string | undefined {
+    // Try various headers in order of preference
+    const ip =
+      request.headers['cf-connecting-ip'] ||  // Cloudflare
+      request.headers['x-forwarded-for'] ||   // Proxy
+      request.headers['x-real-ip'] ||         // Nginx
+      request.ip ||                           // Fastify default
+      request.socket?.remoteAddress;          // Socket fallback
+
+    // Handle X-Forwarded-For which can contain multiple IPs
+    if (typeof ip === 'string' && ip.includes(',')) {
+      return ip.split(',')[0].trim();
+    }
+
+    return typeof ip === 'string' ? ip : undefined;
   }
 
   /**

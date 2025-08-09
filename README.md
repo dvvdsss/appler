@@ -114,7 +114,7 @@ apple-rag-mcp/
 │   ├── types/             # 类型定义
 │   └── utils/             # 工具函数
 ├── tests/                 # 测试文件
-├── scripts/               # 部署脚本
+├── deploy.sh              # 部署脚本
 └── server.ts              # 主服务器文件
 ```
 
