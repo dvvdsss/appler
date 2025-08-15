@@ -2,7 +2,25 @@
 
 > **高性能 MCP 服务器，为 Apple 开发者文档提供智能搜索功能**
 
-现代化的 MCP (Model Context Protocol) 服务器，使用先进的 RAG (Retrieval-Augmented Generation) 技术为 Apple 开发者文档提供智能搜索功能。完全符合 MCP 2025-06-18 规范，使用 Cloudflare D1 数据库进行用户认证。
+现代化的 MCP (Model Context Protocol) 服务器，使用先进的 RAG (Retrieval-Augmented Generation) 技术为 Apple 开发者文档提供智能搜索功能。完全符合 MCP 2025-06-18 规范，采用独立架构设计，直接连接数据库和外部服务。
+
+## 🏗️ 架构设计
+
+### 独立服务架构
+本项目采用**独立服务架构**，与 `apple-rag-api` 项目完全解耦：
+
+- **🔄 数据库直连**: 直接连接 Cloudflare D1（token 验证）和 PostgreSQL（向量搜索）
+- **🚫 无 API 依赖**: 不调用 `apple-rag-api` 的任何接口，避免循环依赖
+- **⚡ 高性能**: 减少网络调用，提升响应速度
+- **🛡️ 独立认证**: 内置 TokenValidator，直接查询数据库验证 MCP token
+
+### 职责分工
+- **apple-rag-mcp**: MCP 协议服务器，专注于文档搜索和 RAG 查询
+- **apple-rag-api**: API 网关，专注于用户管理和 MCP token 管理
+
+### 外部服务调用
+- **SiliconFlow API**: 生成查询 embeddings（`https://api.siliconflow.cn/v1/embeddings`）
+- **Cloudflare D1 REST API**: 数据库操作（`https://api.cloudflare.com/client/v4/accounts/.../d1/database/...`）
 
 ## ✨ 核心特性
 
@@ -14,6 +32,7 @@
 - **🏗️ 现代架构**: TypeScript + Fastify + PostgreSQL + pgvector
 - **🛡️ 企业级安全**: 完整的认证、CORS、输入验证和安全头
 - **🎯 会话管理**: 完整的会话生命周期和 `Mcp-Session-Id` 头支持
+- **🔧 独立部署**: 无外部 API 依赖，可独立运行
 
 ## 🛠 快速开始
 
@@ -110,12 +129,73 @@ curl -X POST http://localhost:3001/ \
 apple-rag-mcp/
 ├── src/                    # 源代码
 │   ├── auth/              # 认证相关
+│   │   ├── auth-middleware.ts      # OAuth 2.1 认证中间件
+│   │   ├── oauth-metadata.ts       # OAuth 元数据服务
+│   │   └── token-validator.ts      # MCP Token 验证器（直连 D1）
 │   ├── services/          # 业务服务
+│   │   ├── d1-connector.ts         # Cloudflare D1 连接器
+│   │   ├── database-service.ts     # PostgreSQL 数据库服务
+│   │   ├── embedding-service.ts    # SiliconFlow 嵌入服务
+│   │   ├── query-logger.ts         # 查询日志服务
+│   │   ├── rag-service.ts          # RAG 核心服务
+│   │   ├── search-engine.ts        # 混合搜索引擎
+│   │   └── session-service.ts      # MCP 会话管理
 │   ├── types/             # 类型定义
+│   │   ├── env.ts                  # 环境配置类型
+│   │   └── rag.ts                  # RAG 相关类型
 │   └── utils/             # 工具函数
+│       └── response-formatter.ts   # 响应格式化
 ├── tests/                 # 测试文件
 ├── deploy.sh              # 部署脚本
-└── server.ts              # 主服务器文件
+├── server.ts              # 主服务器文件
+└── ecosystem.config.cjs   # PM2 配置文件
 ```
+
+## 🔧 技术栈
+
+### 核心技术
+- **Node.js 18+**: 运行时环境
+- **TypeScript**: 类型安全的开发语言
+- **Fastify**: 高性能 Web 框架
+- **PostgreSQL + pgvector**: 向量数据库
+- **Cloudflare D1**: 用户和 token 数据存储
+
+### 外部服务
+- **SiliconFlow API**: 文本嵌入生成（Qwen3-Embedding-4B 模型）
+- **Cloudflare D1 REST API**: 数据库操作接口
+
+### 部署工具
+- **PM2**: 进程管理器
+- **pnpm**: 包管理器
+
+## 🔗 与 apple-rag-api 的关系
+
+### 架构独立性
+本项目与 `apple-rag-api` 项目在架构上完全独立：
+
+| 方面 | apple-rag-mcp | apple-rag-api |
+|------|---------------|---------------|
+| **主要职责** | MCP 协议服务器，文档搜索 | API 网关，用户管理 |
+| **数据库访问** | 直连 D1 + PostgreSQL | 通过 Hono 访问 D1 |
+| **Token 验证** | 内置 TokenValidator | 提供 token 管理接口 |
+| **外部依赖** | SiliconFlow API, Cloudflare D1 API | Stripe, Resend |
+| **部署方式** | VPS + PM2 | Cloudflare Workers |
+
+### 数据流向
+```
+MCP Client → apple-rag-mcp → [D1 Database, PostgreSQL, SiliconFlow API]
+                ↑
+                └── 共享 D1 数据库（用户和 token 数据）
+                ↓
+Web Client → apple-rag-api → [D1 Database, Stripe, Resend]
+```
+
+**注意**: Web 客户端不进行 RAG 查询，仅用于用户管理和 token 管理。
+
+### 设计优势
+- **🚫 避免循环依赖**: 两个服务互不调用，架构清晰
+- **⚡ 性能优化**: MCP 服务直连数据库，减少网络延迟
+- **🔧 独立部署**: 可以独立升级和维护
+- **🛡️ 故障隔离**: 一个服务的问题不会影响另一个
 
 ## 🎉 生产就绪的 MCP 服务器，完全符合 MCP 2025-06-18 规范！
