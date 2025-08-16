@@ -181,7 +181,7 @@ curl -X POST http://localhost:3001/ \
   "result": {
     "content": [{
       "type": "text",
-      "text": "Rate limit reached (100/month for anonymous users). Get a free account for higher limits: https://apple-rag.com/#pricing"
+      "text": "Rate limit reached (10/week for anonymous users). Get a free account for higher limits: https://apple-rag.com/#pricing"
     }]
   }
 }

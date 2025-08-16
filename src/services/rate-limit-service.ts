@@ -13,14 +13,14 @@ interface RateLimitResult {
   remaining: number;
   resetAt: string;
   planType: string;
-  limitType: "monthly" | "minute"; // Which limit was hit
+  limitType: "weekly" | "minute"; // Which limit was hit
   minuteLimit?: number;
   minuteRemaining?: number;
   minuteResetAt?: string;
 }
 
 interface PlanLimits {
-  monthlyQueries: number;
+  weeklyQueries: number;
   requestsPerMinute: number;
 }
 
@@ -48,46 +48,46 @@ export class RateLimitService {
       // Get plan limits
       const limits = this.getPlanLimits(planType);
 
-      // Check monthly and minute limits
-      const [monthlyUsage, minuteUsage] = await Promise.all([
-        this.getMonthlyUsage(identifier, clientIP),
+      // Check weekly and minute limits
+      const [weeklyUsage, minuteUsage] = await Promise.all([
+        this.getWeeklyUsage(identifier, clientIP),
         this.getMinuteUsage(identifier, clientIP),
       ]);
 
       // Determine if request is allowed
-      const monthlyAllowed =
-        limits.monthlyQueries === -1 || monthlyUsage < limits.monthlyQueries;
+      const weeklyAllowed =
+        limits.weeklyQueries === -1 || weeklyUsage < limits.weeklyQueries;
       const minuteAllowed =
         limits.requestsPerMinute === -1 ||
         minuteUsage < limits.requestsPerMinute;
-      const allowed = monthlyAllowed && minuteAllowed;
+      const allowed = weeklyAllowed && minuteAllowed;
 
       // Calculate remaining and reset time
-      const monthlyRemaining =
-        limits.monthlyQueries === -1
+      const weeklyRemaining =
+        limits.weeklyQueries === -1
           ? -1
-          : Math.max(0, limits.monthlyQueries - monthlyUsage);
+          : Math.max(0, limits.weeklyQueries - weeklyUsage);
 
       const minuteRemaining =
         limits.requestsPerMinute === -1
           ? -1
           : Math.max(0, limits.requestsPerMinute - minuteUsage);
 
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
-      nextMonth.setHours(0, 0, 0, 0);
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + (7 - nextWeek.getDay()));
+      nextWeek.setHours(0, 0, 0, 0);
 
       const nextMinute = new Date();
       nextMinute.setMinutes(nextMinute.getMinutes() + 1, 0, 0);
 
       // Determine which limit was hit
-      const limitType = !minuteAllowed ? "minute" : "monthly";
+      const limitType = !minuteAllowed ? "minute" : "weekly";
 
       const result: RateLimitResult = {
         allowed,
-        limit: limits.monthlyQueries,
-        remaining: monthlyRemaining,
-        resetAt: nextMonth.toISOString(),
+        limit: limits.weeklyQueries,
+        remaining: weeklyRemaining,
+        resetAt: nextWeek.toISOString(),
         planType,
         limitType,
         minuteLimit: limits.requestsPerMinute,
@@ -99,7 +99,7 @@ export class RateLimitService {
         logger.info("Rate limit exceeded", {
           identifier,
           planType,
-          monthlyUsage,
+          weeklyUsage,
           minuteUsage,
           limits,
           clientIP,
@@ -121,7 +121,7 @@ export class RateLimitService {
         remaining: -1,
         resetAt: new Date().toISOString(),
         planType: "unknown",
-        limitType: "monthly",
+        limitType: "weekly",
         minuteLimit: -1,
         minuteRemaining: -1,
         minuteResetAt: new Date().toISOString(),
@@ -175,24 +175,24 @@ export class RateLimitService {
   }
 
   /**
-   * Get monthly usage count
+   * Get weekly usage count
    */
-  private async getMonthlyUsage(
+  private async getWeeklyUsage(
     identifier: string,
     clientIP: string
   ): Promise<number> {
     try {
       const result = await this.d1Connector.query(
-        `SELECT COUNT(*) as count 
-         FROM usage_logs 
-         WHERE (user_id = ? OR ip_address = ?) 
-         AND created_at >= date('now', 'start of month')`,
+        `SELECT COUNT(*) as count
+         FROM usage_logs
+         WHERE (user_id = ? OR ip_address = ?)
+         AND created_at >= date('now', 'weekday 0', '-6 days')`,
         [identifier, clientIP]
       );
 
       return result.results?.[0]?.count || 0;
     } catch (error) {
-      logger.error("Failed to get monthly usage", {
+      logger.error("Failed to get weekly usage", {
         error: error instanceof Error ? error.message : String(error),
         identifier,
         clientIP,
@@ -235,23 +235,23 @@ export class RateLimitService {
     switch (planType) {
       case "hobby":
         return {
-          monthlyQueries: 100,
+          weeklyQueries: 10,
           requestsPerMinute: 1,
         };
       case "pro":
         return {
-          monthlyQueries: 50000,
+          weeklyQueries: 10000,
           requestsPerMinute: 20,
         };
       case "enterprise":
         return {
-          monthlyQueries: -1, // unlimited
+          weeklyQueries: -1, // unlimited
           requestsPerMinute: -1, // unlimited
         };
       default:
         logger.warn("Unknown plan type, defaulting to hobby", { planType });
         return {
-          monthlyQueries: 100,
+          weeklyQueries: 10,
           requestsPerMinute: 1,
         };
     }

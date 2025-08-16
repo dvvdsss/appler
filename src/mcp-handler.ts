@@ -388,10 +388,10 @@ export class MCPHandler {
           ? `Rate limit reached (${rateLimitResult.planType} plan: ${rateLimitResult.minuteLimit}/minute). Please wait ${waitSeconds} seconds before trying again.`
           : `Rate limit reached (${rateLimitResult.minuteLimit}/minute for anonymous users). Please wait ${waitSeconds} seconds before trying again.`;
       } else {
-        // Monthly limit hit - show upgrade message
+        // Weekly limit hit - show upgrade message
         rateLimitMessage = authContext.isAuthenticated
-          ? `Rate limit reached (${rateLimitResult.planType} plan: ${rateLimitResult.limit}/month). Upgrade to Pro for unlimited queries: ${APP_CONSTANTS.PRICING_URL}`
-          : `Rate limit reached (${rateLimitResult.limit}/month for anonymous users). Get a free account for higher limits: ${APP_CONSTANTS.PRICING_URL}`;
+          ? `Rate limit reached (${rateLimitResult.planType} plan: ${rateLimitResult.limit}/week). Upgrade to Pro for higher limits: ${APP_CONSTANTS.PRICING_URL}`
+          : `Rate limit reached (${rateLimitResult.limit}/week for anonymous users). Get a free account for higher limits: ${APP_CONSTANTS.PRICING_URL}`;
       }
 
       const response: MCPResponse = {
