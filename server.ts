@@ -50,12 +50,9 @@ const appConfig = loadConfig();
 // Database configuration is handled by API project
 // MCP project only connects to existing database
 
-// Determine base URL for OAuth metadata
-const baseUrl = process.env.BASE_URL || `http://localhost:${appConfig.PORT}`;
-
-// Initialize MCP handler with base URL for OAuth and API integration
+// Initialize MCP handler
 console.log("🔧 Initializing MCP handler with RAG pre-initialization...");
-const mcpHandler = new MCPHandler(appConfig, baseUrl);
+const mcpHandler = new MCPHandler(appConfig);
 
 // Register CORS and security headers
 server.addHook("preHandler", async (_request, reply) => {
@@ -98,114 +95,6 @@ server.delete("/", async (request, reply) => {
   return mcpHandler.handle(request, reply);
 });
 
-// OAuth 2.1 Protected Resource Metadata endpoint (RFC9728)
-server.get("/.well-known/oauth-protected-resource", async (_request, reply) => {
-  const metadata = mcpHandler
-    .getAuthMiddleware()
-    .getMetadataService()
-    .getProtectedResourceMetadata();
-  reply.code(200).send(metadata);
-});
-
-// OAuth 2.1 Authorization Server Metadata endpoint (RFC8414)
-server.get(
-  "/.well-known/oauth-authorization-server",
-  async (_request, reply) => {
-    const metadata = mcpHandler
-      .getAuthMiddleware()
-      .getMetadataService()
-      .getAuthorizationServerMetadata();
-    reply.code(200).send(metadata);
-  }
-);
-
-// OAuth endpoints (not implemented - tokens managed via apple-rag-api)
-server.get("/oauth/authorize", async (_request, reply) => {
-  reply.code(501).send({
-    error: "not_implemented",
-    error_description:
-      "OAuth authorization is handled by apple-rag-api. Please use the web interface to manage tokens.",
-  });
-});
-
-server.post("/oauth/token", async (_request, reply) => {
-  reply.code(501).send({
-    error: "not_implemented",
-    error_description:
-      "Token issuance is handled by apple-rag-api. Please use the web interface to create MCP tokens.",
-  });
-});
-
-server.get("/oauth/jwks", async (_request, reply) => {
-  reply.code(501).send({
-    error: "not_implemented",
-    error_description:
-      "JWKS endpoint not available. MCP tokens are validated directly with Cloudflare.",
-  });
-});
-
-server.post("/oauth/introspect", async (request, reply) => {
-  const { token } = request.body as any;
-  if (!token) {
-    return reply.code(400).send({
-      error: "invalid_request",
-      error_description: "Missing token parameter",
-    });
-  }
-
-  const result = await mcpHandler
-    .getAuthMiddleware()
-    .getTokenValidator()
-    .validateToken(token);
-  reply.code(200).send({
-    active: result.valid,
-    scope: result.claims?.scope,
-    client_id: result.claims?.client_id,
-    username: result.claims?.sub,
-    exp: result.claims?.exp,
-    iat: result.claims?.iat,
-    sub: result.claims?.sub,
-    aud: result.claims?.aud,
-    iss: result.claims?.iss,
-    jti: result.claims?.jti,
-  });
-});
-
-server.post("/oauth/revoke", async (request, reply) => {
-  const { token } = request.body as any;
-  if (!token) {
-    return reply.code(400).send({
-      error: "invalid_request",
-      error_description: "Missing token parameter",
-    });
-  }
-
-  const success = await mcpHandler
-    .getAuthMiddleware()
-    .getTokenValidator()
-    .revokeToken(token);
-  reply
-    .code(success ? 200 : 400)
-    .send(success ? {} : { error: "invalid_token" });
-});
-
-// Token management endpoints (handled by apple-rag-api)
-server.post("/tokens", async (_request, reply) => {
-  reply.code(501).send({
-    error: "not_implemented",
-    error_description:
-      "Token management is handled by apple-rag-api. Please use the web interface.",
-  });
-});
-
-server.get("/tokens", async (_request, reply) => {
-  reply.code(501).send({
-    error: "not_implemented",
-    error_description:
-      "Token listing is handled by apple-rag-api. Please use the web interface.",
-  });
-});
-
 // Shared manifest data
 const manifestData = {
   name: "Apple RAG MCP Server",
@@ -228,16 +117,6 @@ const manifestData = {
     mcp: "/",
     manifest: "/manifest",
     health: "/health",
-    oauth: {
-      authorize: "/oauth/authorize",
-      token: "/oauth/token",
-      introspect: "/oauth/introspect",
-      jwks: "/oauth/jwks",
-    },
-    wellKnown: {
-      oauthProtectedResource: "/.well-known/oauth-protected-resource",
-      oauthAuthorizationServer: "/.well-known/oauth-authorization-server",
-    },
   },
   transport: {
     type: "http",
@@ -249,9 +128,8 @@ const manifestData = {
   },
   authorization: {
     enabled: true,
-    type: "oauth2.1",
+    type: "bearer",
     optional: true,
-    scopes: ["mcp:read", "mcp:write", "mcp:admin"],
   },
 };
 
@@ -337,9 +215,7 @@ const start = async () => {
     // Database tables are managed by API project
     // MCP project connects to existing database
 
-    // Wait for RAG service pre-initialization to complete
-    console.log("🔧 Waiting for RAG service pre-initialization...");
-    await mcpHandler.waitForRAGInitialization();
+    // RAG service is pre-initialized in constructor
     console.log("✅ RAG service pre-initialization completed");
 
     await server.listen({

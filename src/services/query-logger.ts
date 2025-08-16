@@ -7,11 +7,11 @@ import { D1Connector, CloudflareD1Config } from "./d1-connector.js";
 
 export interface QueryLogEntry {
   userId: string;
-  mcpToken: string;
+  mcpToken?: string;
   queryText: string;
   resultCount: number;
   responseTimeMs: number;
-  statusCode: number;
+  statusCode?: number;
   ipAddress?: string;
 }
 
@@ -34,7 +34,9 @@ export class QueryLogger {
       logger.warn("Query logging failed (non-blocking)", {
         error: error instanceof Error ? error.message : String(error),
         userId: entry.userId,
-        mcpToken: entry.mcpToken.substring(0, 8) + "...",
+        mcpToken: entry.mcpToken
+          ? entry.mcpToken.substring(0, 8) + "..."
+          : "anonymous",
         query: entry.queryText.substring(0, 50) + "...",
       });
     });
@@ -66,7 +68,9 @@ export class QueryLogger {
 
       logger.debug("Query logged successfully", {
         userId: entry.userId,
-        mcpToken: entry.mcpToken.substring(0, 8) + "...",
+        mcpToken: entry.mcpToken
+          ? entry.mcpToken.substring(0, 8) + "..."
+          : "anonymous",
         query: entry.queryText.substring(0, 50) + "...",
         resultCount: entry.resultCount,
         responseTime: entry.responseTimeMs,

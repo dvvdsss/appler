@@ -169,10 +169,10 @@ export class DatabaseService {
     queryEmbedding: number[],
     options: SearchOptions = {}
   ): Promise<SearchResult[]> {
-    const { matchCount = 5 } = options;
+    const { resultCount = 5 } = options;
     const searchStart = Date.now();
     console.log(
-      `🔍 Vector Search Started: ${queryEmbedding.length}D embedding, ${matchCount} results`
+      `🔍 Vector Search Started: ${queryEmbedding.length}D embedding, ${resultCount} results`
     );
 
     try {
@@ -186,7 +186,7 @@ export class DatabaseService {
         FROM chunks
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
-        LIMIT ${matchCount}
+        LIMIT ${resultCount}
       `;
       console.log(
         `📊 Vector Query Executed: ${results.length} results (${Date.now() - queryStart}ms)`
@@ -218,7 +218,7 @@ export class DatabaseService {
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchResult[]> {
-    const { matchCount = 5 } = options;
+    const { resultCount = 5 } = options;
 
     try {
       const results = await this.sql`
@@ -226,7 +226,7 @@ export class DatabaseService {
         FROM chunks
         WHERE content ILIKE ${"%" + query + "%"}
         ORDER BY id
-        LIMIT ${matchCount}
+        LIMIT ${resultCount}
       `;
 
       return results.map((row) => ({

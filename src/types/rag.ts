@@ -5,7 +5,7 @@
 
 export interface RAGQueryRequest {
   query: string;
-  match_count?: number;
+  result_count?: number;
 }
 
 export interface RAGQueryResponse {
@@ -37,7 +37,7 @@ export interface SearchResult {
 }
 
 export interface SearchOptions {
-  matchCount?: number;
+  resultCount?: number;
 }
 
 export interface EmbeddingConfig {

@@ -52,7 +52,7 @@ export class RAGService {
    */
   async query(request: RAGQueryRequest): Promise<RAGQueryResponse> {
     const startTime = Date.now();
-    const { query, match_count = 5 } = request;
+    const { query, result_count = 5 } = request;
 
     console.log(
       `🚀 RAG Query Started: "${query}" at ${new Date().toISOString()}`
@@ -74,13 +74,13 @@ export class RAGService {
     }
 
     const trimmedQuery = query.trim();
-    if (trimmedQuery.length > 1000) {
+    if (trimmedQuery.length > 10000) {
       console.log(
         `❌ Validation Failed: Query too long (${Date.now() - validationStart}ms)`
       );
       return this.createErrorResponse(
         query,
-        "Query is too long. Please limit your query to 1000 characters or less.",
+        "Query is too long. Please limit your query to 10000 characters or less.",
         "Try to make your query more concise and specific.",
         startTime
       );
@@ -104,16 +104,16 @@ export class RAGService {
 
       // Execute hybrid search (always enabled)
       const configStart = Date.now();
-      const matchCount = Math.min(Math.max(match_count, 1), 20);
+      const resultCount = Math.min(Math.max(result_count, 1), 20);
       console.log(
-        `⚙️ Configuration Set: hybrid search, ${matchCount} results (${Date.now() - configStart}ms)`
+        `⚙️ Configuration Set: hybrid search, ${resultCount} results (${Date.now() - configStart}ms)`
       );
 
       // Execute search
       const searchStart = Date.now();
       console.log(`🔍 Starting Hybrid Search Operation...`);
       const results = await this.searchEngine.search(trimmedQuery, {
-        matchCount,
+        resultCount,
       });
       console.log(
         `🔍 Hybrid Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`

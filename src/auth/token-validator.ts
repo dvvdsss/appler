@@ -1,36 +1,21 @@
 /**
- * Production MCP Token Validator - Extreme Simplicity
- * MCP 2025-06-18 Authorization compliant implementation
- * Pure Cloudflare D1 with optimal two-table design
+ * Simple MCP Token Validator
+ * Validates MCP tokens against Cloudflare D1 database
  */
 
 import { logger } from "../logger.js";
 import { D1Connector, CloudflareD1Config } from "../services/d1-connector.js";
 
-export interface TokenClaims {
-  sub: string;
-  aud: string | string[];
-  iss: string;
-  iat: number;
-  exp?: number;
-  scope?: string;
-  client_id?: string;
-  resource?: string;
-  jti?: string;
-}
-
 export interface TokenValidationResult {
   valid: boolean;
-  claims?: TokenClaims;
   error?: string;
-  scopes?: string[];
+  userData?: UserTokenData;
 }
 
 export interface UserTokenData {
   userId: string;
   email: string;
   name: string;
-  tier: string;
 }
 
 interface CacheEntry {
@@ -39,14 +24,12 @@ interface CacheEntry {
 }
 
 export class TokenValidator {
-  private readonly baseUrl: string;
   private readonly d1Connector: D1Connector;
   private readonly tokenCache = new Map<string, CacheEntry>();
   private readonly cacheTimeout = 300_000; // 5 minutes in milliseconds
   private readonly cleanupInterval: NodeJS.Timeout;
 
-  constructor(baseUrl: string, d1Config: CloudflareD1Config) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+  constructor(d1Config: CloudflareD1Config) {
     this.d1Connector = new D1Connector(d1Config);
 
     // Start cache cleanup with proper cleanup on destruction
@@ -65,25 +48,22 @@ export class TokenValidator {
   }
 
   /**
-   * Validate MCP token with modern async/await and type safety
+   * Validate MCP token
    */
-  async validateToken(
-    token: string,
-    _requiredResource?: string
-  ): Promise<TokenValidationResult> {
+  async validateToken(token: string): Promise<TokenValidationResult> {
     try {
       // Fast cache lookup
       const cached = this.getCachedToken(token);
       if (cached) {
-        return this.createSuccessResult(cached);
+        return { valid: true, userData: cached };
       }
 
-      // Validate token format with modern regex
+      // Validate token format
       if (!this.isValidTokenFormat(token)) {
         return { valid: false, error: "Invalid token format" };
       }
 
-      // Single optimized D1 query
+      // Query database
       const userData = await this.getUserDataFromD1(token);
       if (!userData) {
         return { valid: false, error: "Token not found" };
@@ -93,7 +73,7 @@ export class TokenValidator {
       this.updateTokenLastUsedAsync(token);
       this.cacheToken(token, userData);
 
-      return this.createSuccessResult(userData);
+      return { valid: true, userData };
     } catch (error) {
       logger.error("Token validation failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -135,16 +115,7 @@ export class TokenValidator {
   }
 
   /**
-   * Create success result with claims and scopes
-   */
-  private createSuccessResult(userData: UserTokenData): TokenValidationResult {
-    const claims = this.convertUserDataToClaims(userData);
-    const scopes = this.getScopesForTier(userData.tier);
-    return { valid: true, claims, scopes };
-  }
-
-  /**
-   * Get user data from D1 with environment-aware connection
+   * Get user data from D1 database
    */
   private async getUserDataFromD1(
     token: string
@@ -154,8 +125,7 @@ export class TokenValidator {
         `SELECT
            u.id as user_id,
            u.email,
-           u.name,
-           'free' as tier
+           u.name
          FROM mcp_tokens t
          JOIN users u ON t.user_id = u.id
          WHERE t.mcp_token = ?`,
@@ -171,7 +141,6 @@ export class TokenValidator {
         userId: row.user_id,
         email: row.email || "unknown",
         name: row.name || "unknown",
-        tier: row.tier || "free",
       };
     } catch (error) {
       logger.warn("D1 user data lookup failed", {
@@ -200,40 +169,6 @@ export class TokenValidator {
   }
 
   /**
-   * Convert user data to OAuth 2.1 claims
-   */
-  private convertUserDataToClaims(userData: UserTokenData): TokenClaims {
-    const now = Math.floor(Date.now() / 1000);
-
-    return {
-      sub: userData.userId,
-      aud: [this.baseUrl],
-      iss: `${this.baseUrl}/oauth`,
-      iat: now,
-      scope: this.getScopesForTier(userData.tier).join(" "),
-      client_id: "apple-rag-mcp",
-      resource: this.baseUrl,
-      jti: `mcp-${userData.userId}-${now}`,
-    };
-  }
-
-  /**
-   * Get scopes based on user tier
-   */
-  private getScopesForTier(tier: string): string[] {
-    switch (tier) {
-      case "premium":
-      case "enterprise":
-        return ["mcp:read", "mcp:write", "mcp:admin"];
-      case "pro":
-        return ["mcp:read", "mcp:write"];
-      case "free":
-      default:
-        return ["mcp:read"];
-    }
-  }
-
-  /**
    * Clean up expired cache entries
    */
   private cleanupExpiredCache(): void {
@@ -255,63 +190,12 @@ export class TokenValidator {
   }
 
   /**
-   * Check if token has required scope
+   * Get user data by user ID
    */
-  hasScope(scopes: string[], requiredScope: string): boolean {
-    return scopes.includes(requiredScope) || scopes.includes("mcp:admin");
-  }
-
-  /**
-   * Revoke token (delete from D1)
-   */
-  async revokeToken(token: string): Promise<boolean> {
+  async getUserData(userId: string): Promise<UserTokenData> {
     try {
       const result = await this.d1Connector.query(
-        "DELETE FROM mcp_tokens WHERE mcp_token = ?",
-        [token]
-      );
-
-      if (result.success) {
-        // Remove from cache
-        this.tokenCache.delete(token);
-
-        logger.info("Token revoked", { token: token.substring(0, 8) + "..." });
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      logger.error("Token revocation error:", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Get cache statistics
-   */
-  getCacheStats(): { size: number } {
-    return {
-      size: this.tokenCache.size,
-    };
-  }
-
-  /**
-   * Clear all cached tokens (for testing/maintenance)
-   */
-  clearCache(): void {
-    this.tokenCache.clear();
-    logger.info("Token cache cleared");
-  }
-
-  /**
-   * Get user token data by user ID
-   */
-  async getUserTokenData(userId: string): Promise<UserTokenData> {
-    try {
-      const result = await this.d1Connector.query(
-        "SELECT id, email, name, tier FROM users WHERE id = ?",
+        "SELECT id, email, name FROM users WHERE id = ?",
         [userId]
       );
 
@@ -325,10 +209,9 @@ export class TokenValidator {
         userId: user.id,
         email: user.email,
         name: user.name || user.email.split("@")[0],
-        tier: user.tier || "free",
       };
     } catch (error) {
-      logger.error("Failed to get user token data", {
+      logger.error("Failed to get user data", {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });

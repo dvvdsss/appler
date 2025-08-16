@@ -23,8 +23,8 @@ export class SearchEngine {
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchResultWithScore[]> {
-    const { matchCount = 5 } = options;
-    return this.hybridSearch(query, matchCount);
+    const { resultCount = 5 } = options;
+    return this.hybridSearch(query, resultCount);
   }
 
   /**
@@ -32,7 +32,7 @@ export class SearchEngine {
    */
   private async vectorSearch(
     query: string,
-    matchCount: number
+    resultCount: number
   ): Promise<SearchResultWithScore[]> {
     const vectorStart = Date.now();
     console.log(`🎯 Vector Search Started: "${query}"`);
@@ -47,7 +47,7 @@ export class SearchEngine {
     // Perform vector search
     const searchStart = Date.now();
     const results = await this.database.vectorSearch(queryEmbedding, {
-      matchCount,
+      resultCount,
     });
     console.log(`🔍 Database Vector Search (${Date.now() - searchStart}ms)`);
 
@@ -69,12 +69,12 @@ export class SearchEngine {
    */
   private async hybridSearch(
     query: string,
-    matchCount: number
+    resultCount: number
   ): Promise<SearchResultWithScore[]> {
     // Parallel execution for optimal performance
     const [vectorResults, keywordResults] = await Promise.all([
-      this.vectorSearch(query, matchCount),
-      this.database.keywordSearch(query, { matchCount }),
+      this.vectorSearch(query, resultCount),
+      this.database.keywordSearch(query, { resultCount }),
     ]);
 
     // Intelligent result merging with deduplication
@@ -105,6 +105,6 @@ export class SearchEngine {
     // Sort by relevance and return top results
     return Array.from(combinedResults.values())
       .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
-      .slice(0, matchCount);
+      .slice(0, resultCount);
   }
 }
