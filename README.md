@@ -20,21 +20,13 @@ Apple RAG MCP delivers exactly what your AI agents need: **official Swift develo
 
 **🆓 No API Key Required** • **⚡ Lightning Fast** • **🔄 Always Updated**
 
-### 🎯 Your AI agents will be able to answer:
-
-- *"How do I implement complex animations in SwiftUI?"*
-- *"What's the difference between NavigationStack and NavigationView?"*
-- *"Show me Core Data best practices for performance optimization"*
-- *"How do I handle background tasks in iOS apps?"*
-- *"What are the new features in Xcode 15?"*
-
 ## 🚀 Quick Start
 
 ### Option 1: One-Click Cursor Setup (Recommended)
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](https://cursor.com/en/install-mcp?name=apple-rag-mcp&config=eyJ1cmwiOiJodHRwczovL21jcC5hcHBsZS1yYWcuY29tIn0%3D)
 
-Click the button above and Cursor will automatically configure everything for you in 30 seconds.
+Click the button above and Cursor will automatically configure everything for you in seconds.
 
 ### Option 2: Manual Setup for Other MCP Clients
 

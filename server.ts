@@ -98,10 +98,10 @@ server.delete("/", async (request, reply) => {
 // Shared manifest data
 const manifestData = {
   name: "Apple RAG MCP Server",
-  title: "Apple Developer Documentation RAG Search",
+  title: "Apple Developer Documentation Search",
   version: "2.0.0",
   description:
-    "A production-ready MCP server providing intelligent search capabilities for Apple Developer Documentation using advanced RAG technology.",
+    "Enterprise-grade MCP server providing AI agents with comprehensive access to Apple's complete developer documentation. Delivers accurate, contextual information about Apple's frameworks, APIs, tools, design guidelines, and technical resources using advanced RAG technology.",
   protocolVersion: "2025-06-18",
   capabilities: {
     tools: { listChanged: true },
@@ -110,7 +110,7 @@ const manifestData = {
   },
   serverInfo: {
     name: "Apple RAG MCP Server",
-    title: "Apple Developer Documentation RAG Search",
+    title: "Apple Developer Documentation Search",
     version: "2.0.0",
   },
   endpoints: {
