@@ -2,10 +2,10 @@
  * Simple MCP Authentication Middleware
  */
 
-import { FastifyRequest, FastifyReply } from "fastify";
-import { TokenValidator, UserTokenData } from "./token-validator.js";
-import { CloudflareD1Config } from "../services/d1-connector.js";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { logger } from "../logger.js";
+import type { CloudflareD1Config } from "../services/d1-connector.js";
+import { TokenValidator, type UserTokenData } from "./token-validator.js";
 
 export interface AuthContext {
   readonly isAuthenticated: boolean;

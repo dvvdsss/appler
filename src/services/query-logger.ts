@@ -3,7 +3,7 @@
  * Minimal overhead, zero redundancy, environment-aware database connection
  */
 import { logger } from "../logger.js";
-import { D1Connector, CloudflareD1Config } from "./d1-connector.js";
+import { type CloudflareD1Config, D1Connector } from "./d1-connector.js";
 
 export interface QueryLogEntry {
   userId: string;

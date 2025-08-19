@@ -3,9 +3,9 @@
  * Implements subscription-based rate limiting for MCP server
  */
 
-import { D1Connector } from "./d1-connector.js";
-import { AuthContext } from "../auth/auth-middleware.js";
+import type { AuthContext } from "../auth/auth-middleware.js";
 import { logger } from "../logger.js";
+import type { D1Connector } from "./d1-connector.js";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -285,4 +285,3 @@ export class RateLimitService {
     }
   }
 }
-

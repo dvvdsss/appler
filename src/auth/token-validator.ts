@@ -4,7 +4,10 @@
  */
 
 import { logger } from "../logger.js";
-import { D1Connector, CloudflareD1Config } from "../services/d1-connector.js";
+import {
+  type CloudflareD1Config,
+  D1Connector,
+} from "../services/d1-connector.js";
 
 export interface TokenValidationResult {
   valid: boolean;

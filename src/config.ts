@@ -3,7 +3,7 @@
  * Environment-aware configuration with validation
  */
 
-import { AppConfig } from "./types/env.js";
+import type { AppConfig } from "./types/env.js";
 
 /**
  * Load and validate application configuration

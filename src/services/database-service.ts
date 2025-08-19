@@ -3,10 +3,9 @@
  * Optimized for VPS deployment with high-performance connection pooling
  */
 import postgres from "postgres";
-import { AppConfig } from "../types/env.js";
-import { SearchResult, SearchOptions } from "../types/rag.js";
-
 import { logger } from "../logger.js";
+import type { AppConfig } from "../types/env.js";
+import type { SearchOptions, SearchResult } from "../types/rag.js";
 
 export class DatabaseService {
   private sql: ReturnType<typeof postgres>;
@@ -101,7 +100,7 @@ export class DatabaseService {
         }
 
         // Wait before retry (exponential backoff)
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        const delay = Math.min(1000 * 2 ** (attempt - 1), 10000);
         console.log(`⏳ Waiting ${delay}ms before retry...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -181,8 +180,7 @@ export class DatabaseService {
         SELECT
           id,
           url,
-          content,
-          1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec) as similarity
+          content
         FROM chunks
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
@@ -197,7 +195,6 @@ export class DatabaseService {
         id: row.id as string,
         url: row.url as string,
         content: row.content as string,
-        similarity: row.similarity as number,
       }));
       console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
       console.log(`✅ Vector Search Completed (${Date.now() - searchStart}ms)`);
@@ -233,7 +230,6 @@ export class DatabaseService {
         id: row.id as string,
         url: row.url as string,
         content: row.content as string,
-        similarity: 0.1, // Base score for keyword matches
       }));
     } catch (error) {
       throw new Error(`Keyword search failed: ${error}`);

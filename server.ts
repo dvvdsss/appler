@@ -3,11 +3,11 @@
  * High-performance VPS deployment with complete protocol support
  */
 
-import { fastify } from "fastify";
 import { config } from "dotenv";
-import { MCPHandler } from "./src/mcp-handler.js";
+import { fastify } from "fastify";
 import { loadConfig } from "./src/config.js";
 import { logger } from "./src/logger.js";
+import { MCPHandler } from "./src/mcp-handler.js";
 
 // Load environment variables based on NODE_ENV with validation
 const nodeEnv = process.env.NODE_ENV || "development";

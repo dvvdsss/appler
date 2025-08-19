@@ -18,7 +18,9 @@
 
 Apple RAG MCP delivers exactly what your AI agents need: **official Swift development docs, design guidelines, and all Apple platform knowledge** - current and complete. No more hunting through documentation websites or outdated Stack Overflow answers.
 
-**🆓 No API Key Required** • **⚡ Lightning Fast** • **🔄 Always Updated**
+A cutting-edge **Retrieval-Augmented Generation (RAG) system** specifically designed for Apple developer documentation. Features **professional AI reranking** with Qwen3-Reranker-8B for superior search accuracy and relevance.
+
+**🤖 AI-Powered Reranking** • **⚡ Hybrid Search** • **🎯 Precision Results**
 
 ## 🚀 Quick Start
 

@@ -3,12 +3,12 @@
  * Handles all MCP 2025-06-18 protocol-specific logic
  */
 
-import { FastifyRequest, FastifyReply } from "fastify";
-import { AuthContext } from "./auth/auth-middleware.js";
-import { RateLimitService } from "./services/rate-limit-service.js";
-import { RAGService } from "./services/rag-service.js";
-import { QueryLogger } from "./services/query-logger.js";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import type { AuthContext } from "./auth/auth-middleware.js";
 import { logger } from "./logger.js";
+import type { QueryLogger } from "./services/query-logger.js";
+import type { RAGService } from "./services/rag-service.js";
+import type { RateLimitService } from "./services/rate-limit-service.js";
 
 // MCP Protocol Types
 export interface MCPRequest {
@@ -154,6 +154,15 @@ export class MCPProtocol {
               type: "string",
               description:
                 "Search query for Apple's comprehensive developer documentation including frameworks, APIs, tools, design guidelines, and technical resources",
+              minLength: 1,
+              maxLength: 10000,
+            },
+            result_count: {
+              type: "integer",
+              description: "Number of results to return (1-50)",
+              minimum: 1,
+              maximum: 50,
+              default: 5,
             },
           },
           required: ["query"],

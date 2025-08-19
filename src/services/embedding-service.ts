@@ -2,9 +2,10 @@
  * Modern SiliconFlow Embedding Service - VPS Optimized
  * High-performance embedding generation with enhanced logging
  */
-import { AppConfig } from "../types/env.js";
-import { EmbeddingConfig, EmbeddingResponse } from "../types/rag.js";
+
 import { logger } from "../logger.js";
+import type { AppConfig } from "../types/env.js";
+import type { EmbeddingConfig, EmbeddingResponse } from "../types/rag.js";
 
 export class EmbeddingService {
   private config: EmbeddingConfig;

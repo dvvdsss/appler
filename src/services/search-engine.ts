@@ -1,110 +1,156 @@
 /**
- * Modern Hybrid Search Engine
- * Combines vector and keyword search with intelligent result merging
+ * Modern Hybrid Search Engine with Reranker Integration
+ * Combines vector and keyword search with professional reranking
  */
-import { DatabaseService } from "./database-service";
-import { EmbeddingService } from "./embedding-service";
-import { SearchResult, SearchOptions } from "../types/rag";
 
-export interface SearchResultWithScore extends SearchResult {
-  rerank_score?: number;
+import type { SearchOptions, SearchResult } from "../types/rag";
+import type { DatabaseService } from "./database-service";
+import type { EmbeddingService } from "./embedding-service";
+import type { RerankerService } from "./reranker-service";
+
+export interface RankedSearchResult extends SearchResult {
+  relevance_score: number;
+  original_index: number;
 }
 
 export class SearchEngine {
   constructor(
     private database: DatabaseService,
-    private embedding: EmbeddingService
+    private embedding: EmbeddingService,
+    private reranker: RerankerService
   ) {}
 
   /**
-   * Perform hybrid search (always enabled)
+   * Perform hybrid search with professional reranking
    */
   async search(
     query: string,
     options: SearchOptions = {}
-  ): Promise<SearchResultWithScore[]> {
+  ): Promise<RankedSearchResult[]> {
     const { resultCount = 5 } = options;
-    return this.hybridSearch(query, resultCount);
+    return this.hybridSearchWithReranker(query, resultCount);
   }
 
   /**
-   * Pure vector search
+   * Hybrid search with professional reranking
    */
-  private async vectorSearch(
+  private async hybridSearchWithReranker(
     query: string,
     resultCount: number
-  ): Promise<SearchResultWithScore[]> {
-    const vectorStart = Date.now();
-    console.log(`🎯 Vector Search Started: "${query}"`);
+  ): Promise<RankedSearchResult[]> {
+    const hybridStart = Date.now();
+    console.log(`🔍 Hybrid Search with Reranker Started: "${query}"`);
 
-    // Generate query embedding
-    const embeddingStart = Date.now();
-    const queryEmbedding = await this.embedding.createEmbedding(query);
+    // Step 1: Parallel candidate retrieval (2N strategy)
+    const candidateStart = Date.now();
+    const [vectorResults, keywordResults] = await Promise.all([
+      this.getVectorCandidates(query, resultCount),
+      this.getKeywordCandidates(query, resultCount),
+    ]);
     console.log(
-      `🧠 Query Embedding Generated (${Date.now() - embeddingStart}ms)`
+      `📊 Candidates Retrieved: ${vectorResults.length} vector + ${keywordResults.length} keyword (${Date.now() - candidateStart}ms)`
     );
 
+    // Step 2: Simple deduplication (no complex scoring)
+    const dedupeStart = Date.now();
+    const candidates = this.deduplicateCandidates([
+      ...vectorResults,
+      ...keywordResults,
+    ]);
+    console.log(
+      `🔄 Candidates Deduplicated: ${candidates.length} unique (${Date.now() - dedupeStart}ms)`
+    );
+
+    // Step 3: Professional reranking
+    const rerankerStart = Date.now();
+    const rankedDocuments = await this.reranker.rerank(
+      query,
+      candidates.map((c) => c.content),
+      Math.min(resultCount, candidates.length)
+    );
+    console.log(
+      `🎯 Reranking Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
+    );
+
+    // Step 4: Map back to search results
+    const mappingStart = Date.now();
+    const finalResults: RankedSearchResult[] = rankedDocuments.map((doc) => {
+      const originalCandidate = candidates[doc.originalIndex];
+      return {
+        id: originalCandidate.id,
+        url: originalCandidate.url,
+        content: doc.content,
+        relevance_score: doc.relevanceScore,
+        original_index: doc.originalIndex,
+      };
+    });
+    console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
+
+    console.log(
+      `✅ Hybrid Search with Reranker Completed: ${finalResults.length} results (${Date.now() - hybridStart}ms)`
+    );
+
+    return finalResults;
+  }
+
+  /**
+   * Get vector search candidates
+   */
+  private async getVectorCandidates(
+    query: string,
+    resultCount: number
+  ): Promise<SearchResult[]> {
+    const vectorStart = Date.now();
+    console.log(`🎯 Vector Candidates: "${query.substring(0, 30)}..."`);
+
+    // Generate query embedding
+    const queryEmbedding = await this.embedding.createEmbedding(query);
+
     // Perform vector search
-    const searchStart = Date.now();
     const results = await this.database.vectorSearch(queryEmbedding, {
       resultCount,
     });
-    console.log(`🔍 Database Vector Search (${Date.now() - searchStart}ms)`);
 
-    const mappingStart = Date.now();
-    const mappedResults = results.map((result) => ({
-      ...result,
-      similarity: result.similarity || 0,
-    }));
-    console.log(`🔄 Vector Results Mapped (${Date.now() - mappingStart}ms)`);
     console.log(
-      `✅ Vector Search Completed: ${mappedResults.length} results (${Date.now() - vectorStart}ms)`
+      `✅ Vector Candidates: ${results.length} results (${Date.now() - vectorStart}ms)`
     );
 
-    return mappedResults;
+    return results;
   }
 
   /**
-   * Hybrid search combining vector and keyword search
+   * Get keyword search candidates
    */
-  private async hybridSearch(
+  private async getKeywordCandidates(
     query: string,
     resultCount: number
-  ): Promise<SearchResultWithScore[]> {
-    // Parallel execution for optimal performance
-    const [vectorResults, keywordResults] = await Promise.all([
-      this.vectorSearch(query, resultCount),
-      this.database.keywordSearch(query, { resultCount }),
-    ]);
+  ): Promise<SearchResult[]> {
+    const keywordStart = Date.now();
+    console.log(`🔤 Keyword Candidates: "${query.substring(0, 30)}..."`);
 
-    // Intelligent result merging with deduplication
-    const combinedResults = new Map<string, SearchResultWithScore>();
+    const results = await this.database.keywordSearch(query, { resultCount });
 
-    // Add vector search results (higher priority)
-    vectorResults.forEach((result) => {
-      combinedResults.set(result.id, {
-        ...result,
-        similarity: result.similarity || 0,
-      });
-    });
+    console.log(
+      `✅ Keyword Candidates: ${results.length} results (${Date.now() - keywordStart}ms)`
+    );
 
-    // Add keyword search results with boost for existing matches
-    keywordResults.forEach((result) => {
-      const existing = combinedResults.get(result.id);
-      if (existing) {
-        // Boost score for documents that match both vector and keyword
-        existing.similarity = (existing.similarity || 0) + 0.15;
-      } else {
-        combinedResults.set(result.id, {
-          ...result,
-          similarity: 0.1, // Base score for keyword-only matches
-        });
+    return results;
+  }
+
+  /**
+   * Simple deduplication based on document ID
+   */
+  private deduplicateCandidates(candidates: SearchResult[]): SearchResult[] {
+    const seen = new Set<string>();
+    const deduplicated: SearchResult[] = [];
+
+    for (const candidate of candidates) {
+      if (!seen.has(candidate.id)) {
+        seen.add(candidate.id);
+        deduplicated.push(candidate);
       }
-    });
+    }
 
-    // Sort by relevance and return top results
-    return Array.from(combinedResults.values())
-      .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
-      .slice(0, resultCount);
+    return deduplicated;
   }
 }

@@ -3,19 +3,19 @@
  * Provides utility functions for MCP Streamable HTTP transport
  */
 
-import { FastifyRequest, FastifyReply } from "fastify";
-import { AuthContext } from "./auth/auth-middleware.js";
-import { RateLimitService } from "./services/rate-limit-service.js";
-import { RAGService } from "./services/rag-service.js";
-import { QueryLogger } from "./services/query-logger.js";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import type { AuthContext } from "./auth/auth-middleware.js";
 import { logger } from "./logger.js";
 import {
-  MCPRequest,
-  MCPResponse,
-  ToolsCallParams,
-  MCP_ERROR_CODES,
   APP_CONSTANTS,
+  MCP_ERROR_CODES,
+  type MCPRequest,
+  type MCPResponse,
+  type ToolsCallParams,
 } from "./mcp-protocol.js";
+import type { QueryLogger } from "./services/query-logger.js";
+import type { RAGService } from "./services/rag-service.js";
+import type { RateLimitService } from "./services/rate-limit-service.js";
 
 /**
  * MCP SSE and Utility Functions

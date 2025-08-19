@@ -2,16 +2,23 @@
  * Modern RAG Service - VPS Optimized Implementation
  * High-performance RAG with intelligent error handling and logging
  */
-import { AppConfig } from "../types/env.js";
-import { RAGQueryRequest, RAGQueryResponse, RAGResult } from "../types/rag.js";
+
+import { logger } from "../logger.js";
+import type { AppConfig } from "../types/env.js";
+import type {
+  RAGQueryRequest,
+  RAGQueryResponse,
+  RAGResult,
+} from "../types/rag.js";
 import { DatabaseService } from "./database-service.js";
 import { EmbeddingService } from "./embedding-service.js";
-import { SearchEngine, SearchResultWithScore } from "./search-engine.js";
-import { logger } from "../logger.js";
+import { RerankerService } from "./reranker-service.js";
+import { type RankedSearchResult, SearchEngine } from "./search-engine.js";
 
 export class RAGService {
   private database: DatabaseService | null = null;
   private embedding: EmbeddingService | null = null;
+  private reranker: RerankerService | null = null;
   private searchEngine: SearchEngine | null = null;
   private initialized = false;
 
@@ -32,7 +39,12 @@ export class RAGService {
       await this.database.initialize();
 
       this.embedding = new EmbeddingService(this.config);
-      this.searchEngine = new SearchEngine(this.database, this.embedding);
+      this.reranker = new RerankerService(this.config);
+      this.searchEngine = new SearchEngine(
+        this.database,
+        this.embedding,
+        this.reranker
+      );
 
       this.initialized = true;
 
@@ -151,11 +163,11 @@ export class RAGService {
   /**
    * Format search results for MCP response
    */
-  private formatResults(results: SearchResultWithScore[]): RAGResult[] {
+  private formatResults(results: RankedSearchResult[]): RAGResult[] {
     return results.map((result) => ({
       url: result.url,
       content: result.content,
-      similarity: result.similarity || 0,
+      relevance_score: result.relevance_score,
       metadata: {
         // Extract metadata from URL if available
         title: this.extractTitleFromUrl(result.url),

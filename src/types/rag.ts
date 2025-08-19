@@ -1,5 +1,5 @@
 /**
- * Modern RAG types for independent MCP server
+ * Modern RAG types for independent MCP server with Reranker integration
  * Optimized for performance and type safety
  */
 
@@ -21,7 +21,7 @@ export interface RAGQueryResponse {
 export interface RAGResult {
   url: string;
   content: string;
-  similarity: number;
+  relevance_score: number;
   metadata?: {
     title?: string;
     section?: string;
@@ -33,7 +33,6 @@ export interface SearchResult {
   id: string;
   url: string;
   content: string;
-  similarity?: number;
 }
 
 export interface SearchOptions {
