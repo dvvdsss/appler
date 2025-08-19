@@ -54,19 +54,14 @@ const appConfig = loadConfig();
 console.log("🔧 Initializing MCP handler with RAG pre-initialization...");
 const mcpHandler = new MCPHandler(appConfig);
 
-// Register CORS and security headers
+// Register CORS and security headers for Streamable HTTP with SSE
 server.addHook("preHandler", async (_request, reply) => {
-  // CORS headers for MCP clients - Streamable HTTP compliant
   reply.header("Access-Control-Allow-Origin", "*");
   reply.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   reply.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Authorization, Last-Event-ID"
+    "Content-Type, Accept, MCP-Protocol-Version, Authorization, Last-Event-ID, Cache-Control"
   );
-  reply.header("Access-Control-Expose-Headers", "Mcp-Session-Id");
-  reply.header("Access-Control-Max-Age", "86400");
-
-  // Security headers
   reply.header("X-Content-Type-Options", "nosniff");
   reply.header("X-Frame-Options", "DENY");
   reply.header("X-XSS-Protection", "1; mode=block");
@@ -119,11 +114,17 @@ const manifestData = {
     health: "/health",
   },
   transport: {
-    type: "http",
+    type: "streamable-http",
     methods: ["GET", "POST", "DELETE"],
+    sse: true,
     headers: {
       required: ["Content-Type"],
-      optional: ["Authorization", "MCP-Protocol-Version", "Mcp-Session-Id"],
+      optional: [
+        "Authorization",
+        "MCP-Protocol-Version",
+        "Accept",
+        "Last-Event-ID",
+      ],
     },
   },
   authorization: {
