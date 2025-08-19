@@ -26,6 +26,7 @@ interface PlanLimits {
 
 export class RateLimitService {
   private d1Connector: D1Connector;
+  private readonly whitelistedIPs = new Set(["127.0.0.1", "198.12.70.36"]);
 
   constructor(d1Connector: D1Connector) {
     this.d1Connector = d1Connector;
@@ -39,6 +40,26 @@ export class RateLimitService {
     authContext: AuthContext
   ): Promise<RateLimitResult> {
     try {
+      // Check if IP is whitelisted - bypass all rate limiting
+      if (this.isWhitelistedIP(clientIP)) {
+        logger.debug("IP whitelisted, bypassing rate limits", {
+          clientIP,
+          authenticated: authContext.isAuthenticated,
+        });
+
+        return {
+          allowed: true,
+          limit: -1, // unlimited
+          remaining: -1, // unlimited
+          resetAt: new Date().toISOString(),
+          planType: "whitelisted",
+          limitType: "weekly",
+          minuteLimit: -1, // unlimited
+          minuteRemaining: -1, // unlimited
+          minuteResetAt: new Date().toISOString(),
+        };
+      }
+
       // Determine user identifier and plan type
       const { identifier, planType } = await this.getUserInfo(
         clientIP,
@@ -229,6 +250,13 @@ export class RateLimitService {
   }
 
   /**
+   * Check if IP is whitelisted
+   */
+  private isWhitelistedIP(clientIP: string): boolean {
+    return this.whitelistedIPs.has(clientIP);
+  }
+
+  /**
    * Get plan limits based on plan type
    */
   private getPlanLimits(planType: string): PlanLimits {
@@ -257,3 +285,4 @@ export class RateLimitService {
     }
   }
 }
+
