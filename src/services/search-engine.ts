@@ -1,6 +1,7 @@
 /**
  * Modern Hybrid Search Engine with Reranker Integration
  * Combines vector and keyword search with professional reranking
+ * Uses 4N strategy: Vector(2N) + Keyword(2N) → Reranker → Final(N)
  */
 
 import type { SearchOptions, SearchResult } from "../types/rag";
@@ -32,7 +33,11 @@ export class SearchEngine {
   }
 
   /**
-   * Hybrid search with professional reranking
+   * Hybrid search with professional reranking using 4N strategy
+   * 1. Vector search: 2N candidates
+   * 2. Keyword search: 2N candidates
+   * 3. Deduplication: Remove duplicates
+   * 4. Reranking: Select best N results
    */
   private async hybridSearchWithReranker(
     query: string,
@@ -41,14 +46,16 @@ export class SearchEngine {
     const hybridStart = Date.now();
     console.log(`🔍 Hybrid Search with Reranker Started: "${query}"`);
 
-    // Step 1: Parallel candidate retrieval (2N strategy)
+    // Step 1: Parallel candidate retrieval (4N strategy)
+    // Each search method retrieves 2N candidates for better coverage
     const candidateStart = Date.now();
+    const candidateCount = resultCount * 2; // 2N for each search method
     const [vectorResults, keywordResults] = await Promise.all([
-      this.getVectorCandidates(query, resultCount),
-      this.getKeywordCandidates(query, resultCount),
+      this.getVectorCandidates(query, candidateCount),
+      this.getKeywordCandidates(query, candidateCount),
     ]);
     console.log(
-      `📊 Candidates Retrieved: ${vectorResults.length} vector + ${keywordResults.length} keyword (${Date.now() - candidateStart}ms)`
+      `📊 Candidates Retrieved: ${vectorResults.length} vector + ${keywordResults.length} keyword (4N strategy, ${Date.now() - candidateStart}ms)`
     );
 
     // Step 2: Simple deduplication (no complex scoring)

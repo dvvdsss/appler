@@ -40,7 +40,7 @@ export class MCPHandler {
 
     // Initialize services
     const d1Connector = new D1Connector(d1Config);
-    const rateLimitService = new RateLimitService(d1Connector);
+    const rateLimitService = new RateLimitService(d1Connector, d1Config);
     const queryLogger = new QueryLogger(d1Config);
 
     // Initialize authentication middleware

@@ -6,6 +6,7 @@
 import type { AuthContext } from "../auth/auth-middleware.js";
 import { logger } from "../logger.js";
 import type { D1Connector } from "./d1-connector.js";
+import { IPAuthenticationService } from "./ip-authentication-service.js";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -26,10 +27,11 @@ interface PlanLimits {
 
 export class RateLimitService {
   private d1Connector: D1Connector;
-  private readonly whitelistedIPs = new Set(["127.0.0.1", "198.12.70.36"]);
+  private ipAuthService: IPAuthenticationService;
 
-  constructor(d1Connector: D1Connector) {
+  constructor(d1Connector: D1Connector, d1Config: any) {
     this.d1Connector = d1Connector;
+    this.ipAuthService = new IPAuthenticationService(d1Config);
   }
 
   /**
@@ -40,23 +42,63 @@ export class RateLimitService {
     authContext: AuthContext
   ): Promise<RateLimitResult> {
     try {
-      // Check if IP is whitelisted - bypass all rate limiting
-      if (this.isWhitelistedIP(clientIP)) {
-        logger.debug("IP whitelisted, bypassing rate limits", {
+      // Check for IP-based authentication first
+      const ipAuthResult = await this.ipAuthService.authenticateIP(clientIP);
+      if (ipAuthResult) {
+        logger.debug("IP-based authentication successful", {
           clientIP,
-          authenticated: authContext.isAuthenticated,
+          userId: ipAuthResult.userId,
+          planType: ipAuthResult.planType,
         });
 
+        // Create new authContext with IP-based user info
+        const ipAuthContext = {
+          isAuthenticated: true,
+          userData: {
+            userId: ipAuthResult.userId,
+            email: ipAuthResult.email,
+            name: ipAuthResult.name,
+          },
+        };
+
+        // Continue with normal rate limiting using IP-authenticated user
+        const { identifier, planType } = await this.getUserInfo(
+          clientIP,
+          ipAuthContext
+        );
+        const limits = this.getPlanLimits(planType);
+
+        const [weeklyUsage, minuteUsage] = await Promise.all([
+          this.getWeeklyUsage(identifier, clientIP),
+          this.getMinuteUsage(identifier, clientIP),
+        ]);
+
+        const weeklyAllowed =
+          limits.weeklyQueries === -1 || weeklyUsage < limits.weeklyQueries;
+        const minuteAllowed =
+          limits.requestsPerMinute === -1 ||
+          minuteUsage < limits.requestsPerMinute;
+        const allowed = weeklyAllowed && minuteAllowed;
+
+        const weeklyRemaining =
+          limits.weeklyQueries === -1
+            ? -1
+            : Math.max(0, limits.weeklyQueries - weeklyUsage);
+        const minuteRemaining =
+          limits.requestsPerMinute === -1
+            ? -1
+            : Math.max(0, limits.requestsPerMinute - minuteUsage);
+
         return {
-          allowed: true,
-          limit: -1, // unlimited
-          remaining: -1, // unlimited
-          resetAt: new Date().toISOString(),
-          planType: "whitelisted",
-          limitType: "weekly",
-          minuteLimit: -1, // unlimited
-          minuteRemaining: -1, // unlimited
-          minuteResetAt: new Date().toISOString(),
+          allowed,
+          limit: limits.weeklyQueries,
+          remaining: weeklyRemaining,
+          resetAt: this.getWeeklyResetTime(),
+          planType,
+          limitType: "weekly" as const,
+          minuteLimit: limits.requestsPerMinute,
+          minuteRemaining,
+          minuteResetAt: this.getMinuteResetTime(),
         };
       }
 
@@ -250,10 +292,25 @@ export class RateLimitService {
   }
 
   /**
-   * Check if IP is whitelisted
+   * Get weekly reset time
    */
-  private isWhitelistedIP(clientIP: string): boolean {
-    return this.whitelistedIPs.has(clientIP);
+  private getWeeklyResetTime(): string {
+    const now = new Date();
+    const nextWeek = new Date(now);
+    nextWeek.setDate(now.getDate() + (7 - now.getDay()));
+    nextWeek.setHours(0, 0, 0, 0);
+    return nextWeek.toISOString();
+  }
+
+  /**
+   * Get minute reset time
+   */
+  private getMinuteResetTime(): string {
+    const now = new Date();
+    const nextMinute = new Date(now);
+    nextMinute.setSeconds(0, 0);
+    nextMinute.setMinutes(nextMinute.getMinutes() + 1);
+    return nextMinute.toISOString();
   }
 
   /**

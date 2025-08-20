@@ -5,6 +5,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { logger } from "../logger.js";
 import type { CloudflareD1Config } from "../services/d1-connector.js";
+import { IPAuthenticationService } from "../services/ip-authentication-service.js";
 import { TokenValidator, type UserTokenData } from "./token-validator.js";
 
 export interface AuthContext {
@@ -14,9 +15,11 @@ export interface AuthContext {
 
 export class AuthMiddleware {
   private readonly tokenValidator: TokenValidator;
+  private readonly ipAuthService: IPAuthenticationService;
 
   constructor(d1Config: CloudflareD1Config) {
     this.tokenValidator = new TokenValidator(d1Config);
+    this.ipAuthService = new IPAuthenticationService(d1Config);
   }
 
   /**
@@ -37,7 +40,7 @@ export class AuthMiddleware {
 
   /**
    * Optional authentication middleware
-   * Validates token if present, allows access without token
+   * Validates token if present, or checks IP-based authentication, allows access without either
    */
   async optionalAuth(
     request: FastifyRequest,
@@ -45,37 +48,55 @@ export class AuthMiddleware {
   ): Promise<AuthContext> {
     const authHeader = request.headers.authorization as string;
     const token = this.extractBearerToken(authHeader);
+    const clientIP = request.ip;
 
-    // No token provided - allow access with no authentication
-    if (!token) {
-      logger.debug(
-        "No authentication token provided - allowing unauthenticated access"
-      );
-      return { isAuthenticated: false };
-    }
+    // Try token authentication first
+    if (token) {
+      const validation = await this.tokenValidator.validateToken(token);
 
-    // Token provided - validate it
-    const validation = await this.tokenValidator.validateToken(token);
+      if (validation.valid) {
+        logger.debug("Token authentication successful", {
+          userId: validation.userData?.userId,
+        });
 
-    if (!validation.valid) {
+        return {
+          isAuthenticated: true,
+          userData: validation.userData,
+        };
+      }
+
       logger.debug("Token validation failed", {
         error: validation.error,
         tokenPrefix: token.substring(0, 8) + "...",
-        ip: request.ip,
+        ip: clientIP,
       });
-
-      // For optional auth, return unauthenticated context instead of throwing
-      return { isAuthenticated: false };
     }
 
-    logger.debug("Authentication successful", {
-      userId: validation.userData?.userId,
-    });
+    // Try IP-based authentication
+    const ipAuthResult =
+      await this.ipAuthService.checkIPAuthentication(clientIP);
+    if (ipAuthResult) {
+      logger.debug("IP-based authentication successful", {
+        userId: ipAuthResult.userId,
+        clientIP,
+      });
 
-    return {
-      isAuthenticated: true,
-      userData: validation.userData,
-    };
+      return {
+        isAuthenticated: true,
+        userData: ipAuthResult,
+      };
+    }
+
+    // No authentication method succeeded
+    logger.debug(
+      "No authentication provided - allowing unauthenticated access",
+      {
+        hasToken: !!token,
+        clientIP,
+      }
+    );
+
+    return { isAuthenticated: false };
   }
 
   /**
