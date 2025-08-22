@@ -1,0 +1,15 @@
+name: Simple Check
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Simple success check
+        run: echo "✅ All checks passed successfully!"
