@@ -3,8 +3,17 @@
  * Centralized service for IP-based user authentication and management
  */
 
-import { D1Connector, type CloudflareD1Config } from "./d1-connector.js";
 import { logger } from "../logger.js";
+import { type CloudflareD1Config, D1Connector } from "./d1-connector.js";
+
+interface UserRecord {
+  user_id: string;
+  email?: string;
+  name?: string;
+  plan_type: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface IPAuthenticationResult {
   userId: string;
@@ -80,7 +89,7 @@ export class IPAuthenticationService {
         return null;
       }
 
-      const user = result.results[0] as any;
+      const user = result.results[0] as unknown as UserRecord;
 
       // Cache the result
       this.ipUserCache.set(clientIP, {
@@ -140,7 +149,7 @@ export class IPAuthenticationService {
         return null;
       }
 
-      const user = result.results[0] as any;
+      const user = result.results[0] as unknown as UserRecord;
 
       // Update cache if not present (for future authenticateIP calls)
       if (!cached) {

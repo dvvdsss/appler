@@ -5,7 +5,7 @@
 
 import type { AuthContext } from "../auth/auth-middleware.js";
 import { logger } from "../logger.js";
-import type { D1Connector } from "./d1-connector.js";
+import type { CloudflareD1Config, D1Connector } from "./d1-connector.js";
 import { IPAuthenticationService } from "./ip-authentication-service.js";
 
 interface RateLimitResult {
@@ -20,7 +20,7 @@ interface RateLimitResult {
   minuteResetAt?: string;
 }
 
-interface PlanLimits {
+interface PlanLimits extends Record<string, unknown> {
   weeklyQueries: number;
   requestsPerMinute: number;
 }
@@ -29,7 +29,7 @@ export class RateLimitService {
   private d1Connector: D1Connector;
   private ipAuthService: IPAuthenticationService;
 
-  constructor(d1Connector: D1Connector, d1Config: any) {
+  constructor(d1Connector: D1Connector, d1Config: CloudflareD1Config) {
     this.d1Connector = d1Connector;
     this.ipAuthService = new IPAuthenticationService(d1Config);
   }
@@ -227,7 +227,7 @@ export class RateLimitService {
         [userId]
       );
 
-      return result.results?.[0]?.plan_type || "hobby";
+      return (result.results?.[0]?.plan_type as string) || "hobby";
     } catch (error) {
       logger.error("Failed to get user plan type", {
         error: error instanceof Error ? error.message : String(error),
@@ -253,7 +253,7 @@ export class RateLimitService {
         [identifier, clientIP]
       );
 
-      return result.results?.[0]?.count || 0;
+      return (result.results?.[0]?.count as number) || 0;
     } catch (error) {
       logger.error("Failed to get weekly usage", {
         error: error instanceof Error ? error.message : String(error),
@@ -280,7 +280,7 @@ export class RateLimitService {
         [identifier, clientIP]
       );
 
-      return result.results?.[0]?.count || 0;
+      return (result.results?.[0]?.count as number) || 0;
     } catch (error) {
       logger.error("Failed to get minute usage", {
         error: error instanceof Error ? error.message : String(error),

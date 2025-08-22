@@ -10,34 +10,64 @@ import type { QueryLogger } from "./services/query-logger.js";
 import type { RAGService } from "./services/rag-service.js";
 import type { RateLimitService } from "./services/rate-limit-service.js";
 
+// MCP Protocol specific types
+type MCPParams = Record<string, unknown>;
+type MCPResult = Record<string, unknown>;
+type MCPErrorData = Record<string, unknown>;
+type MCPCapabilities = Record<string, unknown>;
+type ToolArguments = Record<string, unknown>;
+
+interface RateLimitResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+  planType: string;
+  limitType: "weekly" | "minute";
+  minuteLimit?: number;
+  minuteRemaining?: number;
+  minuteResetAt?: string;
+}
+
+interface RAGQueryResult {
+  success: boolean;
+  results: Array<{
+    content: string;
+    url: string;
+    relevance_score: number;
+  }>;
+  count: number;
+  processing_time_ms: number;
+}
+
 // MCP Protocol Types
 export interface MCPRequest {
   jsonrpc: "2.0";
   id: string | number;
   method: string;
-  params?: any;
+  params?: MCPParams;
 }
 
 export interface MCPResponse {
   jsonrpc: "2.0";
   id?: string | number;
-  result?: any;
+  result?: MCPResult;
   error?: {
     code: number;
     message: string;
-    data?: any;
+    data?: MCPErrorData;
   };
 }
 
 export interface MCPNotification {
   jsonrpc: "2.0";
   method: string;
-  params?: any;
+  params?: MCPParams;
 }
 
 export interface InitializeParams {
   protocolVersion: string;
-  capabilities: any;
+  capabilities: MCPCapabilities;
   clientInfo: {
     name: string;
     version: string;
@@ -46,11 +76,12 @@ export interface InitializeParams {
 
 export interface ToolsCallParams {
   name: string;
-  arguments?: any;
+  arguments?: ToolArguments;
 }
 
 // Protocol Constants
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
+export const SUPPORTED_MCP_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
 export const MCP_ERROR_CODES = {
   PARSE_ERROR: -32700,
   INVALID_REQUEST: -32600,
@@ -88,6 +119,23 @@ export class MCPProtocol {
   ) {}
 
   /**
+   * Check if a protocol version is supported and log version usage
+   */
+  private isProtocolVersionSupported(version: string): boolean {
+    const isSupported = SUPPORTED_MCP_VERSIONS.includes(version as any);
+
+    if (isSupported && version !== MCP_PROTOCOL_VERSION) {
+      logger.info("Using backward compatible protocol version", {
+        requestedVersion: version,
+        currentVersion: MCP_PROTOCOL_VERSION,
+        supportedVersions: [...SUPPORTED_MCP_VERSIONS],
+      });
+    }
+
+    return isSupported;
+  }
+
+  /**
    * Handle initialize request
    */
   async handleInitialize(
@@ -96,27 +144,36 @@ export class MCPProtocol {
     startTime: number,
     authContext: AuthContext
   ): Promise<void> {
-    const params = request.params as InitializeParams;
+    const params = request.params as unknown as InitializeParams;
 
-    if (params.protocolVersion !== MCP_PROTOCOL_VERSION) {
+    // Check if the requested protocol version is supported
+    if (!this.isProtocolVersionSupported(params.protocolVersion)) {
       return this.sendError(
         reply,
         "Unsupported protocol version",
         MCP_ERROR_CODES.INVALID_PARAMS,
         startTime,
         {
-          supported: [MCP_PROTOCOL_VERSION],
+          supported: SUPPORTED_MCP_VERSIONS,
           requested: params.protocolVersion,
         }
       );
     }
 
+    // Respond with the client's requested version if supported, otherwise use our preferred version
+    const responseVersion = this.isProtocolVersionSupported(params.protocolVersion)
+      ? params.protocolVersion
+      : MCP_PROTOCOL_VERSION;
+
     const response: MCPResponse = {
       jsonrpc: "2.0",
       id: request.id,
       result: {
-        protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: { tools: {} },
+        protocolVersion: responseVersion,
+        capabilities: {
+          tools: { listChanged: true }, // Support for tool list change notifications
+          logging: {}, // Support for structured log messages
+        },
         serverInfo: {
           name: APP_CONSTANTS.SERVER_NAME,
           version: APP_CONSTANTS.SERVER_VERSION,
@@ -194,7 +251,7 @@ export class MCPProtocol {
     startTime: number,
     authContext: AuthContext
   ): Promise<void> {
-    const params = mcpRequest.params as ToolsCallParams;
+    const params = mcpRequest.params as unknown as ToolsCallParams;
 
     // Validate tool name
     if (params.name !== APP_CONSTANTS.TOOL_NAME) {
@@ -240,7 +297,7 @@ export class MCPProtocol {
     }
 
     try {
-      const resultCount = args.result_count || 5;
+      const resultCount = (args.result_count as number) || 5;
       const ragResult = await this.executeRAGQuery(args.query, resultCount);
       const responseTime = Date.now() - startTime;
 
@@ -287,7 +344,7 @@ export class MCPProtocol {
   private async executeRAGQuery(
     query: string,
     resultCount: number = 5
-  ): Promise<any> {
+  ): Promise<RAGQueryResult> {
     if (!this.ragInitialized) {
       await this.ragService.initialize();
       this.ragInitialized = true;
@@ -300,7 +357,7 @@ export class MCPProtocol {
    */
   private createSuccessResponse(
     requestId: string | number,
-    ragResult: any,
+    ragResult: RAGQueryResult,
     isAuthenticated: boolean
   ): MCPResponse {
     return {
@@ -320,7 +377,10 @@ export class MCPProtocol {
   /**
    * Format RAG response with authentication-aware messaging
    */
-  private formatRAGResponse(ragResult: any, isAuthenticated: boolean): string {
+  private formatRAGResponse(
+    ragResult: RAGQueryResult,
+    isAuthenticated: boolean
+  ): string {
     if (
       !ragResult ||
       !ragResult.success ||
@@ -333,7 +393,7 @@ export class MCPProtocol {
     const results = ragResult.results;
     let response = "";
 
-    results.forEach((result: any, index: number) => {
+    results.forEach((result: { content: string }, index: number) => {
       if (index > 0) response += "\n\n---\n\n";
       response += result.content;
     });
@@ -349,7 +409,7 @@ export class MCPProtocol {
    * Build rate limit message
    */
   private buildRateLimitMessage(
-    rateLimitResult: any,
+    rateLimitResult: RateLimitResult,
     authContext: AuthContext
   ): string {
     if (rateLimitResult.limitType === "minute") {
@@ -372,7 +432,7 @@ export class MCPProtocol {
   private async logQuery(
     authContext: AuthContext,
     query: string,
-    ragResult: any,
+    ragResult: RAGQueryResult,
     responseTime: number,
     ipAddress: string
   ): Promise<void> {
@@ -405,7 +465,7 @@ export class MCPProtocol {
     message: string,
     code: number,
     startTime: number,
-    data?: any,
+    data?: MCPErrorData,
     httpStatus: number = 400
   ): void {
     const response: MCPResponse = {

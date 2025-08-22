@@ -16,11 +16,11 @@
 
 ## ✨ What is Apple RAG MCP?
 
-Apple RAG MCP delivers exactly what your AI agents need: **official Swift development docs, design guidelines, and all Apple platform knowledge** - current and complete. No more hunting through documentation websites or outdated Stack Overflow answers.
+Apple RAG MCP delivers exactly what your AI agents need: **official Swift development docs, design guidelines, comprehensive Apple platform knowledge, and Apple Developer YouTube content** including WWDC sessions, tutorials, and live events - current and complete.
 
-A cutting-edge **Retrieval-Augmented Generation (RAG) system** specifically designed for Apple developer documentation. Features **professional AI reranking** with Qwen3-Reranker-8B for superior search accuracy and relevance.
+A cutting-edge **Retrieval-Augmented Generation (RAG) system** combining Apple's official documentation with video content from the Apple Developer YouTube channel. Features **professional AI reranking** with Qwen3-Reranker-8B for superior search accuracy across multiple content types.
 
-**🤖 AI-Powered Reranking** • **⚡ Hybrid Search** • **🎯 Precision Results**
+**🤖 AI-Powered Embedding & Reranking** • **⚡ Hybrid Search** • **🎯 Precision Results**
 
 ## 🚀 Quick Start
 
@@ -59,8 +59,8 @@ Click the button above and Cursor will automatically configure everything for yo
 <tr>
 <td width="50%">
 
-### ⚡ **Lightning Fast**
-Get instant responses with our optimized search infrastructure. No more waiting or hunting through docs.
+### ⚡ **Fast & Reliable**
+Get quick responses with our optimized search infrastructure. No more hunting through docs.
 
 ### 🎯 **AI-Powered Search**
 Advanced RAG technology understands context and provides accurate, relevant answers from Apple's documentation.
@@ -87,9 +87,10 @@ Start immediately with no API key required. Get an API key for higher usage limi
 ## 🎯 Features
 
 - **🔍 Semantic Search** - Understands intent, not just keywords
-- **📚 Complete Coverage** - iOS, macOS, watchOS, tvOS, visionOS
-- **⚡ Sub-second Response** - Optimized for speed
-- **🔄 Always Current** - Synced with Apple's latest docs
+- **📚 Complete Coverage** - iOS, macOS, watchOS, tvOS, visionOS documentation
+- **📺 Video Content** - Apple Developer YouTube channel with WWDC sessions and tutorials
+- **⚡ Fast Response** - Optimized for speed across all content types
+- **🔄 Always Current** - Synced with Apple's latest docs and video content
 - **🛡️ Secure & Private** - Your queries stay private
 - **🌐 Universal MCP** - Works with any MCP-compatible client
 

@@ -8,6 +8,7 @@ import { fastify } from "fastify";
 import { loadConfig } from "./src/config.js";
 import { logger } from "./src/logger.js";
 import { MCPHandler } from "./src/mcp-handler.js";
+import { SUPPORTED_MCP_VERSIONS } from "./src/mcp-protocol.js";
 
 // Load environment variables based on NODE_ENV with validation
 const nodeEnv = process.env.NODE_ENV || "development";
@@ -97,7 +98,8 @@ const manifestData = {
   version: "2.0.0",
   description:
     "Enterprise-grade MCP server providing AI agents with comprehensive access to Apple's complete developer documentation. Delivers accurate, contextual information about Apple's frameworks, APIs, tools, design guidelines, and technical resources using advanced RAG technology.",
-  protocolVersion: "2025-06-18",
+  protocolVersion: "2025-03-26", // Default compatible version for maximum client compatibility
+  supportedVersions: [...SUPPORTED_MCP_VERSIONS], // All supported protocol versions
   capabilities: {
     tools: { listChanged: true },
     logging: {},
@@ -175,7 +177,8 @@ server.get("/health", async () => ({
   timestamp: new Date().toISOString(),
   environment: appConfig.NODE_ENV,
   version: "2.0.0",
-  protocolVersion: "2025-06-18",
+  protocolVersion: "2025-03-26", // Default compatible version for maximum client compatibility
+  supportedVersions: [...SUPPORTED_MCP_VERSIONS], // All supported protocol versions
   authorization: "enabled",
 }));
 
@@ -227,7 +230,8 @@ const start = async () => {
     server.log.info(`🚀 Apple RAG MCP Server started`);
     server.log.info(`📡 Listening on http://0.0.0.0:${appConfig.PORT}`);
     server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
-    server.log.info(`📋 Protocol Version: 2025-06-18`);
+    server.log.info(`📋 Default Protocol Version: 2025-03-26 (maximum compatibility)`);
+    server.log.info(`🔄 Supported Versions: ${SUPPORTED_MCP_VERSIONS.join(", ")}`);
     server.log.info(`🔧 MCP Compliant: ✅`);
     server.log.info(`🗄️ Database: Auto-initialized and ready`);
     server.log.info(`🎯 RAG Service: Pre-initialized and ready`);

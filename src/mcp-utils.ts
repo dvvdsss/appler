@@ -17,6 +17,25 @@ import type { QueryLogger } from "./services/query-logger.js";
 import type { RAGService } from "./services/rag-service.js";
 import type { RateLimitService } from "./services/rate-limit-service.js";
 
+type SSEMessage =
+  | MCPResponse
+  | {
+      jsonrpc: "2.0";
+      method: string;
+      params: Record<string, unknown>;
+    };
+
+interface RAGResult {
+  success: boolean;
+  results: Array<{
+    content: string;
+    url: string;
+    relevance_score: number;
+  }>;
+  count: number;
+  processing_time_ms: number;
+}
+
 /**
  * MCP SSE and Utility Functions
  */
@@ -38,7 +57,7 @@ export class MCPUtils {
     startTime: number,
     authContext: AuthContext
   ): Promise<void> {
-    const params = mcpRequest.params as ToolsCallParams;
+    const params = mcpRequest.params as unknown as ToolsCallParams;
 
     // Validate tool name
     if (params.name !== APP_CONSTANTS.TOOL_NAME) {
@@ -109,7 +128,7 @@ export class MCPUtils {
       });
 
       // Execute RAG query
-      const resultCount = args.result_count || 5;
+      const resultCount = (args.result_count as number) || 5;
       const ragResult = await this.executeRAGQuery(args.query, resultCount);
       const responseTime = Date.now() - startTime;
 
@@ -145,7 +164,7 @@ export class MCPUtils {
         authenticated: authContext.isAuthenticated,
         processingTime: responseTime,
       });
-    } catch (error) {
+    } catch (_error) {
       this.sendSSEError(
         reply,
         APP_CONSTANTS.QUERY_FAILED_ERROR,
@@ -159,7 +178,7 @@ export class MCPUtils {
   /**
    * Send SSE message
    */
-  sendSSEMessage(reply: FastifyReply, message: any): void {
+  sendSSEMessage(reply: FastifyReply, message: SSEMessage): void {
     const data = JSON.stringify(message);
     reply.raw.write(`data: ${data}\n\n`);
   }
@@ -190,7 +209,7 @@ export class MCPUtils {
   private async executeRAGQuery(
     query: string,
     resultCount: number = 5
-  ): Promise<any> {
+  ): Promise<RAGResult> {
     if (!this.ragInitialized) {
       await this.ragService.initialize();
       this.ragInitialized = true;
@@ -203,7 +222,7 @@ export class MCPUtils {
    */
   private createSuccessResponse(
     requestId: string | number,
-    ragResult: any,
+    ragResult: RAGResult,
     isAuthenticated: boolean
   ): MCPResponse {
     return {
@@ -223,7 +242,10 @@ export class MCPUtils {
   /**
    * Format RAG response with authentication-aware messaging
    */
-  private formatRAGResponse(ragResult: any, isAuthenticated: boolean): string {
+  private formatRAGResponse(
+    ragResult: RAGResult,
+    isAuthenticated: boolean
+  ): string {
     if (
       !ragResult ||
       !ragResult.success ||
@@ -236,7 +258,7 @@ export class MCPUtils {
     const results = ragResult.results;
     let response = "";
 
-    results.forEach((result: any, index: number) => {
+    results.forEach((result: { content: string }, index: number) => {
       if (index > 0) response += "\n\n---\n\n";
       response += result.content;
     });
@@ -254,7 +276,7 @@ export class MCPUtils {
   private async logQuery(
     authContext: AuthContext,
     query: string,
-    ragResult: any,
+    ragResult: RAGResult,
     responseTime: number,
     ipAddress: string
   ): Promise<void> {

@@ -80,7 +80,7 @@ export class TokenValidator {
     } catch (error) {
       logger.error("Token validation failed", {
         error: error instanceof Error ? error.message : String(error),
-        tokenPrefix: token.substring(0, 8) + "...",
+        tokenPrefix: `${token.substring(0, 8)}...`,
       });
       return { valid: false, error: "Validation failed" };
     }
@@ -139,11 +139,11 @@ export class TokenValidator {
         return null;
       }
 
-      const row = result.results[0];
+      const row = result.results[0] as Record<string, unknown>;
       return {
-        userId: row.user_id,
-        email: row.email || "unknown",
-        name: row.name || "unknown",
+        userId: row.user_id as string,
+        email: (row.email as string) || "unknown",
+        name: (row.name as string) || "unknown",
       };
     } catch (error) {
       logger.warn("D1 user data lookup failed", {
@@ -166,7 +166,7 @@ export class TokenValidator {
       .catch((error) => {
         logger.warn("Failed to update token last_used_at", {
           error: error instanceof Error ? error.message : String(error),
-          tokenPrefix: token.substring(0, 8) + "...",
+          tokenPrefix: `${token.substring(0, 8)}...`,
         });
       });
   }
@@ -209,9 +209,9 @@ export class TokenValidator {
       const user = result.results[0];
 
       return {
-        userId: user.id,
-        email: user.email,
-        name: user.name || user.email.split("@")[0],
+        userId: user.id as string,
+        email: user.email as string,
+        name: (user.name as string) || (user.email as string).split("@")[0],
       };
     } catch (error) {
       logger.error("Failed to get user data", {

@@ -35,9 +35,9 @@ export class QueryLogger {
         error: error instanceof Error ? error.message : String(error),
         userId: entry.userId,
         mcpToken: entry.mcpToken
-          ? entry.mcpToken.substring(0, 8) + "..."
+          ? `${entry.mcpToken.substring(0, 8)}...`
           : "anonymous",
-        query: entry.queryText.substring(0, 50) + "...",
+        query: `${entry.queryText.substring(0, 50)}...`,
       });
     });
   }
@@ -69,9 +69,9 @@ export class QueryLogger {
       logger.debug("Query logged successfully", {
         userId: entry.userId,
         mcpToken: entry.mcpToken
-          ? entry.mcpToken.substring(0, 8) + "..."
+          ? `${entry.mcpToken.substring(0, 8)}...`
           : "anonymous",
-        query: entry.queryText.substring(0, 50) + "...",
+        query: `${entry.queryText.substring(0, 50)}...`,
         resultCount: entry.resultCount,
         responseTime: entry.responseTimeMs,
         environment: process.env.NODE_ENV || "development",

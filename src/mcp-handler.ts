@@ -8,11 +8,14 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { type AuthContext, AuthMiddleware } from "./auth/auth-middleware.js";
 import { logger } from "./logger.js";
 import {
+  APP_CONSTANTS,
   MCP_ERROR_CODES,
   MCP_PROTOCOL_VERSION,
   type MCPNotification,
   MCPProtocol,
   type MCPRequest,
+  type MCPResponse,
+  SUPPORTED_MCP_VERSIONS,
 } from "./mcp-protocol.js";
 import { MCPUtils } from "./mcp-utils.js";
 import { D1Connector } from "./services/d1-connector.js";
@@ -27,6 +30,7 @@ export class MCPHandler {
   private mcpProtocol: MCPProtocol;
   private mcpUtils: MCPUtils;
   private ragInitialized = false;
+  private clientInitialized = false; // Track if client sent initialized notification
 
   constructor(config: AppConfig) {
     this.ragService = new RAGService(config);
@@ -93,15 +97,33 @@ export class MCPHandler {
     const startTime = Date.now();
 
     try {
-      // Validate MCP-Protocol-Version header
-      const protocolVersion = request.headers["mcp-protocol-version"] as string;
-      if (protocolVersion && protocolVersion !== MCP_PROTOCOL_VERSION) {
+      // Handle MCP-Protocol-Version header with backwards compatibility
+      const protocolVersion = (request.headers["mcp-protocol-version"] as string) || "2025-03-26";
+
+      if (!SUPPORTED_MCP_VERSIONS.includes(protocolVersion as any)) {
+        logger.warn("Unsupported protocol version in header", {
+          requested: protocolVersion,
+          supported: [...SUPPORTED_MCP_VERSIONS],
+        });
         reply.code(400).send({
           error: "Unsupported protocol version",
-          supported: MCP_PROTOCOL_VERSION,
+          supported: SUPPORTED_MCP_VERSIONS,
           received: protocolVersion,
         });
         return;
+      }
+
+      // Log version usage for monitoring
+      if (!request.headers["mcp-protocol-version"]) {
+        logger.info("No MCP-Protocol-Version header, using default for backwards compatibility", {
+          defaultVersion: "2025-03-26",
+          supportedVersions: [...SUPPORTED_MCP_VERSIONS],
+        });
+      } else if (protocolVersion !== MCP_PROTOCOL_VERSION) {
+        logger.info("Using backward compatible protocol version in header", {
+          requestedVersion: protocolVersion,
+          currentVersion: MCP_PROTOCOL_VERSION,
+        });
       }
 
       // Handle GET requests for SSE streams
@@ -208,6 +230,8 @@ export class MCPHandler {
 
     // Handle notifications (no response expected)
     if (!("id" in body)) {
+      const notification = body as MCPNotification;
+      await this.handleNotification(notification);
       reply.code(202).send();
       return;
     }
@@ -268,6 +292,8 @@ export class MCPHandler {
           startTime,
           authContext
         );
+      case "ping":
+        return this.handlePing(mcpRequest, reply, startTime);
       default:
         reply.code(400).send({
           jsonrpc: "2.0",
@@ -276,6 +302,57 @@ export class MCPHandler {
             message: `Unknown method: ${mcpRequest.method}`,
           },
         });
+    }
+  }
+
+  /**
+   * Handle ping request for connection health check
+   * According to MCP specification, must return empty result object
+   */
+  private async handlePing(
+    mcpRequest: MCPRequest,
+    reply: FastifyReply,
+    startTime: number
+  ): Promise<void> {
+    // MCP specification requires empty result object for ping response
+    const response: MCPResponse = {
+      jsonrpc: "2.0",
+      id: mcpRequest.id,
+      result: {}, // Empty object as per MCP specification
+    };
+
+    // Log detailed ping information for debugging (not in response)
+    logger.info("Ping request handled", {
+      requestId: mcpRequest.id,
+      processingTime: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+      server: APP_CONSTANTS.SERVER_NAME,
+      version: APP_CONSTANTS.SERVER_VERSION,
+      protocolVersion: MCP_PROTOCOL_VERSION,
+      clientInfo: "MCP ping health check",
+    });
+
+    reply.code(200).send(response);
+  }
+
+  /**
+   * Handle MCP notifications
+   */
+  private async handleNotification(notification: MCPNotification): Promise<void> {
+    switch (notification.method) {
+      case "notifications/initialized":
+        this.clientInitialized = true;
+        logger.info("Client initialized notification received", {
+          method: notification.method,
+          clientReady: true,
+          initialized: this.clientInitialized,
+        });
+        break;
+      default:
+        logger.warn("Unknown notification method", {
+          method: notification.method,
+        });
+        break;
     }
   }
 }

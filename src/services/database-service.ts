@@ -47,7 +47,7 @@ export class DatabaseService {
         // Debug logging in development
         debug:
           config.NODE_ENV === "development"
-            ? (_connection: number, query: string, _parameters: any[]) => {
+            ? (_connection: number, query: string, _parameters: unknown[]) => {
                 logger.debug("Database Query", { query: query.slice(0, 100) });
               }
             : false,
@@ -221,7 +221,7 @@ export class DatabaseService {
       const results = await this.sql`
         SELECT id, url, content
         FROM chunks
-        WHERE content ILIKE ${"%" + query + "%"}
+        WHERE content ILIKE ${`%${query}%`}
         ORDER BY id
         LIMIT ${resultCount}
       `;

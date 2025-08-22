@@ -35,6 +35,20 @@ export interface SearchResult {
   content: string;
 }
 
+export interface ParsedContent {
+  context: string;
+  content: string;
+}
+
+export interface ProcessedResult {
+  id: string;
+  url: string;
+  context: string;
+  content: string;
+  mergedFrom: string[];
+  contentLength: number;
+}
+
 export interface SearchOptions {
   resultCount?: number;
 }

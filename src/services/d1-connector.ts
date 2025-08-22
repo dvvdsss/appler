@@ -4,7 +4,7 @@
  */
 import { logger } from "../logger.js";
 
-export interface D1QueryResult<T = any> {
+export interface D1QueryResult<T = Record<string, unknown>> {
   readonly results: T[];
   readonly success: boolean;
   readonly meta?: {
@@ -22,9 +22,9 @@ export interface CloudflareD1Config {
 
 interface D1ApiResponse {
   readonly result: Array<{
-    readonly results: any[];
+    readonly results: Record<string, unknown>[];
     readonly success: boolean;
-    readonly meta?: any;
+    readonly meta?: Record<string, unknown>;
   }>;
   readonly errors?: Array<{
     readonly code: number;
@@ -49,7 +49,7 @@ export class D1Connector {
 
     logger.info("Ultra-modern D1Connector initialized", {
       environment: process.env.NODE_ENV || "development",
-      databaseId: config.databaseId.substring(0, 8) + "...",
+      databaseId: `${config.databaseId.substring(0, 8)}...`,
       method: "REST API (Cloudflare official)",
       features: ["type-safe", "high-performance", "error-resilient"],
     });
@@ -58,9 +58,9 @@ export class D1Connector {
   /**
    * Execute optimized SQL query with advanced error handling
    */
-  async query<T = any>(
+  async query<T = Record<string, unknown>>(
     sql: string,
-    params: readonly any[] = []
+    params: readonly unknown[] = []
   ): Promise<D1QueryResult<T>> {
     const startTime = performance.now();
 
@@ -97,7 +97,7 @@ export class D1Connector {
    */
   private async executeRequest(
     sql: string,
-    params: readonly any[]
+    params: readonly unknown[]
   ): Promise<Response> {
     const response = await fetch(`${this.baseUrl}/query`, {
       method: "POST",
@@ -136,7 +136,13 @@ export class D1Connector {
     return {
       results: result.results as T[],
       success: result.success,
-      meta: result.meta,
+      meta: result.meta as
+        | {
+            readonly duration: number;
+            readonly rows_read: number;
+            readonly rows_written: number;
+          }
+        | undefined,
     };
   }
 
@@ -195,7 +201,7 @@ export class D1Connector {
         responseTime: Math.round(responseTime * 100) / 100,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       const responseTime = performance.now() - startTime;
 
       return {
@@ -209,10 +215,10 @@ export class D1Connector {
   /**
    * Execute multiple queries in a transaction-like manner
    */
-  async executeTransaction<T = any>(
+  async executeTransaction<T = Record<string, unknown>>(
     queries: Array<{
       readonly sql: string;
-      readonly params?: readonly any[];
+      readonly params?: readonly unknown[];
     }>
   ): Promise<D1QueryResult<T>[]> {
     const results: D1QueryResult<T>[] = [];

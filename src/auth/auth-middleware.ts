@@ -67,7 +67,7 @@ export class AuthMiddleware {
 
       logger.debug("Token validation failed", {
         error: validation.error,
-        tokenPrefix: token.substring(0, 8) + "...",
+        tokenPrefix: `${token.substring(0, 8)}...`,
         ip: clientIP,
       });
     }
