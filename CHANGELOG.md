@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Automatic release system with semantic versioning
-- GitHub Actions workflow for continuous deployment
 - Comprehensive MCP protocol compliance
 - Support for multiple protocol versions (2025-06-18, 2025-03-26)
-- Search tool compatibility (search -> query mapping)
+- Enhanced server capabilities and lifecycle management
 
 ### Fixed
 - Client connection issues with protocol version negotiation
