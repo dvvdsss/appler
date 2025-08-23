@@ -27,4 +27,8 @@ export interface AppConfig {
   // Session Configuration
   readonly SESSION_SECRET: string;
   readonly SESSION_TIMEOUT: number;
+
+  // Security Configuration
+  readonly SECURITY_WEBHOOK_URL?: string;
+  readonly SECURITY_MAX_REQUESTS_PER_MINUTE?: number;
 }

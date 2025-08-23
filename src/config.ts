@@ -36,6 +36,10 @@ export const loadConfig = (): AppConfig => {
     // Session Configuration
     SESSION_SECRET: process.env.SESSION_SECRET || "apple-rag-mcp-secret-key",
     SESSION_TIMEOUT: parseInt(process.env.SESSION_TIMEOUT || "1800", 10), // 30 minutes
+
+    // Security Configuration
+    SECURITY_WEBHOOK_URL: process.env.SECURITY_WEBHOOK_URL,
+    SECURITY_MAX_REQUESTS_PER_MINUTE: parseInt(process.env.SECURITY_MAX_REQUESTS_PER_MINUTE || "30", 10),
   };
 
   // Validate configuration

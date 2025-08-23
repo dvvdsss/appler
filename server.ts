@@ -9,6 +9,7 @@ import { loadConfig } from "./src/config.js";
 import { logger } from "./src/logger.js";
 import { MCPHandler } from "./src/mcp-handler.js";
 import { SUPPORTED_MCP_VERSIONS } from "./src/mcp-protocol.js";
+import { SecurityMiddleware, type SecurityConfig } from "./src/security/security-middleware.js";
 
 // Load environment variables based on NODE_ENV with validation
 const nodeEnv = process.env.NODE_ENV || "development";
@@ -48,6 +49,14 @@ const server = fastify({
 // Load configuration
 const appConfig = loadConfig();
 
+// Initialize security middleware (always enabled)
+const securityConfig: SecurityConfig = {
+  alertWebhookUrl: process.env.SECURITY_WEBHOOK_URL,
+  maxRequestsPerMinute: appConfig.SECURITY_MAX_REQUESTS_PER_MINUTE || 30
+};
+
+const securityMiddleware = new SecurityMiddleware(securityConfig);
+
 // Database configuration is handled by API project
 // MCP project only connects to existing database
 
@@ -55,8 +64,16 @@ const appConfig = loadConfig();
 console.log("🔧 Initializing MCP handler with RAG pre-initialization...");
 const mcpHandler = new MCPHandler(appConfig);
 
-// Register CORS and security headers for Streamable HTTP with SSE
-server.addHook("preHandler", async (_request, reply) => {
+// Register security middleware and headers for Streamable HTTP with SSE
+server.addHook("preHandler", async (request, reply) => {
+  // Security check first
+  const isAllowed = await securityMiddleware.checkSecurity(request, reply);
+  if (!isAllowed) {
+    // Request was blocked by security middleware
+    return;
+  }
+
+  // Set security headers
   reply.header("Access-Control-Allow-Origin", "*");
   reply.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   reply.header(
@@ -66,6 +83,9 @@ server.addHook("preHandler", async (_request, reply) => {
   reply.header("X-Content-Type-Options", "nosniff");
   reply.header("X-Frame-Options", "DENY");
   reply.header("X-XSS-Protection", "1; mode=block");
+  reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  reply.header("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
 });
 
 // Handle preflight requests
@@ -180,6 +200,7 @@ server.get("/health", async () => ({
   protocolVersion: "2025-03-26", // Default compatible version for maximum client compatibility
   supportedVersions: [...SUPPORTED_MCP_VERSIONS], // All supported protocol versions
   authorization: "enabled",
+  security: securityMiddleware.getHealthInfo()
 }));
 
 // Graceful shutdown with proper MCP lifecycle management
@@ -235,6 +256,10 @@ const start = async () => {
     server.log.info(`🔧 MCP Compliant: ✅`);
     server.log.info(`🗄️ Database: Auto-initialized and ready`);
     server.log.info(`🎯 RAG Service: Pre-initialized and ready`);
+    server.log.info(`🛡️ Security: ✅ ALWAYS ACTIVE`);
+    server.log.info(`🔒 Rate Limit: ${securityConfig.maxRequestsPerMinute} requests per minute`);
+    server.log.info(`⚡ Threat Detection: Real-time pattern analysis enabled`);
+    server.log.info(`📱 Security Alerts: Real-time webhook notifications enabled`);
   } catch (error) {
     console.error("Failed to start server:", error);
     server.log.fatal("Failed to start server:", error);

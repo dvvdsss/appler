@@ -179,6 +179,28 @@ class MCPLogger {
       ...context,
     });
   }
+
+  /**
+   * Log security events
+   */
+  security(event: string, context?: LogContext): void {
+    this.warn(`Security: ${event}`, {
+      type: "security",
+      event,
+      ...context,
+    });
+  }
+
+  /**
+   * Log fatal errors that require immediate attention
+   */
+  fatal(message: string, context?: LogContext): void {
+    this.error(`FATAL: ${message}`, {
+      type: "fatal",
+      severity: "critical",
+      ...context,
+    });
+  }
 }
 
 // Export singleton instance
