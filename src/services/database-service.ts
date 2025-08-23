@@ -245,6 +245,91 @@ export class DatabaseService {
   }
 
   /**
+   * Normalize URL for flexible matching
+   */
+  private normalizeUrl(url: string): string {
+    // Remove trailing slash
+    let normalized = url.replace(/\/$/, '');
+
+    // Ensure https:// prefix
+    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+      normalized = 'https://' + normalized;
+    }
+
+    // Convert http:// to https://
+    if (normalized.startsWith('http://')) {
+      normalized = normalized.replace('http://', 'https://');
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Get page content by URL from pages table with flexible matching
+   */
+  async getPageByUrl(url: string): Promise<{ id: string; url: string; content: string; created_at: string; processed_at: string | null } | null> {
+    const searchStart = Date.now();
+    const normalizedUrl = this.normalizeUrl(url);
+    logger.info("Page lookup started", { originalUrl: url, normalizedUrl });
+
+    try {
+      // Try exact match first
+      let results = await this.sql`
+        SELECT id, url, content, created_at, processed_at
+        FROM pages
+        WHERE url = ${normalizedUrl}
+        LIMIT 1
+      `;
+
+      // If no exact match, try flexible matching
+      if (results.length === 0) {
+        // Try with/without trailing slash
+        const alternativeUrl = normalizedUrl.endsWith('/')
+          ? normalizedUrl.slice(0, -1)
+          : normalizedUrl + '/';
+
+        results = await this.sql`
+          SELECT id, url, content, created_at, processed_at
+          FROM pages
+          WHERE url = ${alternativeUrl}
+          LIMIT 1
+        `;
+      }
+
+      const queryTime = Date.now() - searchStart;
+      logger.info("Page lookup completed", {
+        originalUrl: url,
+        normalizedUrl,
+        found: results.length > 0,
+        actualUrl: results.length > 0 ? results[0].url : null,
+        queryTime
+      });
+
+      if (results.length === 0) {
+        return null;
+      }
+
+      const row = results[0];
+      return {
+        id: row.id as string,
+        url: row.url as string,
+        content: row.content as string,
+        created_at: row.created_at as string,
+        processed_at: row.processed_at as string | null,
+      };
+    } catch (error) {
+      const totalTime = Date.now() - searchStart;
+      logger.error("Page lookup failed", {
+        error: String(error),
+        originalUrl: url,
+        normalizedUrl,
+        totalTime
+      });
+      throw new Error(`Page lookup failed: ${error}`);
+    }
+  }
+
+  /**
    * Close database connection
    */
   async close(): Promise<void> {

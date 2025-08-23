@@ -18,7 +18,7 @@ import {
   MCPServer,
 } from "./mcp-server.js";
 import { D1Connector } from "./services/d1-connector.js";
-import { QueryLogger } from "./services/query-logger.js";
+import { UsageLogger } from "./services/usage-logger.js";
 import { RAGService } from "./services/rag-service.js";
 import { RateLimitService } from "./services/rate-limit-service.js";
 import type { AppConfig } from "./types/env.js";
@@ -42,7 +42,7 @@ export class MCPHandler {
     // Initialize services
     const d1Connector = new D1Connector(d1Config);
     const rateLimitService = new RateLimitService(d1Connector, d1Config);
-    const queryLogger = new QueryLogger(d1Config);
+    const usageLogger = new UsageLogger(d1Config);
 
     // Initialize authentication middleware
     this.authMiddleware = new AuthMiddleware(d1Config);
@@ -51,7 +51,7 @@ export class MCPHandler {
     this.mcpServer = new MCPServer(
       this.ragService,
       rateLimitService,
-      queryLogger
+      usageLogger
     );
 
     // Pre-initialize RAG service for optimal performance

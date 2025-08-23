@@ -142,6 +142,12 @@ export class SecurityMiddleware {
    */
   async sendStartupNotification(message: string): Promise<void> {
     try {
+      // Skip webhook in development environment
+      if (process.env.NODE_ENV === 'development') {
+        logger.info("Skipping startup webhook notification in development environment");
+        return;
+      }
+
       if (!this.config.alertWebhookUrl) return;
 
       // Send the pre-formatted message directly

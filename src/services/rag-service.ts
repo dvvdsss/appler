@@ -31,6 +31,13 @@ export class RAGService {
   }
 
   /**
+   * Get database service instance
+   */
+  getDatabase(): DatabaseService {
+    return this.database;
+  }
+
+  /**
    * Initialize database connection (only async operation needed)
    */
   async initialize(): Promise<void> {
@@ -80,7 +87,7 @@ export class RAGService {
       return this.createErrorResponse(
         query,
         "Query cannot be empty. Please provide a search query to find relevant Apple Developer Documentation.",
-        "Try searching for topics like 'SwiftUI navigation', 'iOS app development', or 'Apple API documentation'.",
+        "Try searching for topics like 'SwiftUI navigation', 'iOS app development', or 'API documentation'.",
         startTime
       );
     }
