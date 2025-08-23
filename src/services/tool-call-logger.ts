@@ -1,6 +1,6 @@
 /**
- * Modern Usage Logger - Separated Search and Fetch Logging
- * Optimal solution with dedicated tables for different operation types
+ * Modern Tool Call Logger - Separated Search and Fetch Logging
+ * Optimal solution with dedicated tables for different MCP tool call types
  */
 import { logger } from "../logger.js";
 import { type CloudflareD1Config, D1Connector } from "./d1-connector.js";
@@ -28,7 +28,7 @@ export interface FetchLogEntry {
   ipAddress?: string;
 }
 
-export class UsageLogger {
+export class ToolCallLogger {
   private d1Connector: D1Connector;
 
   constructor(d1Config?: CloudflareD1Config) {

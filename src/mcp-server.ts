@@ -7,7 +7,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuthContext } from "./auth/auth-middleware.js";
 import { logger } from "./logger.js";
-import type { UsageLogger } from "./services/usage-logger.js";
+import type { ToolCallLogger } from "./services/tool-call-logger.js";
 import type { RAGService } from "./services/rag-service.js";
 import type { RateLimitService } from "./services/rate-limit-service.js";
 import type { RAGQueryResponse } from "./types/rag.js";
@@ -97,7 +97,7 @@ export class MCPServer {
   constructor(
     private ragService: RAGService,
     private rateLimitService: RateLimitService,
-    private usageLogger: UsageLogger
+    private toolCallLogger: ToolCallLogger
   ) {}
 
   /**
@@ -491,7 +491,7 @@ export class MCPServer {
         ipAddress,
       };
 
-      await this.usageLogger.logSearch(logEntry);
+      await this.toolCallLogger.logSearch(logEntry);
     } catch (error) {
       logger.error("Failed to log search", {
         error: error instanceof Error ? error.message : String(error),
@@ -527,7 +527,7 @@ export class MCPServer {
         ipAddress,
       };
 
-      await this.usageLogger.logFetch(logEntry);
+      await this.toolCallLogger.logFetch(logEntry);
     } catch (error) {
       logger.error("Failed to log fetch", {
         error: error instanceof Error ? error.message : String(error),
