@@ -9,9 +9,9 @@ module.exports = {
       name: "apple-rag-mcp",
       script: "dist/server.js",
 
-      // Single Instance Configuration (Fixed: Session sharing issue)
-      instances: 1, // Single instance for session consistency
-      exec_mode: "fork", // Fork mode for single instance
+      // Multi-Instance Configuration (4 cores optimization)
+      instances: 4, // 4 instances to fully utilize 4-core CPU
+      exec_mode: "cluster", // Cluster mode for load balancing
 
       // Environment Configuration
       env: {
@@ -26,8 +26,8 @@ module.exports = {
       // Environment file configuration - dynamically loaded by server.ts
       // No env_file specified to avoid conflicts with dynamic loading
 
-      // Performance Configuration
-      max_memory_restart: "1G", // Restart if memory exceeds 1GB
+      // Performance Configuration (4-instance optimization)
+      max_memory_restart: "1.2G", // Restart if memory exceeds 1.2GB per instance
       min_uptime: "10s", // Minimum uptime before considering stable
       max_restarts: 10, // Maximum restart attempts
       restart_delay: 4000, // Delay between restarts
@@ -49,9 +49,9 @@ module.exports = {
       // Health Check
       health_check_grace_period: 3000,
 
-      // Advanced Options
-      kill_timeout: 5000, // Time to wait before force killing
-      listen_timeout: 3000, // Time to wait for app to listen
+      // Advanced Options (Cluster Mode Optimized)
+      kill_timeout: 8000, // Increased timeout for graceful shutdown
+      listen_timeout: 8000, // Increased timeout for cluster startup
 
       // Source Map Support
       source_map_support: true,

@@ -90,6 +90,7 @@ Start immediately with no API key required. Get an API key for higher usage limi
 - **📚 Complete Coverage** - iOS, macOS, watchOS, tvOS, visionOS documentation
 - **📺 Video Content** - Apple Developer YouTube channel with WWDC sessions and tutorials
 - **⚡ Fast Response** - Optimized for speed across all content types
+- **🚀 High Performance** - Multi-instance cluster deployment for maximum throughput
 - **🔄 Always Current** - Synced with Apple's latest docs and video content
 - **🛡️ Secure & Private** - Your queries stay private
 - **🌐 Universal MCP** - Works with any MCP-compatible client

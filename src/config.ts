@@ -33,10 +33,6 @@ export const loadConfig = (): AppConfig => {
     EMBEDDING_DB_SSLMODE:
       (process.env.EMBEDDING_DB_SSLMODE as "disable" | "require") || "disable",
 
-    // Session Configuration
-    SESSION_SECRET: process.env.SESSION_SECRET || "apple-rag-mcp-secret-key",
-    SESSION_TIMEOUT: parseInt(process.env.SESSION_TIMEOUT || "1800", 10), // 30 minutes
-
     // Security Configuration
     SECURITY_WEBHOOK_URL: process.env.SECURITY_WEBHOOK_URL,
     SECURITY_MAX_REQUESTS_PER_MINUTE: parseInt(process.env.SECURITY_MAX_REQUESTS_PER_MINUTE || "30", 10),
@@ -62,19 +58,6 @@ const validateConfig = (config: AppConfig): void => {
     errors.push(
       `Invalid SILICONFLOW_TIMEOUT: ${config.SILICONFLOW_TIMEOUT}. Must be between 1 and 300 seconds.`
     );
-  }
-
-  if (config.SESSION_TIMEOUT < 60 || config.SESSION_TIMEOUT > 86400) {
-    errors.push(
-      `Invalid SESSION_TIMEOUT: ${config.SESSION_TIMEOUT}. Must be between 60 and 86400 seconds.`
-    );
-  }
-
-  if (
-    config.NODE_ENV === "production" &&
-    config.SESSION_SECRET === "apple-rag-mcp-secret-key"
-  ) {
-    errors.push("SESSION_SECRET must be set to a secure value in production");
   }
 
   // Validate required Cloudflare D1 configuration

@@ -136,9 +136,9 @@ export class MCPHandler {
         return this.handleJSONRPC(request, reply, startTime);
       }
 
-      // Handle DELETE requests (optional session termination)
+      // Handle DELETE requests (not supported)
       if (request.method === "DELETE") {
-        reply.code(405).send({ error: "Session termination not supported" });
+        reply.code(405).send({ error: "DELETE method not supported" });
         return;
       }
 
