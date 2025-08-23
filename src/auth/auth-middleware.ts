@@ -11,6 +11,7 @@ import { TokenValidator, type UserTokenData } from "./token-validator.js";
 export interface AuthContext {
   readonly isAuthenticated: boolean;
   readonly userData?: UserTokenData;
+  readonly token?: string;
 }
 
 export class AuthMiddleware {
@@ -62,6 +63,7 @@ export class AuthMiddleware {
         return {
           isAuthenticated: true,
           userData: validation.userData,
+          token,
         };
       }
 

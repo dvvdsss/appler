@@ -248,18 +248,25 @@ const start = async () => {
       host: "0.0.0.0",
     });
 
-    server.log.info(`🚀 Apple RAG MCP Server started`);
-    server.log.info(`📡 Listening on http://0.0.0.0:${appConfig.PORT}`);
-    server.log.info(`🌍 Environment: ${appConfig.NODE_ENV}`);
-    server.log.info(`📋 Default Protocol Version: 2025-03-26 (maximum compatibility)`);
-    server.log.info(`🔄 Supported Versions: ${SUPPORTED_MCP_VERSIONS.join(", ")}`);
-    server.log.info(`🔧 MCP Compliant: ✅`);
-    server.log.info(`🗄️ Database: Auto-initialized and ready`);
-    server.log.info(`🎯 RAG Service: Pre-initialized and ready`);
-    server.log.info(`🛡️ Security: ✅ ALWAYS ACTIVE`);
-    server.log.info(`🔒 Rate Limit: ${securityConfig.maxRequestsPerMinute} requests per minute`);
-    server.log.info(`⚡ Threat Detection: Real-time pattern analysis enabled`);
-    server.log.info(`📱 Security Alerts: Real-time webhook notifications enabled`);
+    // Prepare startup message once
+    const startupMessage = `🚀 Apple RAG MCP Server started
+📡 Listening on http://0.0.0.0:${appConfig.PORT}
+🌍 Environment: ${appConfig.NODE_ENV}
+📋 Default Protocol Version: 2025-03-26 (maximum compatibility)
+🔄 Supported Versions: ${SUPPORTED_MCP_VERSIONS.join(", ")}
+🔧 MCP Compliant: ✅
+🗄️ Database: Auto-initialized and ready
+🎯 RAG Service: Pre-initialized and ready
+🛡️ Security: ✅ ALWAYS ACTIVE
+🔒 Rate Limit: ${securityConfig.maxRequestsPerMinute} requests per minute
+⚡ Threat Detection: Real-time pattern analysis enabled
+📱 Security Alerts: Real-time webhook notifications enabled`;
+
+    // Output to logs (split by lines for proper logging format)
+    startupMessage.split('\n').forEach(line => server.log.info(line));
+
+    // Send to webhook (use the same message)
+    await securityMiddleware.sendStartupNotification(startupMessage);
   } catch (error) {
     console.error("Failed to start server:", error);
     server.log.fatal("Failed to start server:", error);

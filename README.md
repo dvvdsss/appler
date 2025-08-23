@@ -46,12 +46,12 @@ Click the button above and Cursor will automatically configure everything for yo
 **Manual Configuration Parameters:**
 - **MCP Type:** `Streamable HTTP`
 - **URL:** `https://mcp.apple-rag.com`
-- **Authentication:** `Optional` (API key for higher limits)
-- **API Key:** Get yours at [apple-rag.com](https://apple-rag.com) for increased quota
+- **Authentication:** `Optional` (MCP Token for higher limits)
+- **MCP Token:** Get yours at [apple-rag.com](https://apple-rag.com) for increased quota
 
 **Supported Clients:** Cursor, Claude Desktop, Cline, and all MCP-compatible tools.
 
-> **Note:** No API key required to start! You get free queries without any authentication. Add an API key later for higher usage limits.
+> **Note:** No MCP Token required to start! You get free queries without any authentication. Add an MCP Token later for higher usage limits.
 
 ## 🌟 Why Developers Love Apple RAG MCP
 
@@ -78,7 +78,7 @@ Get practical code examples in Swift, Objective-C, and SwiftUI alongside documen
 Our documentation index is continuously updated to reflect the latest Apple developer resources.
 
 ### 🆓 **Completely Free**
-Start immediately with no API key required. Get an API key for higher usage limits - all managed at [apple-rag.com](https://apple-rag.com).
+Start immediately with no MCP Token required. Get an MCP Token for higher usage limits - all managed at [apple-rag.com](https://apple-rag.com).
 
 </td>
 </tr>

@@ -138,90 +138,56 @@ export class SecurityMiddleware {
   }
 
   /**
-   * Send security alert webhook (optimized for Telegram)
+   * Send startup notification webhook
+   */
+  async sendStartupNotification(message: string): Promise<void> {
+    try {
+      if (!this.config.alertWebhookUrl) return;
+
+      // Send the pre-formatted message directly
+      const payload = {
+        text: message
+      };
+
+      await fetch(this.config.alertWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000)
+      });
+    } catch (error) {
+      logger.warn("Failed to send startup notification", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Send security alert webhook
    */
   private async sendSecurityAlert(threat: ThreatEvent): Promise<void> {
     try {
       if (!this.config.alertWebhookUrl) return;
 
-      // Check if it's a Telegram webhook URL
-      const isTelegram = this.config.alertWebhookUrl.includes('api.telegram.org');
+      // Create the same message format as logs
+      const message = `🚨 Security Threat Detected
+Severity: ${threat.pattern.severity}
+Type: ${threat.pattern.type}
+Attacker IP: ${threat.ip}
+Target URL: ${threat.url}
+Risk Score: ${threat.riskScore}/100
+Detection Time: ${new Date(threat.timestamp).toISOString()}
+Server: Apple RAG MCP`;
 
-      if (isTelegram) {
-        // Telegram-optimized message format
-        const severityEmoji = {
-          'CRITICAL': '🔴',
-          'HIGH': '🟠', 
-          'MEDIUM': '🟡',
-          'LOW': '🟢'
-        }[threat.pattern.severity] || '⚪';
+      const payload = {
+        text: message
+      };
 
-        const typeEmoji = {
-          'VULNERABILITY_SCAN': '🔍',
-          'CREDENTIAL_THEFT': '🔐',
-          'PATH_TRAVERSAL': '📁',
-          'SQL_INJECTION': '💾',
-          'XSS_ATTEMPT': '🌐'
-        }[threat.pattern.type] || '⚠️';
-
-        const message = `🚨 *安全威胁检测*
-
-${severityEmoji} *严重程度:* ${threat.pattern.severity}
-${typeEmoji} *威胁类型:* ${threat.pattern.type}
-🌐 *攻击者 IP:* \`${threat.ip}\`
-🎯 *目标 URL:* \`${threat.url}\`
-📊 *风险评分:* ${threat.riskScore}/100
-🕒 *检测时间:* ${new Date(threat.timestamp).toLocaleString('zh-CN')}
-🖥️ *服务器:* Apple RAG MCP
-
-请立即查看安全仪表板获取详细分析。`;
-
-        const payload = {
-          text: message,
-          parse_mode: 'Markdown',
-          disable_web_page_preview: true
-        };
-
-        await fetch(this.config.alertWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(5000)
-        });
-      } else {
-        // Generic webhook format
-        const alert = {
-          type: 'security_threat',
-          severity: threat.pattern.severity,
-          timestamp: new Date(threat.timestamp).toISOString(),
-          attacker: {
-            ip: threat.ip,
-            userAgent: threat.userAgent
-          },
-          attack: {
-            type: threat.pattern.type,
-            url: threat.url,
-            method: threat.method,
-            riskScore: threat.riskScore
-          },
-          server: {
-            hostname: process.env.HOSTNAME || 'unknown',
-            service: 'apple-rag-mcp'
-          }
-        };
-
-        await fetch(this.config.alertWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(alert),
-          signal: AbortSignal.timeout(5000)
-        });
-      }
-
-      logger.info("Security alert sent successfully", {
-        threatType: threat.pattern.type,
-        severity: threat.pattern.severity,
-        webhookType: isTelegram ? 'telegram' : 'generic'
+      await fetch(this.config.alertWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000)
       });
     } catch (error) {
       logger.warn("Failed to send security alert", {

@@ -88,9 +88,9 @@ $CHANGES
 }
 \`\`\`
 
-### 🔑 Get Your API Key
-- **Free to start:** No API key required for basic usage
-- **Higher limits:** Get your API key at [apple-rag.com](https://apple-rag.com)
+### 🔑 Get Your MCP Token
+- **Free to start:** No MCP Token required for basic usage
+- **Higher limits:** Get your MCP Token at [apple-rag.com](https://apple-rag.com)
 - **Dashboard:** Manage usage and tokens at [apple-rag.com/overview](https://apple-rag.com/overview)
 
 ### 🌟 Features

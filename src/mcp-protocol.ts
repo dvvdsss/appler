@@ -442,6 +442,7 @@ export class MCPProtocol {
           authContext.isAuthenticated && authContext.userData
             ? authContext.userData.userId
             : "anonymous",
+        mcpToken: authContext.token,
         queryText: query.trim(),
         resultCount: ragResult?.count || 0,
         responseTimeMs: responseTime,
