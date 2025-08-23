@@ -1,41 +1,41 @@
 #!/bin/bash
 
-# Apple RAG MCP Server - 一键部署脚本
-# 最简化的生产环境部署流程
+# Apple RAG MCP Server - One-Click Deployment Script
+# Simplified production environment deployment workflow
 
 set -e
 
 echo "🚀 Starting Apple RAG MCP deployment..."
 
-# 检查当前目录
+# Check current directory
 if [ ! -f "package.json" ]; then
     echo "❌ Error: Please run this script from the project root directory"
     exit 1
 fi
 
-# 1. 拉取最新代码
+# 1. Pull latest changes
 echo "📥 Pulling latest changes..."
 git pull origin main
 
-# 2. 安装依赖（如果需要）
+# 2. Install dependencies (if needed)
 echo "📦 Installing dependencies..."
 pnpm install --frozen-lockfile
 
-# 3. 构建项目
+# 3. Build project
 echo "🔨 Building project..."
 pnpm build
 
-# 4. 验证构建
+# 4. Verify build
 if [ ! -f "dist/server.js" ]; then
     echo "❌ Build failed: dist/server.js not found"
     exit 1
 fi
 
-# 5. 重启服务
+# 5. Restart service
 echo "🔄 Restarting PM2 service..."
 pm2 restart apple-rag-mcp
 
-# 6. 验证服务状态
+# 6. Verify service status
 echo "🔍 Checking service status..."
 sleep 2
 pm2 status apple-rag-mcp
