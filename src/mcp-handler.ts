@@ -12,12 +12,11 @@ import {
   MCP_ERROR_CODES,
   MCP_PROTOCOL_VERSION,
   type MCPNotification,
-  MCPProtocol,
   type MCPRequest,
   type MCPResponse,
   SUPPORTED_MCP_VERSIONS,
-} from "./mcp-protocol.js";
-import { MCPUtils } from "./mcp-utils.js";
+  MCPServer,
+} from "./mcp-server.js";
 import { D1Connector } from "./services/d1-connector.js";
 import { QueryLogger } from "./services/query-logger.js";
 import { RAGService } from "./services/rag-service.js";
@@ -27,9 +26,7 @@ import type { AppConfig } from "./types/env.js";
 export class MCPHandler {
   private ragService: RAGService;
   private authMiddleware: AuthMiddleware;
-  private mcpProtocol: MCPProtocol;
-  private mcpUtils: MCPUtils;
-  private ragInitialized = false;
+  private mcpServer: MCPServer;
   private clientInitialized = false; // Track if client sent initialized notification
 
   constructor(config: AppConfig) {
@@ -50,19 +47,11 @@ export class MCPHandler {
     // Initialize authentication middleware
     this.authMiddleware = new AuthMiddleware(d1Config);
 
-    // Initialize protocol and utils handlers
-    this.mcpProtocol = new MCPProtocol(
+    // Initialize MCP server
+    this.mcpServer = new MCPServer(
       this.ragService,
       rateLimitService,
-      queryLogger,
-      this.ragInitialized
-    );
-
-    this.mcpUtils = new MCPUtils(
-      this.ragService,
-      rateLimitService,
-      queryLogger,
-      this.ragInitialized
+      queryLogger
     );
 
     // Pre-initialize RAG service for optimal performance
@@ -81,7 +70,6 @@ export class MCPHandler {
   private async preInitializeRAGService(): Promise<void> {
     try {
       await this.ragService.initialize();
-      this.ragInitialized = true;
       logger.info("RAG service pre-initialized successfully");
     } catch (error) {
       logger.error("Failed to pre-initialize RAG service", {
@@ -236,12 +224,11 @@ export class MCPHandler {
       return;
     }
 
-    // Handle requests - decide between SSE or JSON response
+    // Handle requests
     const mcpRequest = body as MCPRequest;
-    const preferSSE = acceptHeader?.includes("text/event-stream");
 
-    if (preferSSE && mcpRequest.method === "tools/call") {
-      return this.mcpUtils.handleToolsCallSSE(
+    if (mcpRequest.method === "tools/call") {
+      return this.mcpServer.handleToolsCall(
         request,
         mcpRequest,
         reply,
@@ -271,21 +258,21 @@ export class MCPHandler {
   ): Promise<void> {
     switch (mcpRequest.method) {
       case "initialize":
-        return this.mcpProtocol.handleInitialize(
+        return this.mcpServer.handleInitialize(
           mcpRequest,
           reply,
           startTime,
           authContext
         );
       case "tools/list":
-        return this.mcpProtocol.handleToolsList(
+        return this.mcpServer.handleToolsList(
           mcpRequest,
           reply,
           startTime,
           authContext
         );
       case "tools/call":
-        return this.mcpProtocol.handleToolsCall(
+        return this.mcpServer.handleToolsCall(
           httpRequest,
           mcpRequest,
           reply,

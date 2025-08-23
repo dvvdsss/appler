@@ -4,6 +4,7 @@
  * Uses 8N strategy: Vector(4N) + Keyword(4N) → Reranker → Final(N)
  */
 
+import { logger } from "../logger.js";
 import type {
   ParsedContent,
   ProcessedResult,
@@ -14,9 +15,18 @@ import type { DatabaseService } from "./database-service";
 import type { EmbeddingService } from "./embedding-service";
 import type { RerankerService } from "./reranker-service";
 
-export interface RankedSearchResult extends SearchResult {
-  relevance_score: number;
-  original_index: number;
+export interface RankedSearchResult {
+  readonly id: string;
+  readonly url: string;
+  readonly context: string;
+  readonly content: string;
+  readonly relevance_score: number;
+  readonly original_index: number;
+}
+
+export interface SearchEngineResult {
+  readonly results: readonly RankedSearchResult[];
+  readonly additionalUrls: readonly string[];
 }
 
 export class SearchEngine {
@@ -32,7 +42,7 @@ export class SearchEngine {
   async search(
     query: string,
     options: SearchOptions = {}
-  ): Promise<RankedSearchResult[]> {
+  ): Promise<SearchEngineResult> {
     const { resultCount = 5 } = options;
     return this.hybridSearchWithReranker(query, resultCount);
   }
@@ -47,9 +57,9 @@ export class SearchEngine {
   private async hybridSearchWithReranker(
     query: string,
     resultCount: number
-  ): Promise<RankedSearchResult[]> {
+  ): Promise<SearchEngineResult> {
     const hybridStart = Date.now();
-    console.log(`🔍 Hybrid Search with Reranker Started: "${query}"`);
+    logger.info("Hybrid search started", { query, resultCount });
 
     // Step 1: Parallel candidate retrieval (8N strategy)
     // Each search method retrieves 4N candidates for better coverage
@@ -59,9 +69,14 @@ export class SearchEngine {
       this.getVectorCandidates(query, candidateCount),
       this.getKeywordCandidates(query, candidateCount),
     ]);
-    console.log(
-      `📊 Candidates Retrieved: ${vectorResults.length} vector + ${keywordResults.length} keyword (8N strategy, ${Date.now() - candidateStart}ms)`
-    );
+
+    const candidateTime = Date.now() - candidateStart;
+    logger.info("Candidates retrieved", {
+      vectorCount: vectorResults.length,
+      keywordCount: keywordResults.length,
+      strategy: "8N",
+      candidateTime
+    });
 
     // Step 2: Three-step result processing
     const processStart = Date.now();
@@ -89,6 +104,7 @@ export class SearchEngine {
       return {
         id: processed.id,
         url: processed.url,
+        context: processed.context,
         content: processed.content,
         relevance_score: doc.relevanceScore,
         original_index: doc.originalIndex,
@@ -96,11 +112,25 @@ export class SearchEngine {
     });
     console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
 
-    console.log(
-      `✅ Hybrid Search with Reranker Completed: ${finalResults.length} results (${Date.now() - hybridStart}ms)`
-    );
+    // Collect additional URLs from candidates not in final results
+    const finalUrls = new Set(finalResults.map(r => r.url));
+    const additionalUrls = processedResults
+      .filter(r => !finalUrls.has(r.url))
+      .map(r => r.url)
+      .filter((url, index, arr) => arr.indexOf(url) === index) // Remove duplicates
+      .slice(0, 10); // Limit to 10 additional URLs
 
-    return finalResults;
+    const totalTime = Date.now() - hybridStart;
+    logger.info("Hybrid search completed", {
+      finalResults: finalResults.length,
+      additionalUrls: additionalUrls.length,
+      totalTime
+    });
+
+    return {
+      results: finalResults,
+      additionalUrls
+    };
   }
 
   /**
@@ -160,9 +190,12 @@ export class SearchEngine {
     // Step 3: Merge small documents
     const finalResults = this.mergeSmallDocuments(contextMerged);
 
-    console.log(
-      `🔄 Processing: ${candidates.length} → ${deduplicated.length} → ${contextMerged.length} → ${finalResults.length}`
-    );
+    logger.info("Result processing", {
+      candidates: candidates.length,
+      deduplicated: deduplicated.length,
+      contextMerged: contextMerged.length,
+      final: finalResults.length
+    });
 
     return finalResults;
   }
@@ -205,10 +238,12 @@ export class SearchEngine {
       const primary = group[0];
       const contents = group.map((r) => this.parseContent(r.content).content);
       const mergedContent = contents.join("\n\n---\n\n");
+      // 相同 context 必然来自同一个 URL
+      const url = primary.url;
 
       return {
         id: primary.id,
-        url: primary.url,
+        url: url,  // 单个 URL
         context,
         content: mergedContent,
         mergedFrom: group.map((r) => r.id),
@@ -254,10 +289,12 @@ export class SearchEngine {
     const primary = docs[0];
     const allContent = docs.map((d) => d.content).join("\n\n---\n\n");
     const allIds = docs.flatMap((d) => d.mergedFrom);
+    // 大小合并时使用主文档的 URL
+    const url = primary.url;
 
     return {
       id: primary.id,
-      url: primary.url,
+      url: url,  // 单个 URL
       context: `Merged: ${docs
         .map((d) => d.context)
         .filter(Boolean)

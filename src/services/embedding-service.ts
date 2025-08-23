@@ -33,9 +33,9 @@ export class EmbeddingService {
    */
   async createEmbedding(text: string): Promise<number[]> {
     const embeddingStart = Date.now();
-    console.log(
-      `🧠 Embedding Generation Started: "${text.substring(0, 50)}..."`
-    );
+    logger.info("Embedding generation started", {
+      textPreview: text.substring(0, 50) + "..."
+    });
 
     if (!text?.trim()) {
       throw new Error("Text cannot be empty for embedding generation");
@@ -55,16 +55,17 @@ export class EmbeddingService {
 
     try {
       const requestStart = Date.now();
-      console.log(`📡 SiliconFlow API Request Started...`);
+      logger.info("SiliconFlow API request started");
+
       const response = await fetch(this.config.apiUrl, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(this.config.timeout),
       });
-      console.log(
-        `📡 SiliconFlow API Response Received (${Date.now() - requestStart}ms)`
-      );
+
+      const requestTime = Date.now() - requestStart;
+      logger.info("SiliconFlow API response received", { requestTime });
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "Unknown error");
@@ -81,25 +82,30 @@ export class EmbeddingService {
         throw new Error("No embedding data received from SiliconFlow API");
       }
 
-      console.log(
-        `📊 API Response Parsed: ${embedding.length}D vector (${Date.now() - parseStart}ms)`
-      );
+      const parseTime = Date.now() - parseStart;
+      logger.info("API response parsed", {
+        vectorDimensions: embedding.length,
+        parseTime
+      });
 
       // L2 normalization for optimal vector search
       const normalizeStart = Date.now();
       const normalizedEmbedding = this.normalizeL2(embedding);
-      console.log(
-        `🔧 L2 Normalization Completed (${Date.now() - normalizeStart}ms)`
-      );
-      console.log(
-        `✅ Embedding Generation Completed (${Date.now() - embeddingStart}ms)`
-      );
+      const normalizeTime = Date.now() - normalizeStart;
+
+      const totalTime = Date.now() - embeddingStart;
+      logger.info("Embedding generation completed", {
+        normalizeTime,
+        totalTime
+      });
 
       return normalizedEmbedding;
     } catch (error) {
-      console.log(
-        `❌ Embedding Generation Failed: ${error instanceof Error ? error.message : "Unknown error"} (${Date.now() - embeddingStart}ms)`
-      );
+      const totalTime = Date.now() - embeddingStart;
+      logger.error("Embedding generation failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        totalTime
+      });
       if (error instanceof Error) {
         throw new Error(`Embedding generation failed: ${error.message}`);
       }
@@ -110,8 +116,8 @@ export class EmbeddingService {
   /**
    * L2 normalization for vector embeddings
    */
-  private normalizeL2(embedding: number[]): number[] {
+  private normalizeL2(embedding: readonly number[]): number[] {
     const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    return norm > 0 ? embedding.map((val) => val / norm) : embedding;
+    return norm > 0 ? embedding.map((val) => val / norm) : [...embedding];
   }
 }

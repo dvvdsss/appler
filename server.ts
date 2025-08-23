@@ -8,7 +8,7 @@ import { fastify } from "fastify";
 import { loadConfig } from "./src/config.js";
 import { logger } from "./src/logger.js";
 import { MCPHandler } from "./src/mcp-handler.js";
-import { SUPPORTED_MCP_VERSIONS } from "./src/mcp-protocol.js";
+import { SUPPORTED_MCP_VERSIONS } from "./src/mcp-server.js";
 import { SecurityMiddleware, type SecurityConfig } from "./src/security/security-middleware.js";
 
 // Load environment variables based on NODE_ENV with validation

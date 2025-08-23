@@ -16,37 +16,37 @@ import { RerankerService } from "./reranker-service.js";
 import { type RankedSearchResult, SearchEngine } from "./search-engine.js";
 
 export class RAGService {
-  private database: DatabaseService | null = null;
-  private embedding: EmbeddingService | null = null;
-  private reranker: RerankerService | null = null;
-  private searchEngine: SearchEngine | null = null;
-  private initialized = false;
+  private readonly database: DatabaseService;
+  private readonly embedding: EmbeddingService;
+  private readonly reranker: RerankerService;
+  private readonly searchEngine: SearchEngine;
+  private initPromise: Promise<void> | null = null;
 
-  constructor(private config: AppConfig) {}
+  constructor(config: AppConfig) {
+    // Initialize all services immediately
+    this.database = new DatabaseService(config);
+    this.embedding = new EmbeddingService(config);
+    this.reranker = new RerankerService(config);
+    this.searchEngine = new SearchEngine(this.database, this.embedding, this.reranker);
+  }
 
   /**
-   * Initialize all services with VPS optimizations
+   * Initialize database connection (only async operation needed)
    */
   async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
 
+    this.initPromise = this.performInitialization();
+    return this.initPromise;
+  }
+
+  private async performInitialization(): Promise<void> {
     const initStart = Date.now();
     logger.info("Initializing RAG service...");
 
     try {
-      // Initialize services in optimal order
-      this.database = new DatabaseService(this.config);
+      // Only database needs async initialization
       await this.database.initialize();
-
-      this.embedding = new EmbeddingService(this.config);
-      this.reranker = new RerankerService(this.config);
-      this.searchEngine = new SearchEngine(
-        this.database,
-        this.embedding,
-        this.reranker
-      );
-
-      this.initialized = true;
 
       logger.info("RAG service initialized successfully", {
         initializationTime: Date.now() - initStart,
@@ -104,45 +104,51 @@ export class RAGService {
       const initStart = Date.now();
       await this.initialize();
       const initTime = Date.now() - initStart;
-      if (initTime > 0) {
-        console.log(`🔧 Services Initialized (${initTime}ms)`);
-      } else {
-        console.log(`🔧 Services Already Initialized (0ms)`);
-      }
 
-      if (!this.searchEngine) {
-        throw new Error("Search engine not initialized");
-      }
+      logger.info("Services initialization", {
+        initTime,
+        alreadyInitialized: initTime === 0
+      });
 
-      // Execute hybrid search (always enabled)
-      const configStart = Date.now();
+      // Execute hybrid search
       const resultCount = Math.min(Math.max(result_count, 1), 20);
-      console.log(
-        `⚙️ Configuration Set: hybrid search, ${resultCount} results (${Date.now() - configStart}ms)`
-      );
+      logger.info("Search configuration", {
+        searchType: "hybrid",
+        resultCount
+      });
 
       // Execute search
       const searchStart = Date.now();
-      console.log(`🔍 Starting Hybrid Search Operation...`);
-      const results = await this.searchEngine.search(trimmedQuery, {
+      logger.info("Starting hybrid search", { query: trimmedQuery });
+
+      const searchResult = await this.searchEngine.search(trimmedQuery, {
         resultCount,
       });
-      console.log(
-        `🔍 Hybrid Search Completed: ${results.length} results (${Date.now() - searchStart}ms)`
-      );
+
+      const searchTime = Date.now() - searchStart;
+      logger.info("Search completed", {
+        resultCount: searchResult.results.length,
+        additionalUrls: searchResult.additionalUrls.length,
+        searchTime
+      });
 
       // Format results
       const formatStart = Date.now();
-      const formattedResults = this.formatResults(results);
-      console.log(`📝 Results Formatted (${Date.now() - formatStart}ms)`);
+      const formattedResults = this.formatResults(searchResult.results);
+      const formatTime = Date.now() - formatStart;
 
       const totalTime = Date.now() - startTime;
-      console.log(`🎉 RAG Query Completed Successfully: Total ${totalTime}ms`);
+      logger.info("RAG query completed", {
+        totalTime,
+        formatTime,
+        finalResultCount: formattedResults.length
+      });
 
       return {
         success: true,
         query: trimmedQuery,
         results: formattedResults,
+        additionalUrls: searchResult.additionalUrls,
         count: formattedResults.length,
         processing_time_ms: totalTime,
       };
@@ -163,44 +169,16 @@ export class RAGService {
   /**
    * Format search results for MCP response
    */
-  private formatResults(results: RankedSearchResult[]): RAGResult[] {
+  private formatResults(results: readonly RankedSearchResult[]): RAGResult[] {
     return results.map((result) => ({
       url: result.url,
       content: result.content,
+      context: result.context,
       relevance_score: result.relevance_score,
-      metadata: {
-        // Extract metadata from URL if available
-        title: this.extractTitleFromUrl(result.url),
-        section: this.extractSectionFromUrl(result.url),
-      },
     }));
   }
 
-  /**
-   * Extract title from Apple documentation URL
-   */
-  private extractTitleFromUrl(url: string): string | undefined {
-    try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      return pathParts[pathParts.length - 1]?.replace(/-/g, " ") || undefined;
-    } catch {
-      return undefined;
-    }
-  }
 
-  /**
-   * Extract section from Apple documentation URL
-   */
-  private extractSectionFromUrl(url: string): string | undefined {
-    try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      return pathParts[pathParts.length - 2]?.replace(/-/g, " ") || undefined;
-    } catch {
-      return undefined;
-    }
-  }
 
   /**
    * Create standardized error response
@@ -215,6 +193,7 @@ export class RAGService {
       success: false,
       query,
       results: [],
+      additionalUrls: [],
       count: 0,
       processing_time_ms: Date.now() - startTime,
       error,

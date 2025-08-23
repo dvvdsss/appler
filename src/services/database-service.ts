@@ -76,22 +76,21 @@ export class DatabaseService {
   private async testConnection(retries = 3): Promise<void> {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(
-          `🔌 Testing Database Connection (Attempt ${attempt}/${retries})...`
-        );
+        logger.info("Testing database connection", { attempt, retries });
         const testStart = Date.now();
 
         // Simple connection test
         await this.sql`SELECT 1 as test`;
 
-        console.log(
-          `✅ Database Connection Test Successful (${Date.now() - testStart}ms)`
-        );
+        const testTime = Date.now() - testStart;
+        logger.info("Database connection test successful", { testTime });
         return;
       } catch (error) {
-        console.log(
-          `❌ Database Connection Test Failed (Attempt ${attempt}/${retries}): ${error}`
-        );
+        logger.warn("Database connection test failed", {
+          attempt,
+          retries,
+          error: String(error)
+        });
 
         if (attempt === retries) {
           throw new Error(
@@ -150,13 +149,11 @@ export class DatabaseService {
       }
 
       this.initialized = true;
-      console.log(
-        `✅ Database Initialized Successfully (${Date.now() - initStart}ms)`
-      );
+      const initTime = Date.now() - initStart;
+      logger.info("Database initialized successfully", { initTime });
     } catch (error) {
-      console.log(
-        `❌ Database Initialization Failed: ${error} (${Date.now() - initStart}ms)`
-      );
+      const initTime = Date.now() - initStart;
+      logger.error("Database initialization failed", { error: String(error), initTime });
       throw new Error(`Database initialization failed: ${error}`);
     }
   }
@@ -170,9 +167,10 @@ export class DatabaseService {
   ): Promise<SearchResult[]> {
     const { resultCount = 5 } = options;
     const searchStart = Date.now();
-    console.log(
-      `🔍 Vector Search Started: ${queryEmbedding.length}D embedding, ${resultCount} results`
-    );
+    logger.info("Vector search started", {
+      embeddingDimensions: queryEmbedding.length,
+      resultCount
+    });
 
     try {
       const queryStart = Date.now();
@@ -186,9 +184,12 @@ export class DatabaseService {
         ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
         LIMIT ${resultCount}
       `;
-      console.log(
-        `📊 Vector Query Executed: ${results.length} results (${Date.now() - queryStart}ms)`
-      );
+
+      const queryTime = Date.now() - queryStart;
+      logger.info("Vector query executed", {
+        resultCount: results.length,
+        queryTime
+      });
 
       const mappingStart = Date.now();
       const mappedResults = results.map((row) => ({
@@ -196,14 +197,21 @@ export class DatabaseService {
         url: row.url as string,
         content: row.content as string,
       }));
-      console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
-      console.log(`✅ Vector Search Completed (${Date.now() - searchStart}ms)`);
+
+      const mappingTime = Date.now() - mappingStart;
+      const totalTime = Date.now() - searchStart;
+      logger.info("Vector search completed", {
+        mappingTime,
+        totalTime
+      });
 
       return mappedResults;
     } catch (error) {
-      console.log(
-        `❌ Vector Search Failed: ${error} (${Date.now() - searchStart}ms)`
-      );
+      const totalTime = Date.now() - searchStart;
+      logger.error("Vector search failed", {
+        error: String(error),
+        totalTime
+      });
       throw new Error(`Vector search failed: ${error}`);
     }
   }
@@ -243,7 +251,7 @@ export class DatabaseService {
     try {
       await this.sql.end();
     } catch (error) {
-      console.warn("Database close warning:", error);
+      logger.warn("Database close warning", { error: String(error) });
     }
   }
 }

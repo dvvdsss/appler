@@ -1,67 +1,64 @@
 /**
- * Modern RAG types for independent MCP server with Reranker integration
- * Optimized for performance and type safety
+ * Modern RAG Types - Global Optimal Solution
+ * Unified, type-safe, zero-redundancy type system
  */
 
 export interface RAGQueryRequest {
-  query: string;
-  result_count?: number;
+  readonly query: string;
+  readonly result_count?: number;
 }
 
 export interface RAGQueryResponse {
-  success: boolean;
-  query: string;
-  results: RAGResult[];
-  count: number;
-  processing_time_ms: number;
-  error?: string;
-  suggestion?: string;
+  readonly success: boolean;
+  readonly query: string;
+  readonly results: readonly RAGResult[];
+  readonly additionalUrls: readonly string[];
+  readonly count: number;
+  readonly processing_time_ms: number;
+  readonly error?: string;
+  readonly suggestion?: string;
 }
 
 export interface RAGResult {
-  url: string;
-  content: string;
-  relevance_score: number;
-  metadata?: {
-    title?: string;
-    section?: string;
-    last_updated?: string;
-  };
+  readonly url: string;
+  readonly content: string;
+  readonly context: string;
+  readonly relevance_score: number;
 }
 
 export interface SearchResult {
-  id: string;
-  url: string;
-  content: string;
+  readonly id: string;
+  readonly url: string;
+  readonly content: string;
 }
 
 export interface ParsedContent {
-  context: string;
-  content: string;
+  readonly context: string;
+  readonly content: string;
 }
 
 export interface ProcessedResult {
-  id: string;
-  url: string;
-  context: string;
-  content: string;
-  mergedFrom: string[];
-  contentLength: number;
+  readonly id: string;
+  readonly url: string;
+  readonly context: string;
+  readonly content: string;
+  readonly mergedFrom: readonly string[];
+  readonly contentLength: number;
 }
 
 export interface SearchOptions {
-  resultCount?: number;
+  readonly resultCount?: number;
 }
 
 export interface EmbeddingConfig {
-  apiKey: string;
-  apiUrl: string;
-  model: string;
-  timeout: number;
+  readonly apiKey: string;
+  readonly apiUrl: string;
+  readonly model: string;
+  readonly timeout: number;
 }
 
 export interface EmbeddingResponse {
-  data: Array<{
-    embedding: number[];
-  }>;
+  readonly data: readonly {
+    readonly embedding: readonly number[];
+  }[];
 }
