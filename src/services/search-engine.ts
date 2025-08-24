@@ -1,7 +1,17 @@
 /**
- * Modern Hybrid Search Engine with Reranker Integration
- * Combines vector and keyword search with professional reranking
- * Uses 8N strategy: Vector(4N) + Keyword(4N) → Reranker → Final(N)
+ * RAG Search Engine with Vector Similarity and Semantic AI Reranking
+ *
+ * Implements retrieval-augmented generation using vector embeddings for semantic search
+ * and professional AI reranking for optimal result quality.
+ *
+ * Processing Pipeline:
+ * Query → Vector Embedding → Similarity Search → Context Merging → Document Merging → AI Reranking → Results
+ *
+ * Features:
+ * - High-performance vector similarity search with pgvector
+ * - Intelligent context and document merging for comprehensive results
+ * - Professional AI reranking with Qwen3-Reranker-8B
+ * - Optimized for Apple Developer Documentation retrieval
  */
 
 import { logger } from "../logger.js";
@@ -37,53 +47,47 @@ export class SearchEngine {
   ) {}
 
   /**
-   * Perform hybrid search with professional reranking
+   * Execute RAG search with vector similarity and AI reranking
    */
   async search(
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchEngineResult> {
     const { resultCount = 5 } = options;
-    return this.hybridSearchWithReranker(query, resultCount);
+    return this.vectorSearchWithReranker(query, resultCount);
   }
 
   /**
-   * Hybrid search with professional reranking using 8N strategy
-   * 1. Vector search: 4N candidates
-   * 2. Keyword search: 4N candidates
-   * 3. Deduplication: Remove duplicates
-   * 4. Reranking: Select best N results
+   * RAG search implementation with 4N candidate strategy
+   *
+   * 1. Generate vector embedding for semantic similarity
+   * 2. Retrieve 4N candidates using vector search
+   * 3. Merge related content by context
+   * 4. Combine small documents for comprehensive results
+   * 5. Apply AI reranking to select best N results
    */
-  private async hybridSearchWithReranker(
+  private async vectorSearchWithReranker(
     query: string,
     resultCount: number
   ): Promise<SearchEngineResult> {
-    const hybridStart = Date.now();
-    logger.info("Hybrid search started", { query, resultCount });
+    const searchStart = Date.now();
+    logger.info("Vector search started", { query, resultCount });
 
-    // Step 1: Parallel candidate retrieval (8N strategy)
-    // Each search method retrieves 4N candidates for better coverage
+    // Step 1: Vector candidate retrieval (4N strategy)
     const candidateStart = Date.now();
-    const candidateCount = resultCount * 4; // 4N for each search method
-    const [vectorResults, keywordResults] = await Promise.all([
-      this.getVectorCandidates(query, candidateCount),
-      this.getKeywordCandidates(query, candidateCount),
-    ]);
+    const candidateCount = resultCount * 4; // 4N for better coverage
+    const vectorResults = await this.getVectorCandidates(query, candidateCount);
 
     const candidateTime = Date.now() - candidateStart;
-    logger.info("Candidates retrieved", {
+    logger.info("Vector candidates retrieved", {
       vectorCount: vectorResults.length,
-      keywordCount: keywordResults.length,
-      strategy: "8N",
-      candidateTime
+      strategy: "4N",
+      candidateTime,
     });
 
-    // Step 2: Three-step result processing
+    // Step 2: Result processing
     const processStart = Date.now();
-    const processedResults = this.processResults([
-      ...vectorResults,
-      ...keywordResults,
-    ]);
+    const processedResults = this.processResults(vectorResults);
     console.log(`🔄 Processing Complete: ${Date.now() - processStart}ms`);
 
     // Step 3: Professional reranking
@@ -113,28 +117,28 @@ export class SearchEngine {
     console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
 
     // Collect additional URLs from candidates not in final results
-    const finalUrls = new Set(finalResults.map(r => r.url));
+    const finalUrls = new Set(finalResults.map((r) => r.url));
     const additionalUrls = processedResults
-      .filter(r => !finalUrls.has(r.url))
-      .map(r => r.url)
+      .filter((r) => !finalUrls.has(r.url))
+      .map((r) => r.url)
       .filter((url, index, arr) => arr.indexOf(url) === index) // Remove duplicates
       .slice(0, 10); // Limit to 10 additional URLs
 
-    const totalTime = Date.now() - hybridStart;
-    logger.info("Hybrid search completed", {
+    const totalTime = Date.now() - searchStart;
+    logger.info("Vector search completed", {
       finalResults: finalResults.length,
       additionalUrls: additionalUrls.length,
-      totalTime
+      totalTime,
     });
 
     return {
       results: finalResults,
-      additionalUrls
+      additionalUrls,
     };
   }
 
   /**
-   * Get vector search candidates
+   * Retrieve semantic candidates using vector similarity search
    */
   private async getVectorCandidates(
     query: string,
@@ -159,55 +163,25 @@ export class SearchEngine {
   }
 
   /**
-   * Get keyword search candidates
-   */
-  private async getKeywordCandidates(
-    query: string,
-    resultCount: number
-  ): Promise<SearchResult[]> {
-    const keywordStart = Date.now();
-    console.log(`🔤 Keyword Candidates: "${query.substring(0, 30)}..."`);
-
-    const results = await this.database.keywordSearch(query, { resultCount });
-
-    console.log(
-      `✅ Keyword Candidates: ${results.length} results (${Date.now() - keywordStart}ms)`
-    );
-
-    return results;
-  }
-
-  /**
-   * Three-step result processing: Dedup → Context Merge → Small Doc Merge
+   * Process RAG candidates through context and document merging
    */
   private processResults(candidates: SearchResult[]): ProcessedResult[] {
-    // Step 1: Deduplication by ID
-    const deduplicated = this.deduplicateById(candidates);
+    // Step 1: Merge by context
+    const contextMerged = this.mergeByContext(candidates);
 
-    // Step 2: Merge by context
-    const contextMerged = this.mergeByContext(deduplicated);
-
-    // Step 3: Merge small documents
+    // Step 2: Merge small documents
     const finalResults = this.mergeSmallDocuments(contextMerged);
 
     logger.info("Result processing", {
       candidates: candidates.length,
-      deduplicated: deduplicated.length,
       contextMerged: contextMerged.length,
-      final: finalResults.length
+      final: finalResults.length,
     });
 
     return finalResults;
   }
 
-  private deduplicateById(candidates: SearchResult[]): SearchResult[] {
-    const seen = new Set<string>();
-    return candidates.filter((candidate) => {
-      if (seen.has(candidate.id)) return false;
-      seen.add(candidate.id);
-      return true;
-    });
-  }
+
 
   private parseContent(content: string): ParsedContent {
     try {
@@ -243,7 +217,7 @@ export class SearchEngine {
 
       return {
         id: primary.id,
-        url: url,  // 单个 URL
+        url: url, // 单个 URL
         context,
         content: mergedContent,
         mergedFrom: group.map((r) => r.id),
@@ -294,7 +268,7 @@ export class SearchEngine {
 
     return {
       id: primary.id,
-      url: url,  // 单个 URL
+      url: url, // 单个 URL
       context: `Merged: ${docs
         .map((d) => d.context)
         .filter(Boolean)

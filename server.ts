@@ -9,7 +9,10 @@ import { loadConfig } from "./src/config.js";
 import { logger } from "./src/logger.js";
 import { MCPHandler } from "./src/mcp-handler.js";
 import { SUPPORTED_MCP_VERSIONS } from "./src/mcp-server.js";
-import { SecurityMiddleware, type SecurityConfig } from "./src/security/security-middleware.js";
+import {
+  type SecurityConfig,
+  SecurityMiddleware,
+} from "./src/security/security-middleware.js";
 
 // Load environment variables based on NODE_ENV with validation
 const nodeEnv = process.env.NODE_ENV || "development";
@@ -52,7 +55,7 @@ const appConfig = loadConfig();
 // Initialize security middleware (always enabled)
 const securityConfig: SecurityConfig = {
   alertWebhookUrl: process.env.SECURITY_WEBHOOK_URL,
-  maxRequestsPerMinute: appConfig.SECURITY_MAX_REQUESTS_PER_MINUTE || 30
+  maxRequestsPerMinute: appConfig.SECURITY_MAX_REQUESTS_PER_MINUTE || 30,
 };
 
 const securityMiddleware = new SecurityMiddleware(securityConfig);
@@ -83,9 +86,15 @@ server.addHook("preHandler", async (request, reply) => {
   reply.header("X-Content-Type-Options", "nosniff");
   reply.header("X-Frame-Options", "DENY");
   reply.header("X-XSS-Protection", "1; mode=block");
-  reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  reply.header(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains"
+  );
   reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
-  reply.header("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  reply.header(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=()"
+  );
 });
 
 // Handle preflight requests
@@ -200,7 +209,7 @@ server.get("/health", async () => ({
   protocolVersion: "2025-03-26", // Default compatible version for maximum client compatibility
   supportedVersions: [...SUPPORTED_MCP_VERSIONS], // All supported protocol versions
   authorization: "enabled",
-  security: securityMiddleware.getHealthInfo()
+  security: securityMiddleware.getHealthInfo(),
 }));
 
 // Graceful shutdown with proper MCP lifecycle management
@@ -249,7 +258,8 @@ const start = async () => {
     });
 
     // Prepare startup message once
-    const startupMessage = `🚀 Apple RAG MCP Server started
+    const startupMessage = `═══════════════════════════════════════════════════════════════════════════════
+🚀 Apple RAG MCP Server started
 📡 Listening on http://0.0.0.0:${appConfig.PORT}
 🌍 Environment: ${appConfig.NODE_ENV}
 📋 Default Protocol Version: 2025-03-26 (maximum compatibility)
@@ -263,7 +273,7 @@ const start = async () => {
 📱 Security Alerts: Real-time webhook notifications enabled`;
 
     // Output to logs (split by lines for proper logging format)
-    startupMessage.split('\n').forEach(line => server.log.info(line));
+    startupMessage.split("\n").forEach((line) => server.log.info(line));
 
     // Send to webhook (use the same message)
     await securityMiddleware.sendStartupNotification(startupMessage);

@@ -95,8 +95,8 @@ $CHANGES
 
 ### 🌟 Features
 - 🍎 Complete Apple developer documentation access
+- ⚡ RAG(Semantic) Search capabilities
 - 🤖 AI-powered search with Qwen3-Reranker-8B
-- ⚡ Hybrid search capabilities
 - 🔒 Secure token-based authentication
 - 📊 Usage analytics and monitoring
 

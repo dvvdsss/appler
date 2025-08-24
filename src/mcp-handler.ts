@@ -14,13 +14,13 @@ import {
   type MCPNotification,
   type MCPRequest,
   type MCPResponse,
-  SUPPORTED_MCP_VERSIONS,
   MCPServer,
+  SUPPORTED_MCP_VERSIONS,
 } from "./mcp-server.js";
 import { D1Connector } from "./services/d1-connector.js";
-import { ToolCallLogger } from "./services/tool-call-logger.js";
 import { RAGService } from "./services/rag-service.js";
 import { RateLimitService } from "./services/rate-limit-service.js";
+import { ToolCallLogger } from "./services/tool-call-logger.js";
 import type { AppConfig } from "./types/env.js";
 
 export class MCPHandler {
@@ -86,7 +86,8 @@ export class MCPHandler {
 
     try {
       // Handle MCP-Protocol-Version header with backwards compatibility
-      const protocolVersion = (request.headers["mcp-protocol-version"] as string) || "2025-03-26";
+      const protocolVersion =
+        (request.headers["mcp-protocol-version"] as string) || "2025-03-26";
 
       if (!SUPPORTED_MCP_VERSIONS.includes(protocolVersion as any)) {
         logger.warn("Unsupported protocol version in header", {
@@ -103,10 +104,13 @@ export class MCPHandler {
 
       // Log version usage for monitoring
       if (!request.headers["mcp-protocol-version"]) {
-        logger.info("No MCP-Protocol-Version header, using default for backwards compatibility", {
-          defaultVersion: "2025-03-26",
-          supportedVersions: [...SUPPORTED_MCP_VERSIONS],
-        });
+        logger.info(
+          "No MCP-Protocol-Version header, using default for backwards compatibility",
+          {
+            defaultVersion: "2025-03-26",
+            supportedVersions: [...SUPPORTED_MCP_VERSIONS],
+          }
+        );
       } else if (protocolVersion !== MCP_PROTOCOL_VERSION) {
         logger.info("Using backward compatible protocol version in header", {
           requestedVersion: protocolVersion,
@@ -325,7 +329,9 @@ export class MCPHandler {
   /**
    * Handle MCP notifications
    */
-  private async handleNotification(notification: MCPNotification): Promise<void> {
+  private async handleNotification(
+    notification: MCPNotification
+  ): Promise<void> {
     switch (notification.method) {
       case "notifications/initialized":
         this.clientInitialized = true;

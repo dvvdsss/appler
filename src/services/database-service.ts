@@ -89,7 +89,7 @@ export class DatabaseService {
         logger.warn("Database connection test failed", {
           attempt,
           retries,
-          error: String(error)
+          error: String(error),
         });
 
         if (attempt === retries) {
@@ -153,7 +153,10 @@ export class DatabaseService {
       logger.info("Database initialized successfully", { initTime });
     } catch (error) {
       const initTime = Date.now() - initStart;
-      logger.error("Database initialization failed", { error: String(error), initTime });
+      logger.error("Database initialization failed", {
+        error: String(error),
+        initTime,
+      });
       throw new Error(`Database initialization failed: ${error}`);
     }
   }
@@ -169,7 +172,7 @@ export class DatabaseService {
     const searchStart = Date.now();
     logger.info("Vector search started", {
       embeddingDimensions: queryEmbedding.length,
-      resultCount
+      resultCount,
     });
 
     try {
@@ -188,7 +191,7 @@ export class DatabaseService {
       const queryTime = Date.now() - queryStart;
       logger.info("Vector query executed", {
         resultCount: results.length,
-        queryTime
+        queryTime,
       });
 
       const mappingStart = Date.now();
@@ -202,7 +205,7 @@ export class DatabaseService {
       const totalTime = Date.now() - searchStart;
       logger.info("Vector search completed", {
         mappingTime,
-        totalTime
+        totalTime,
       });
 
       return mappedResults;
@@ -210,37 +213,9 @@ export class DatabaseService {
       const totalTime = Date.now() - searchStart;
       logger.error("Vector search failed", {
         error: String(error),
-        totalTime
+        totalTime,
       });
       throw new Error(`Vector search failed: ${error}`);
-    }
-  }
-
-  /**
-   * Perform keyword search
-   */
-  async keywordSearch(
-    query: string,
-    options: SearchOptions = {}
-  ): Promise<SearchResult[]> {
-    const { resultCount = 5 } = options;
-
-    try {
-      const results = await this.sql`
-        SELECT id, url, content
-        FROM chunks
-        WHERE content ILIKE ${`%${query}%`}
-        ORDER BY id
-        LIMIT ${resultCount}
-      `;
-
-      return results.map((row) => ({
-        id: row.id as string,
-        url: row.url as string,
-        content: row.content as string,
-      }));
-    } catch (error) {
-      throw new Error(`Keyword search failed: ${error}`);
     }
   }
 
@@ -249,16 +224,19 @@ export class DatabaseService {
    */
   private normalizeUrl(url: string): string {
     // Remove trailing slash
-    let normalized = url.replace(/\/$/, '');
+    let normalized = url.replace(/\/$/, "");
 
     // Ensure https:// prefix
-    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-      normalized = 'https://' + normalized;
+    if (
+      !normalized.startsWith("http://") &&
+      !normalized.startsWith("https://")
+    ) {
+      normalized = "https://" + normalized;
     }
 
     // Convert http:// to https://
-    if (normalized.startsWith('http://')) {
-      normalized = normalized.replace('http://', 'https://');
+    if (normalized.startsWith("http://")) {
+      normalized = normalized.replace("http://", "https://");
     }
 
     return normalized;
@@ -267,7 +245,13 @@ export class DatabaseService {
   /**
    * Get page content by URL from pages table with flexible matching
    */
-  async getPageByUrl(url: string): Promise<{ id: string; url: string; content: string; created_at: string; processed_at: string | null } | null> {
+  async getPageByUrl(url: string): Promise<{
+    id: string;
+    url: string;
+    content: string;
+    created_at: string;
+    processed_at: string | null;
+  } | null> {
     const searchStart = Date.now();
     const normalizedUrl = this.normalizeUrl(url);
     logger.info("Page lookup started", { originalUrl: url, normalizedUrl });
@@ -284,9 +268,9 @@ export class DatabaseService {
       // If no exact match, try flexible matching
       if (results.length === 0) {
         // Try with/without trailing slash
-        const alternativeUrl = normalizedUrl.endsWith('/')
+        const alternativeUrl = normalizedUrl.endsWith("/")
           ? normalizedUrl.slice(0, -1)
-          : normalizedUrl + '/';
+          : normalizedUrl + "/";
 
         results = await this.sql`
           SELECT id, url, content, created_at, processed_at
@@ -302,7 +286,7 @@ export class DatabaseService {
         normalizedUrl,
         found: results.length > 0,
         actualUrl: results.length > 0 ? results[0].url : null,
-        queryTime
+        queryTime,
       });
 
       if (results.length === 0) {
@@ -323,7 +307,7 @@ export class DatabaseService {
         error: String(error),
         originalUrl: url,
         normalizedUrl,
-        totalTime
+        totalTime,
       });
       throw new Error(`Page lookup failed: ${error}`);
     }

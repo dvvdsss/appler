@@ -1,6 +1,15 @@
 /**
- * Modern RAG Service - VPS Optimized Implementation
- * High-performance RAG with intelligent error handling and logging
+ * RAG Service for Apple Developer Documentation Retrieval
+ *
+ * Implements Retrieval-Augmented Generation using vector embeddings for semantic search,
+ * intelligent result processing, and professional AI reranking for optimal accuracy.
+ *
+ * Core Components:
+ * - Vector embedding generation for semantic understanding
+ * - High-performance similarity search with pgvector
+ * - Context-aware result merging and processing
+ * - Professional AI reranking with Qwen3-Reranker-8B
+ * - Comprehensive error handling and performance logging
  */
 
 import { logger } from "../logger.js";
@@ -27,7 +36,11 @@ export class RAGService {
     this.database = new DatabaseService(config);
     this.embedding = new EmbeddingService(config);
     this.reranker = new RerankerService(config);
-    this.searchEngine = new SearchEngine(this.database, this.embedding, this.reranker);
+    this.searchEngine = new SearchEngine(
+      this.database,
+      this.embedding,
+      this.reranker
+    );
   }
 
   /**
@@ -114,29 +127,29 @@ export class RAGService {
 
       logger.info("Services initialization", {
         initTime,
-        alreadyInitialized: initTime === 0
+        alreadyInitialized: initTime === 0,
       });
 
-      // Execute hybrid search
+      // Execute RAG search with vector similarity and semantic reranking
       const resultCount = Math.min(Math.max(result_count, 1), 20);
-      logger.info("Search configuration", {
-        searchType: "hybrid",
-        resultCount
+      logger.info("RAG search configuration", {
+        searchType: "vector_semantic",
+        resultCount,
       });
 
       // Execute search
       const searchStart = Date.now();
-      logger.info("Starting hybrid search", { query: trimmedQuery });
+      logger.info("Starting RAG search", { query: trimmedQuery });
 
       const searchResult = await this.searchEngine.search(trimmedQuery, {
         resultCount,
       });
 
       const searchTime = Date.now() - searchStart;
-      logger.info("Search completed", {
+      logger.info("RAG search completed", {
         resultCount: searchResult.results.length,
         additionalUrls: searchResult.additionalUrls.length,
-        searchTime
+        searchTime,
       });
 
       // Format results
@@ -148,7 +161,7 @@ export class RAGService {
       logger.info("RAG query completed", {
         totalTime,
         formatTime,
-        finalResultCount: formattedResults.length
+        finalResultCount: formattedResults.length,
       });
 
       return {
@@ -184,8 +197,6 @@ export class RAGService {
       relevance_score: result.relevance_score,
     }));
   }
-
-
 
   /**
    * Create standardized error response

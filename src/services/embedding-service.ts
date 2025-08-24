@@ -34,7 +34,7 @@ export class EmbeddingService {
   async createEmbedding(text: string): Promise<number[]> {
     const embeddingStart = Date.now();
     logger.info("Embedding generation started", {
-      textPreview: text.substring(0, 50) + "..."
+      textPreview: text.substring(0, 50) + "...",
     });
 
     if (!text?.trim()) {
@@ -85,7 +85,7 @@ export class EmbeddingService {
       const parseTime = Date.now() - parseStart;
       logger.info("API response parsed", {
         vectorDimensions: embedding.length,
-        parseTime
+        parseTime,
       });
 
       // L2 normalization for optimal vector search
@@ -96,7 +96,7 @@ export class EmbeddingService {
       const totalTime = Date.now() - embeddingStart;
       logger.info("Embedding generation completed", {
         normalizeTime,
-        totalTime
+        totalTime,
       });
 
       return normalizedEmbedding;
@@ -104,7 +104,7 @@ export class EmbeddingService {
       const totalTime = Date.now() - embeddingStart;
       logger.error("Embedding generation failed", {
         error: error instanceof Error ? error.message : "Unknown error",
-        totalTime
+        totalTime,
       });
       if (error instanceof Error) {
         throw new Error(`Embedding generation failed: ${error.message}`);

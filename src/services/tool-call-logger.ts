@@ -158,6 +158,4 @@ export class ToolCallLogger {
       );
     }
   }
-
-
 }

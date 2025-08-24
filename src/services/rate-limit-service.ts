@@ -238,22 +238,35 @@ export class RateLimitService {
   }
 
   /**
-   * Get weekly usage count
+   * Get weekly usage count from both search_logs and fetch_logs
    */
   private async getWeeklyUsage(
     identifier: string,
     clientIP: string
   ): Promise<number> {
     try {
-      const result = await this.d1Connector.query(
+      // Get count from search_logs
+      const searchResult = await this.d1Connector.query(
         `SELECT COUNT(*) as count
-         FROM usage_logs
+         FROM search_logs
          WHERE (user_id = ? OR ip_address = ?)
          AND created_at >= date('now', 'weekday 0', '-6 days')`,
         [identifier, clientIP]
       );
 
-      return (result.results?.[0]?.count as number) || 0;
+      // Get count from fetch_logs
+      const fetchResult = await this.d1Connector.query(
+        `SELECT COUNT(*) as count
+         FROM fetch_logs
+         WHERE (user_id = ? OR ip_address = ?)
+         AND created_at >= date('now', 'weekday 0', '-6 days')`,
+        [identifier, clientIP]
+      );
+
+      const searchCount = (searchResult.results?.[0]?.count as number) || 0;
+      const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
+
+      return searchCount + fetchCount;
     } catch (error) {
       logger.error("Failed to get weekly usage", {
         error: error instanceof Error ? error.message : String(error),
@@ -265,22 +278,35 @@ export class RateLimitService {
   }
 
   /**
-   * Get minute usage count
+   * Get minute usage count from both search_logs and fetch_logs
    */
   private async getMinuteUsage(
     identifier: string,
     clientIP: string
   ): Promise<number> {
     try {
-      const result = await this.d1Connector.query(
-        `SELECT COUNT(*) as count 
-         FROM usage_logs 
-         WHERE (user_id = ? OR ip_address = ?) 
+      // Get count from search_logs
+      const searchResult = await this.d1Connector.query(
+        `SELECT COUNT(*) as count
+         FROM search_logs
+         WHERE (user_id = ? OR ip_address = ?)
          AND created_at > datetime('now', '-1 minute')`,
         [identifier, clientIP]
       );
 
-      return (result.results?.[0]?.count as number) || 0;
+      // Get count from fetch_logs
+      const fetchResult = await this.d1Connector.query(
+        `SELECT COUNT(*) as count
+         FROM fetch_logs
+         WHERE (user_id = ? OR ip_address = ?)
+         AND created_at > datetime('now', '-1 minute')`,
+        [identifier, clientIP]
+      );
+
+      const searchCount = (searchResult.results?.[0]?.count as number) || 0;
+      const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
+
+      return searchCount + fetchCount;
     } catch (error) {
       logger.error("Failed to get minute usage", {
         error: error instanceof Error ? error.message : String(error),

@@ -1,6 +1,14 @@
 /**
- * Modern RAG Types - Global Optimal Solution
- * Unified, type-safe, zero-redundancy type system
+ * RAG Type Definitions for Apple Developer Documentation
+ *
+ * Type-safe interfaces for Retrieval-Augmented Generation with vector similarity search,
+ * semantic understanding, and AI reranking capabilities.
+ *
+ * Core Types:
+ * - RAG query and response interfaces
+ * - Vector search result structures
+ * - Semantic ranking and scoring types
+ * - Embedding and configuration interfaces
  */
 
 export interface RAGQueryRequest {

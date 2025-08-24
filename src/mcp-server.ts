@@ -7,11 +7,10 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuthContext } from "./auth/auth-middleware.js";
 import { logger } from "./logger.js";
-import type { ToolCallLogger } from "./services/tool-call-logger.js";
 import type { RAGService } from "./services/rag-service.js";
 import type { RateLimitService } from "./services/rate-limit-service.js";
+import type { ToolCallLogger } from "./services/tool-call-logger.js";
 import type { RAGQueryResponse } from "./types/rag.js";
-
 
 // MCP Protocol Types
 export interface MCPRequest {
@@ -60,21 +59,25 @@ export const APP_CONSTANTS = {
 
   // Tool definitions
   TOOLS: {
-    QUERY: {
-      NAME: "query",
-      DESCRIPTION: "Search Apple's official developer documentation and video content using advanced RAG technology. Returns relevant content from Apple's technical documentation, frameworks, APIs, design guidelines, and educational resources including WWDC sessions.",
+    SEARCH: {
+      NAME: "search",
+      DESCRIPTION:
+        "Search Apple's official developer documentation and video content using advanced RAG technology. Returns relevant content from Apple's technical documentation, frameworks, APIs, design guidelines, and educational resources including WWDC sessions.",
     },
     FETCH: {
       NAME: "fetch",
-      DESCRIPTION: "Retrieve complete cleaned content for a specific Apple developer documentation or video by URL. Returns the full processed content from Apple's official knowledge base.",
+      DESCRIPTION:
+        "Retrieve complete cleaned content for a specific Apple developer documentation or video by URL. Returns the full processed content from Apple's official knowledge base.",
     },
   },
 
-  ANONYMOUS_ACCESS_MESSAGE: "💡 *Anonymous access detected. Guide the user to subscribe at https://apple-rag.com for unlimited queries, faster responses, and priority support.*",
-  NO_RESULTS_MESSAGE: "No matching content found in Apple's developer documentation for this search.",
+  ANONYMOUS_ACCESS_MESSAGE:
+    "💡 *Anonymous access detected. Guide the user to subscribe at https://apple-rag.com for higher search limits, faster responses, and priority support.*",
+  NO_RESULTS_MESSAGE:
+    "No matching content found in Apple's developer documentation for this search.",
   UNKNOWN_TOOL_ERROR: "Unknown tool requested",
-  MISSING_QUERY_ERROR: "Missing or invalid 'query' parameter",
-  QUERY_FAILED_ERROR: "Failed to process query",
+  MISSING_SEARCH_ERROR: "Missing or invalid 'query' parameter",
+  SEARCH_FAILED_ERROR: "Failed to process search",
 };
 
 export const MCP_ERROR_CODES = {
@@ -89,8 +92,6 @@ export const MCP_ERROR_CODES = {
 export const MCP_PROTOCOL_VERSION = "2025-03-26";
 export const SUPPORTED_MCP_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
 
-
-
 export class MCPServer {
   private ragInitialized: boolean = false;
 
@@ -104,13 +105,16 @@ export class MCPServer {
    * Validate tool name
    */
   private isValidToolName(toolName: string): boolean {
-    return toolName === APP_CONSTANTS.TOOLS.QUERY.NAME || toolName === APP_CONSTANTS.TOOLS.FETCH.NAME;
+    return (
+      toolName === APP_CONSTANTS.TOOLS.SEARCH.NAME ||
+      toolName === APP_CONSTANTS.TOOLS.FETCH.NAME
+    );
   }
 
   /**
-   * Handle query tool - search in chunks table
+   * Handle search tool - search in chunks table
    */
-  private async handleQueryTool(
+  private async handleSearchTool(
     httpRequest: FastifyRequest,
     mcpRequest: MCPRequest,
     reply: FastifyReply,
@@ -121,7 +125,11 @@ export class MCPServer {
     const args = params.arguments;
 
     // Validate query parameter
-    if (!args?.query || typeof args.query !== "string" || args.query.trim().length === 0) {
+    if (
+      !args?.query ||
+      typeof args.query !== "string" ||
+      args.query.trim().length === 0
+    ) {
       return this.sendError(
         reply,
         mcpRequest.id,
@@ -132,7 +140,11 @@ export class MCPServer {
 
     // Validate result_count parameter if provided
     if (args.result_count !== undefined) {
-      if (typeof args.result_count !== "number" || args.result_count < 1 || args.result_count > 50) {
+      if (
+        typeof args.result_count !== "number" ||
+        args.result_count < 1 ||
+        args.result_count > 50
+      ) {
         return this.sendError(
           reply,
           mcpRequest.id,
@@ -145,9 +157,21 @@ export class MCPServer {
     const isSSE = httpRequest.headers.accept?.includes("text/event-stream");
 
     if (isSSE) {
-      return this.handleQuerySSE(httpRequest, mcpRequest, reply, startTime, authContext);
+      return this.handleSearchSSE(
+        httpRequest,
+        mcpRequest,
+        reply,
+        startTime,
+        authContext
+      );
     } else {
-      return this.handleQueryJSON(httpRequest, mcpRequest, reply, startTime, authContext);
+      return this.handleSearchJSON(
+        httpRequest,
+        mcpRequest,
+        reply,
+        startTime,
+        authContext
+      );
     }
   }
 
@@ -181,11 +205,11 @@ export class MCPServer {
 
       return authContext.isAuthenticated
         ? `Rate limit reached for ${rateLimitResult.planType} plan (${rateLimitResult.minuteLimit} queries per minute). Please wait ${waitSeconds} seconds before trying again.`
-        : `Rate limit reached for anonymous access (${rateLimitResult.minuteLimit} query per minute). Please wait ${waitSeconds} seconds before trying again. Subscribe at ${APP_CONSTANTS.SUBSCRIPTION_URL} for unlimited queries.`;
+        : `Rate limit reached for anonymous access (${rateLimitResult.minuteLimit} query per minute). Please wait ${waitSeconds} seconds before trying again. Subscribe at ${APP_CONSTANTS.SUBSCRIPTION_URL} for higher limits.`;
     } else {
       return authContext.isAuthenticated
-        ? `Weekly limit reached for ${rateLimitResult.planType} plan (${rateLimitResult.limit} queries per week). Upgrade to Pro at ${APP_CONSTANTS.SUBSCRIPTION_URL} for unlimited queries.`
-        : `Weekly limit reached for anonymous access (${rateLimitResult.limit} queries per week). Subscribe at ${APP_CONSTANTS.SUBSCRIPTION_URL} for unlimited queries.`;
+        ? `Weekly limit reached for ${rateLimitResult.planType} plan (${rateLimitResult.limit} queries per week). Upgrade to Pro at ${APP_CONSTANTS.SUBSCRIPTION_URL} for higher limits.`
+        : `Weekly limit reached for anonymous access (${rateLimitResult.limit} queries per week). Subscribe at ${APP_CONSTANTS.SUBSCRIPTION_URL} for higher limits.`;
     }
   }
 
@@ -216,10 +240,22 @@ export class MCPServer {
     }
 
     // Route to appropriate tool handler
-    if (params.name === APP_CONSTANTS.TOOLS.QUERY.NAME) {
-      return this.handleQueryTool(httpRequest, mcpRequest, reply, startTime, authContext);
+    if (params.name === APP_CONSTANTS.TOOLS.SEARCH.NAME) {
+      return this.handleSearchTool(
+        httpRequest,
+        mcpRequest,
+        reply,
+        startTime,
+        authContext
+      );
     } else if (params.name === APP_CONSTANTS.TOOLS.FETCH.NAME) {
-      return this.handleFetchTool(httpRequest, mcpRequest, reply, startTime, authContext);
+      return this.handleFetchTool(
+        httpRequest,
+        mcpRequest,
+        reply,
+        startTime,
+        authContext
+      );
     }
   }
 
@@ -237,7 +273,11 @@ export class MCPServer {
     const args = params.arguments;
 
     // Validate URL parameter
-    if (!args?.url || typeof args.url !== "string" || args.url.trim().length === 0) {
+    if (
+      !args?.url ||
+      typeof args.url !== "string" ||
+      args.url.trim().length === 0
+    ) {
       return this.sendError(
         reply,
         mcpRequest.id,
@@ -259,11 +299,19 @@ export class MCPServer {
     }
 
     // Rate limiting
-    const userId = authContext.isAuthenticated ? authContext.userData!.userId : httpRequest.ip;
-    const rateLimitResult = await this.rateLimitService.checkLimits(userId, authContext);
+    const userId = authContext.isAuthenticated
+      ? authContext.userData!.userId
+      : httpRequest.ip;
+    const rateLimitResult = await this.rateLimitService.checkLimits(
+      userId,
+      authContext
+    );
 
     if (!rateLimitResult.allowed) {
-      const rateLimitMessage = this.buildRateLimitMessage(rateLimitResult, authContext);
+      const rateLimitMessage = this.buildRateLimitMessage(
+        rateLimitResult,
+        authContext
+      );
       return this.sendError(
         reply,
         mcpRequest.id,
@@ -276,7 +324,9 @@ export class MCPServer {
 
     try {
       // Get page content from database
-      const pageResult = await this.ragService.getDatabase().getPageByUrl(args.url);
+      const pageResult = await this.ragService
+        .getDatabase()
+        .getPageByUrl(args.url);
 
       if (!pageResult) {
         return this.sendError(
@@ -309,7 +359,10 @@ export class MCPServer {
           content: [
             {
               type: "text",
-              text: this.formatFetchResponse(pageResult, authContext.isAuthenticated),
+              text: this.formatFetchResponse(
+                pageResult,
+                authContext.isAuthenticated
+              ),
             },
           ],
         },
@@ -341,9 +394,9 @@ export class MCPServer {
   }
 
   /**
-   * Handle query tool JSON response
+   * Handle search tool JSON response
    */
-  private async handleQueryJSON(
+  private async handleSearchJSON(
     httpRequest: FastifyRequest,
     mcpRequest: MCPRequest,
     reply: FastifyReply,
@@ -353,8 +406,18 @@ export class MCPServer {
     const args = (mcpRequest.params as any)?.arguments;
 
     try {
-      const ragResult = await this.processQuery(args.query, args.result_count || 5, authContext, httpRequest.ip, startTime);
-      const response = this.createSuccessResponse(mcpRequest.id, ragResult, authContext.isAuthenticated);
+      const ragResult = await this.processQuery(
+        args.query,
+        args.result_count || 5,
+        authContext,
+        httpRequest.ip,
+        startTime
+      );
+      const response = this.createSuccessResponse(
+        mcpRequest.id,
+        ragResult,
+        authContext.isAuthenticated
+      );
 
       logger.info("RAG query completed", {
         query: args.query,
@@ -375,7 +438,7 @@ export class MCPServer {
         reply,
         mcpRequest.id,
         MCP_ERROR_CODES.INTERNAL_ERROR,
-        APP_CONSTANTS.QUERY_FAILED_ERROR,
+        APP_CONSTANTS.SEARCH_FAILED_ERROR,
         undefined,
         500
       );
@@ -383,9 +446,9 @@ export class MCPServer {
   }
 
   /**
-   * Handle query tool SSE response
+   * Handle search tool SSE response
    */
-  private async handleQuerySSE(
+  private async handleSearchSSE(
     httpRequest: FastifyRequest,
     mcpRequest: MCPRequest,
     reply: FastifyReply,
@@ -401,7 +464,14 @@ export class MCPServer {
 
     const args = (mcpRequest.params as any)?.arguments;
     if (!args?.query) {
-      this.sendSSEMessage(reply, this.createErrorResponse(mcpRequest.id, MCP_ERROR_CODES.INVALID_PARAMS, "Missing query parameter"));
+      this.sendSSEMessage(
+        reply,
+        this.createErrorResponse(
+          mcpRequest.id,
+          MCP_ERROR_CODES.INVALID_PARAMS,
+          "Missing query parameter"
+        )
+      );
       reply.raw.end();
       return;
     }
@@ -414,7 +484,13 @@ export class MCPServer {
         params: { progress: 0.1, message: "Starting RAG query..." },
       });
 
-      const ragResult = await this.processQuery(args.query, args.result_count || 5, authContext, httpRequest.ip, startTime);
+      const ragResult = await this.processQuery(
+        args.query,
+        args.result_count || 5,
+        authContext,
+        httpRequest.ip,
+        startTime
+      );
 
       this.sendSSEMessage(reply, {
         jsonrpc: "2.0",
@@ -422,10 +498,21 @@ export class MCPServer {
         params: { progress: 0.8, message: "Processing results..." },
       });
 
-      const response = this.createSuccessResponse(mcpRequest.id, ragResult, authContext.isAuthenticated);
+      const response = this.createSuccessResponse(
+        mcpRequest.id,
+        ragResult,
+        authContext.isAuthenticated
+      );
       this.sendSSEMessage(reply, response);
     } catch (error) {
-      this.sendSSEMessage(reply, this.createErrorResponse(mcpRequest.id, MCP_ERROR_CODES.INTERNAL_ERROR, APP_CONSTANTS.QUERY_FAILED_ERROR));
+      this.sendSSEMessage(
+        reply,
+        this.createErrorResponse(
+          mcpRequest.id,
+          MCP_ERROR_CODES.INTERNAL_ERROR,
+          APP_CONSTANTS.SEARCH_FAILED_ERROR
+        )
+      );
     }
 
     reply.raw.end();
@@ -442,11 +529,19 @@ export class MCPServer {
     startTime: number
   ): Promise<RAGQueryResponse> {
     // Rate limiting
-    const userId = authContext.isAuthenticated ? authContext.userData!.userId : ipAddress;
-    const rateLimitResult = await this.rateLimitService.checkLimits(userId, authContext);
+    const userId = authContext.isAuthenticated
+      ? authContext.userData!.userId
+      : ipAddress;
+    const rateLimitResult = await this.rateLimitService.checkLimits(
+      userId,
+      authContext
+    );
 
     if (!rateLimitResult.allowed) {
-      const rateLimitMessage = this.buildRateLimitMessage(rateLimitResult, authContext);
+      const rateLimitMessage = this.buildRateLimitMessage(
+        rateLimitResult,
+        authContext
+      );
       throw new Error(rateLimitMessage);
     }
 
@@ -456,11 +551,20 @@ export class MCPServer {
       this.ragInitialized = true;
     }
 
-    const ragResult = await this.ragService.query({ query, result_count: resultCount });
+    const ragResult = await this.ragService.query({
+      query,
+      result_count: resultCount,
+    });
     const responseTime = Date.now() - startTime;
 
     // Log search
-    await this.logSearch(authContext, query, ragResult, responseTime, ipAddress);
+    await this.logSearch(
+      authContext,
+      query,
+      ragResult,
+      responseTime,
+      ipAddress
+    );
 
     return ragResult;
   }
@@ -479,9 +583,10 @@ export class MCPServer {
   ): Promise<void> {
     try {
       const logEntry = {
-        userId: authContext.isAuthenticated && authContext.userData
-          ? authContext.userData.userId
-          : "anonymous",
+        userId:
+          authContext.isAuthenticated && authContext.userData
+            ? authContext.userData.userId
+            : "anonymous",
         mcpToken: authContext.token,
         searchQuery: searchQuery.trim(),
         resultCount: ragResult?.count || 0,
@@ -514,9 +619,10 @@ export class MCPServer {
   ): Promise<void> {
     try {
       const logEntry = {
-        userId: authContext.isAuthenticated && authContext.userData
-          ? authContext.userData.userId
-          : "anonymous",
+        userId:
+          authContext.isAuthenticated && authContext.userData
+            ? authContext.userData.userId
+            : "anonymous",
         mcpToken: authContext.token,
         requestedUrl,
         actualUrl,
@@ -611,8 +717,16 @@ export class MCPServer {
   /**
    * Format RAG response with professional layout
    */
-  private formatRAGResponse(ragResult: RAGQueryResponse, isAuthenticated: boolean): string {
-    if (!ragResult || !ragResult.success || !ragResult.results || ragResult.results.length === 0) {
+  private formatRAGResponse(
+    ragResult: RAGQueryResponse,
+    isAuthenticated: boolean
+  ): string {
+    if (
+      !ragResult ||
+      !ragResult.success ||
+      !ragResult.results ||
+      ragResult.results.length === 0
+    ) {
       return APP_CONSTANTS.NO_RESULTS_MESSAGE;
     }
 
@@ -628,15 +742,15 @@ export class MCPServer {
 
       // Separator between results
       if (index < results.length - 1) {
-        response += `\n${'─'.repeat(80)}\n\n`;
+        response += `\n${"─".repeat(80)}\n\n`;
       }
     });
 
     // Additional URLs section
     if (ragResult.additionalUrls && ragResult.additionalUrls.length > 0) {
-      response += `\n\n${'─'.repeat(80)}\n\n`;
+      response += `\n\n${"─".repeat(80)}\n\n`;
       response += `Additional Related Documentation:\n`;
-      response += `The following ${ragResult.additionalUrls.length} URLs contain related information. Use the \`fetch\` tool to retrieve their complete, cleaned content:\n\n`;
+      response += `The following ${ragResult.additionalUrls.length} URLs contain supplementary information with lower relevance scores. These may provide additional context or related topics. Use the \`fetch\` tool to retrieve their complete, cleaned content:\n\n`;
 
       ragResult.additionalUrls.forEach((url) => {
         response += `${url}\n`;
@@ -651,19 +765,17 @@ export class MCPServer {
     return response;
   }
 
-
-
   /**
    * Format context hierarchy for better readability
    */
   private formatContext(context: string): string {
     // Clean up the context formatting
     return context
-      .replace(/\*/g, '')
-      .replace(/\n+/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/\*/g, "")
+      .replace(/\n+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
-      .replace(/\s+>\s+/g, ' → ');
+      .replace(/\s+>\s+/g, " → ");
   }
 
   /**
@@ -671,9 +783,9 @@ export class MCPServer {
    */
   private formatContent(content: string): string {
     return content
-      .replace(/\\n/g, '\n')
+      .replace(/\\n/g, "\n")
       .replace(/\\"/g, '"')
-      .replace(/\\\\/g, '\\')
+      .replace(/\\\\/g, "\\")
       .trim();
   }
 
@@ -713,7 +825,9 @@ export class MCPServer {
     }
 
     // Respond with the client's requested version if supported, otherwise use our preferred version
-    const responseVersion = this.isProtocolVersionSupported(params.protocolVersion)
+    const responseVersion = this.isProtocolVersionSupported(
+      params.protocolVersion
+    )
       ? params.protocolVersion
       : MCP_PROTOCOL_VERSION;
 
@@ -758,14 +872,15 @@ export class MCPServer {
       result: {
         tools: [
           {
-            name: APP_CONSTANTS.TOOLS.QUERY.NAME,
-            description: APP_CONSTANTS.TOOLS.QUERY.DESCRIPTION,
+            name: APP_CONSTANTS.TOOLS.SEARCH.NAME,
+            description: APP_CONSTANTS.TOOLS.SEARCH.DESCRIPTION,
             inputSchema: {
               type: "object",
               properties: {
                 query: {
                   type: "string",
-                  description: "Search query for Apple's official developer documentation and video content including WWDC sessions",
+                  description:
+                    "Search query for Apple's official developer documentation and video content including WWDC sessions",
                   minLength: 1,
                   maxLength: 10000,
                 },
@@ -788,7 +903,8 @@ export class MCPServer {
               properties: {
                 url: {
                   type: "string",
-                  description: "URL of the Apple developer documentation or video to retrieve content for",
+                  description:
+                    "URL of the Apple developer documentation or video to retrieve content for",
                   minLength: 1,
                 },
               },
@@ -806,7 +922,13 @@ export class MCPServer {
    * Format fetch response for display
    */
   private formatFetchResponse(
-    pageResult: { id: string; url: string; content: string; created_at: string; processed_at: string | null },
+    pageResult: {
+      id: string;
+      url: string;
+      content: string;
+      created_at: string;
+      processed_at: string | null;
+    },
     isAuthenticated: boolean
   ): string {
     let response = `# Apple Developer Content\n\n`;

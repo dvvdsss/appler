@@ -35,7 +35,10 @@ export const loadConfig = (): AppConfig => {
 
     // Security Configuration
     SECURITY_WEBHOOK_URL: process.env.SECURITY_WEBHOOK_URL,
-    SECURITY_MAX_REQUESTS_PER_MINUTE: parseInt(process.env.SECURITY_MAX_REQUESTS_PER_MINUTE || "30", 10),
+    SECURITY_MAX_REQUESTS_PER_MINUTE: parseInt(
+      process.env.SECURITY_MAX_REQUESTS_PER_MINUTE || "30",
+      10
+    ),
   };
 
   // Validate configuration

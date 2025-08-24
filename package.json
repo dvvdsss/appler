@@ -39,7 +39,7 @@
   ],
   "author": "Apple RAG Team",
   "license": "MIT",
-  "description": "Complete MCP 2025-06-18 compliant server with OAuth 2.1 Authorization for Apple Developer Documentation RAG search - Production ready",
+  "description": "Modern MCP 2025-06-18 compliant server with OAuth 2.1 Authorization for Apple Developer Documentation RAG search - Production ready with vector similarity and semantic AI reranking",
   "dependencies": {
     "@types/node": "^20.10.0",
     "dotenv": "^16.3.1",
