@@ -26,5 +26,4 @@ export interface AppConfig {
 
   // Security Configuration
   readonly SECURITY_WEBHOOK_URL?: string;
-  readonly SECURITY_MAX_REQUESTS_PER_MINUTE?: number;
 }

@@ -55,7 +55,6 @@ const appConfig = loadConfig();
 // Initialize security middleware (always enabled)
 const securityConfig: SecurityConfig = {
   alertWebhookUrl: process.env.SECURITY_WEBHOOK_URL,
-  maxRequestsPerMinute: appConfig.SECURITY_MAX_REQUESTS_PER_MINUTE || 30,
 };
 
 const securityMiddleware = new SecurityMiddleware(securityConfig);
@@ -258,7 +257,7 @@ const start = async () => {
     });
 
     // Prepare startup message once
-    const startupMessage = `═══════════════════════════════════════════════════════════════════════════════
+    const startupMessage = `════════════════════════════════════════════════════
 🚀 Apple RAG MCP Server started
 📡 Listening on http://0.0.0.0:${appConfig.PORT}
 🌍 Environment: ${appConfig.NODE_ENV}
@@ -268,7 +267,6 @@ const start = async () => {
 🗄️ Database: Auto-initialized and ready
 🎯 RAG Service: Pre-initialized and ready
 🛡️ Security: ✅ ALWAYS ACTIVE
-🔒 Rate Limit: ${securityConfig.maxRequestsPerMinute} requests per minute
 ⚡ Threat Detection: Real-time pattern analysis enabled
 📱 Security Alerts: Real-time webhook notifications enabled`;
 

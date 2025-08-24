@@ -9,7 +9,6 @@ import { ThreatDetector, type ThreatEvent } from "./threat-detector.js";
 
 export interface SecurityConfig {
   readonly alertWebhookUrl?: string;
-  readonly maxRequestsPerMinute: number;
 }
 
 // SecurityMetrics removed - webhook-only architecture doesn't need detailed metrics exposure
@@ -34,13 +33,12 @@ export class SecurityMiddleware {
   ]);
 
   private readonly threatDetector = new ThreatDetector();
-  private readonly requestCounts = new Map<string, number[]>();
 
   constructor(private readonly config: SecurityConfig) {
     setInterval(() => this.cleanup(), 3600000);
     logger.info("Security system initialized", {
       status: "ALWAYS_ACTIVE",
-      maxRequestsPerMinute: this.config.maxRequestsPerMinute,
+      threatDetection: "enabled",
     });
   }
 
@@ -52,12 +50,6 @@ export class SecurityMiddleware {
     const userAgent = request.headers["user-agent"] || "unknown";
 
     try {
-      // Rate limiting
-      if (!this.checkRateLimit(ip)) {
-        await this.blockRequest(reply, "Rate limit exceeded");
-        return false;
-      }
-
       // User agent filtering
       if (
         SecurityMiddleware.SUSPICIOUS_USER_AGENTS.has(
@@ -115,24 +107,7 @@ export class SecurityMiddleware {
     return "unknown";
   }
 
-  private checkRateLimit(ip: string): boolean {
-    const now = Date.now();
-    const requests = this.requestCounts.get(ip) || [];
 
-    // Filter recent requests (last minute)
-    const recentRequests = requests.filter(
-      (timestamp) => now - timestamp < 60000
-    );
-
-    if (recentRequests.length >= this.config.maxRequestsPerMinute) {
-      return false;
-    }
-
-    // Update request history
-    recentRequests.push(now);
-    this.requestCounts.set(ip, recentRequests);
-    return true;
-  }
 
   // isSuspiciousUserAgent removed - logic integrated into main check for efficiency
 
@@ -243,24 +218,13 @@ Server: Apple RAG MCP`;
   getHealthInfo() {
     return {
       status: "ALWAYS_ACTIVE",
-      rateLimitPerMinute: this.config.maxRequestsPerMinute,
+      threatDetection: "enabled",
       alertMethod: "webhook-only",
       webhookConfigured: !!this.config.alertWebhookUrl,
     };
   }
 
   private cleanup(): void {
-    const cutoff = Date.now() - 60000;
-
-    for (const [ip, requests] of this.requestCounts.entries()) {
-      const validRequests = requests.filter((timestamp) => timestamp > cutoff);
-      if (validRequests.length === 0) {
-        this.requestCounts.delete(ip);
-      } else {
-        this.requestCounts.set(ip, validRequests);
-      }
-    }
-
     this.threatDetector.cleanup();
   }
 }
