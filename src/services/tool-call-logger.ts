@@ -33,7 +33,7 @@ export class ToolCallLogger {
 
   constructor(d1Config?: CloudflareD1Config) {
     if (!d1Config) {
-      throw new Error("CloudflareD1Config is required for UsageLogger");
+      throw new Error("CloudflareD1Config is required for ToolCallLogger");
     }
     this.d1Connector = new D1Connector(d1Config);
   }

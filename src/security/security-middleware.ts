@@ -107,8 +107,6 @@ export class SecurityMiddleware {
     return "unknown";
   }
 
-
-
   // isSuspiciousUserAgent removed - logic integrated into main check for efficiency
 
   /**

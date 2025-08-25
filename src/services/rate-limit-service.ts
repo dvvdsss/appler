@@ -245,13 +245,20 @@ export class RateLimitService {
     clientIP: string
   ): Promise<number> {
     try {
+      // Calculate start of current week (Sunday)
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const weekStart = startOfWeek.toISOString();
+
       // Get count from search_logs
       const searchResult = await this.d1Connector.query(
         `SELECT COUNT(*) as count
          FROM search_logs
          WHERE (user_id = ? OR ip_address = ?)
-         AND created_at >= date('now', 'weekday 0', '-6 days')`,
-        [identifier, clientIP]
+         AND created_at >= ?`,
+        [identifier, clientIP, weekStart]
       );
 
       // Get count from fetch_logs
@@ -259,8 +266,8 @@ export class RateLimitService {
         `SELECT COUNT(*) as count
          FROM fetch_logs
          WHERE (user_id = ? OR ip_address = ?)
-         AND created_at >= date('now', 'weekday 0', '-6 days')`,
-        [identifier, clientIP]
+         AND created_at >= ?`,
+        [identifier, clientIP, weekStart]
       );
 
       const searchCount = (searchResult.results?.[0]?.count as number) || 0;
@@ -285,13 +292,16 @@ export class RateLimitService {
     clientIP: string
   ): Promise<number> {
     try {
+      // Calculate one minute ago
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+
       // Get count from search_logs
       const searchResult = await this.d1Connector.query(
         `SELECT COUNT(*) as count
          FROM search_logs
          WHERE (user_id = ? OR ip_address = ?)
-         AND created_at > datetime('now', '-1 minute')`,
-        [identifier, clientIP]
+         AND created_at > ?`,
+        [identifier, clientIP, oneMinuteAgo]
       );
 
       // Get count from fetch_logs
@@ -299,8 +309,8 @@ export class RateLimitService {
         `SELECT COUNT(*) as count
          FROM fetch_logs
          WHERE (user_id = ? OR ip_address = ?)
-         AND created_at > datetime('now', '-1 minute')`,
-        [identifier, clientIP]
+         AND created_at > ?`,
+        [identifier, clientIP, oneMinuteAgo]
       );
 
       const searchCount = (searchResult.results?.[0]?.count as number) || 0;

@@ -181,8 +181,6 @@ export class SearchEngine {
     return finalResults;
   }
 
-
-
   private parseContent(content: string): ParsedContent {
     try {
       const parsed = JSON.parse(content);

@@ -159,10 +159,10 @@ export class TokenValidator {
   private updateTokenLastUsedAsync(token: string): void {
     // Fire and forget - don't block validation response
     this.d1Connector
-      .query(
-        "UPDATE mcp_tokens SET last_used_at = datetime('now') WHERE mcp_token = ?",
-        [token]
-      )
+      .query("UPDATE mcp_tokens SET last_used_at = ? WHERE mcp_token = ?", [
+        new Date().toISOString(),
+        token,
+      ])
       .catch((error) => {
         logger.warn("Failed to update token last_used_at", {
           error: error instanceof Error ? error.message : String(error),

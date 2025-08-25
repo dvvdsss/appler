@@ -187,8 +187,8 @@ export class IPAuthenticationService {
   private updateIPLastUsedAsync(ipAddress: string, userId: string): void {
     this.d1Connector
       .query(
-        "UPDATE user_authorized_ips SET last_used_at = datetime('now') WHERE ip_address = ? AND user_id = ?",
-        [ipAddress, userId]
+        "UPDATE user_authorized_ips SET last_used_at = ? WHERE ip_address = ? AND user_id = ?",
+        [new Date().toISOString(), ipAddress, userId]
       )
       .catch((error) => {
         logger.error("Failed to update IP last_used_at", {
