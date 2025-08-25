@@ -194,7 +194,6 @@ export class RAGService {
       url: result.url,
       content: result.content,
       context: result.context,
-      relevance_score: result.relevance_score,
     }));
   }
 

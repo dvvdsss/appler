@@ -30,7 +30,6 @@ export interface RankedSearchResult {
   readonly url: string;
   readonly context: string;
   readonly content: string;
-  readonly relevance_score: number;
   readonly original_index: number;
 }
 
@@ -58,10 +57,10 @@ export class SearchEngine {
   }
 
   /**
-   * RAG search implementation with 4N candidate strategy
+   * RAG search implementation with minimum 10 chunks strategy
    *
    * 1. Generate vector embedding for semantic similarity
-   * 2. Retrieve 4N candidates using vector search
+   * 2. Retrieve candidates using vector search (minimum 10 chunks)
    * 3. Merge related content by context
    * 4. Combine small documents for comprehensive results
    * 5. Apply AI reranking to select best N results
@@ -73,15 +72,15 @@ export class SearchEngine {
     const searchStart = Date.now();
     logger.info("Vector search started", { query, resultCount });
 
-    // Step 1: Vector candidate retrieval (4N strategy)
+    // Step 1: Vector candidate retrieval (minimum 10 chunks)
     const candidateStart = Date.now();
-    const candidateCount = resultCount * 4; // 4N for better coverage
+    const candidateCount = Math.max(resultCount * 4, 10); // Ensure minimum 10 chunks
     const vectorResults = await this.getVectorCandidates(query, candidateCount);
 
     const candidateTime = Date.now() - candidateStart;
     logger.info("Vector candidates retrieved", {
       vectorCount: vectorResults.length,
-      strategy: "4N",
+      strategy: "4N with minimum 10 chunks",
       candidateTime,
     });
 
@@ -110,7 +109,6 @@ export class SearchEngine {
         url: processed.url,
         context: processed.context,
         content: processed.content,
-        relevance_score: doc.relevanceScore,
         original_index: doc.originalIndex,
       };
     });
@@ -267,10 +265,10 @@ export class SearchEngine {
     return {
       id: primary.id,
       url: url, // 单个 URL
-      context: `Merged: ${docs
+      context: docs
         .map((d) => d.context)
         .filter(Boolean)
-        .join(" | ")}`,
+        .join(" | "),
       content: allContent,
       mergedFrom: allIds,
       contentLength: allContent.length,

@@ -736,7 +736,6 @@ export class MCPServer {
     // Format each result with professional styling
     results.forEach((result, index) => {
       response += `[${index + 1}] ${this.formatContext(result.context)}\n`;
-      response += `Relevance: ${(result.relevance_score * 100).toFixed(1)}%\n`;
       response += `Source: ${result.url}\n\n`;
       response += `${this.formatContent(result.content)}\n`;
 

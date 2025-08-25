@@ -31,7 +31,6 @@ export interface RAGResult {
   readonly url: string;
   readonly content: string;
   readonly context: string;
-  readonly relevance_score: number;
 }
 
 export interface SearchResult {
