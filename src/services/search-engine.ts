@@ -5,18 +5,19 @@
  * and professional AI reranking for optimal result quality.
  *
  * Processing Pipeline:
- * Query → Vector Embedding → Similarity Search → Context Merging → Document Merging → AI Reranking → Results
+ * Query → Vector Embedding → Similarity Search → Title-based Merging → AI Reranking → Results
  *
  * Features:
  * - High-performance vector similarity search with pgvector
- * - Intelligent context and document merging for comprehensive results
+ * - Intelligent title-based merging for comprehensive results
  * - Professional AI reranking with Qwen3-Reranker-8B
  * - Optimized for Apple Developer Documentation retrieval
  */
 
 import { logger } from "../logger.js";
 import type {
-  ParsedContent,
+  AdditionalUrl,
+  ParsedChunk,
   ProcessedResult,
   SearchOptions,
   SearchResult,
@@ -28,14 +29,14 @@ import type { RerankerService } from "./reranker-service";
 export interface RankedSearchResult {
   readonly id: string;
   readonly url: string;
-  readonly context: string;
+  readonly title: string;
   readonly content: string;
   readonly original_index: number;
 }
 
 export interface SearchEngineResult {
   readonly results: readonly RankedSearchResult[];
-  readonly additionalUrls: readonly string[];
+  readonly additionalUrls: readonly AdditionalUrl[];
 }
 
 export class SearchEngine {
@@ -61,9 +62,8 @@ export class SearchEngine {
    *
    * 1. Generate vector embedding for semantic similarity
    * 2. Retrieve candidates using vector search (minimum 10 chunks)
-   * 3. Merge related content by context
-   * 4. Combine small documents for comprehensive results
-   * 5. Apply AI reranking to select best N results
+   * 3. Merge related content by title
+   * 4. Apply AI reranking to select best N results
    */
   private async vectorSearchWithReranker(
     query: string,
@@ -107,7 +107,7 @@ export class SearchEngine {
       return {
         id: processed.id,
         url: processed.url,
-        context: processed.context,
+        title: processed.title,
         content: processed.content,
         original_index: doc.originalIndex,
       };
@@ -116,10 +116,19 @@ export class SearchEngine {
 
     // Collect additional URLs from candidates not in final results
     const finalUrls = new Set(finalResults.map((r) => r.url));
-    const additionalUrls = processedResults
+    const additionalUrlsMap = new Map<string, number>();
+
+    // Collect unique URLs with their content lengths
+    processedResults
       .filter((r) => !finalUrls.has(r.url))
-      .map((r) => r.url)
-      .filter((url, index, arr) => arr.indexOf(url) === index) // Remove duplicates
+      .forEach((r) => {
+        if (!additionalUrlsMap.has(r.url)) {
+          additionalUrlsMap.set(r.url, r.contentLength);
+        }
+      });
+
+    const additionalUrls = Array.from(additionalUrlsMap.entries())
+      .map(([url, contentLength]) => ({ url, contentLength }))
       .slice(0, 10); // Limit to 10 additional URLs
 
     const totalTime = Date.now() - searchStart;
@@ -161,117 +170,60 @@ export class SearchEngine {
   }
 
   /**
-   * Process RAG candidates through context and document merging
+   * Process RAG candidates through title-based merging
    */
   private processResults(candidates: SearchResult[]): ProcessedResult[] {
-    // Step 1: Merge by context
-    const contextMerged = this.mergeByContext(candidates);
-
-    // Step 2: Merge small documents
-    const finalResults = this.mergeSmallDocuments(contextMerged);
+    // Step 1: Merge by title
+    const titleMerged = this.mergeByTitle(candidates);
 
     logger.info("Result processing", {
       candidates: candidates.length,
-      contextMerged: contextMerged.length,
-      final: finalResults.length,
+      final: titleMerged.length,
     });
 
-    return finalResults;
+    return titleMerged;
   }
 
-  private parseContent(content: string): ParsedContent {
+  private parseChunk(content: string): ParsedChunk {
     try {
       const parsed = JSON.parse(content);
       return {
-        context: parsed.context || "",
+        title: parsed.title || "",
         content: parsed.content || content,
       };
     } catch {
-      return { context: "", content };
+      return { title: "", content };
     }
   }
 
-  private mergeByContext(results: SearchResult[]): ProcessedResult[] {
-    const contextGroups = new Map<string, SearchResult[]>();
+  private mergeByTitle(results: SearchResult[]): ProcessedResult[] {
+    const titleGroups = new Map<string, SearchResult[]>();
 
-    // Group by context
+    // Group by title
     for (const result of results) {
-      const { context } = this.parseContent(result.content);
-      if (!contextGroups.has(context)) {
-        contextGroups.set(context, []);
+      const { title } = this.parseChunk(result.content);
+      if (!titleGroups.has(title)) {
+        titleGroups.set(title, []);
       }
-      contextGroups.get(context)!.push(result);
+      titleGroups.get(title)!.push(result);
     }
 
     // Merge groups
-    return Array.from(contextGroups.entries()).map(([context, group]) => {
+    return Array.from(titleGroups.entries()).map(([title, group]) => {
       const primary = group[0];
-      const contents = group.map((r) => this.parseContent(r.content).content);
+      const contents = group.map((r) => this.parseChunk(r.content).content);
       const mergedContent = contents.join("\n\n---\n\n");
-      // 相同 context 必然来自同一个 URL
+      // 相同 title 必然来自同一个 URL
       const url = primary.url;
 
       return {
         id: primary.id,
-        url: url, // 单个 URL
-        context,
+        url: url,
+        title,
         content: mergedContent,
         mergedFrom: group.map((r) => r.id),
         contentLength: mergedContent.length,
       };
     });
-  }
-
-  private mergeSmallDocuments(results: ProcessedResult[]): ProcessedResult[] {
-    const large = results.filter((r) => r.contentLength >= 1500);
-    const small = results.filter((r) => r.contentLength < 1500);
-
-    if (small.length === 0) return large;
-
-    // 关键：按字符数由小到大排序，先合并小的再合并大的
-    const sortedSmall = small.sort((a, b) => a.contentLength - b.contentLength);
-
-    const merged: ProcessedResult[] = [];
-    let currentBatch: ProcessedResult[] = [];
-    let currentLength = 0;
-
-    for (const doc of sortedSmall) {
-      if (currentLength + doc.contentLength <= 1500) {
-        currentBatch.push(doc);
-        currentLength += doc.contentLength;
-      } else {
-        if (currentBatch.length > 0) {
-          merged.push(this.createMergedDocument(currentBatch));
-        }
-        currentBatch = [doc];
-        currentLength = doc.contentLength;
-      }
-    }
-
-    if (currentBatch.length > 0) {
-      merged.push(this.createMergedDocument(currentBatch));
-    }
-
-    return [...large, ...merged];
-  }
-
-  private createMergedDocument(docs: ProcessedResult[]): ProcessedResult {
-    const primary = docs[0];
-    const allContent = docs.map((d) => d.content).join("\n\n---\n\n");
-    const allIds = docs.flatMap((d) => d.mergedFrom);
-    // 大小合并时使用主文档的 URL
-    const url = primary.url;
-
-    return {
-      id: primary.id,
-      url: url, // 单个 URL
-      context: docs
-        .map((d) => d.context)
-        .filter(Boolean)
-        .join(" | "),
-      content: allContent,
-      mergedFrom: allIds,
-      contentLength: allContent.length,
-    };
   }
 }

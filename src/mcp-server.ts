@@ -735,7 +735,7 @@ export class MCPServer {
 
     // Format each result with professional styling
     results.forEach((result, index) => {
-      response += `[${index + 1}] ${this.formatContext(result.context)}\n`;
+      response += `[${index + 1}] ${this.formatTitle(result.title)}\n`;
       response += `Source: ${result.url}\n\n`;
       response += `${this.formatContent(result.content)}\n`;
 
@@ -751,8 +751,8 @@ export class MCPServer {
       response += `Additional Related Documentation:\n`;
       response += `The following ${ragResult.additionalUrls.length} URLs contain supplementary information with lower relevance scores. These may provide additional context or related topics. Use the \`fetch\` tool to retrieve their complete, cleaned content:\n\n`;
 
-      ragResult.additionalUrls.forEach((url) => {
-        response += `${url}\n`;
+      ragResult.additionalUrls.forEach((urlInfo) => {
+        response += `${urlInfo.url}\n  └─ Content length: ${urlInfo.contentLength} characters\n\n`;
       });
     }
 
@@ -765,11 +765,11 @@ export class MCPServer {
   }
 
   /**
-   * Format context hierarchy for better readability
+   * Format title for better readability
    */
-  private formatContext(context: string): string {
-    // Clean up the context formatting
-    return context
+  private formatTitle(title: string): string {
+    // Clean up the title formatting
+    return title
       .replace(/\*/g, "")
       .replace(/\n+/g, " ")
       .replace(/\s+/g, " ")

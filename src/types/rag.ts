@@ -16,11 +16,16 @@ export interface RAGQueryRequest {
   readonly result_count?: number;
 }
 
+export interface AdditionalUrl {
+  readonly url: string;
+  readonly contentLength: number;
+}
+
 export interface RAGQueryResponse {
   readonly success: boolean;
   readonly query: string;
   readonly results: readonly RAGResult[];
-  readonly additionalUrls: readonly string[];
+  readonly additionalUrls: readonly AdditionalUrl[];
   readonly count: number;
   readonly processing_time_ms: number;
   readonly error?: string;
@@ -30,7 +35,7 @@ export interface RAGQueryResponse {
 export interface RAGResult {
   readonly url: string;
   readonly content: string;
-  readonly context: string;
+  readonly title: string;
 }
 
 export interface SearchResult {
@@ -39,15 +44,15 @@ export interface SearchResult {
   readonly content: string;
 }
 
-export interface ParsedContent {
-  readonly context: string;
+export interface ParsedChunk {
+  readonly title: string;
   readonly content: string;
 }
 
 export interface ProcessedResult {
   readonly id: string;
   readonly url: string;
-  readonly context: string;
+  readonly title: string;
   readonly content: string;
   readonly mergedFrom: readonly string[];
   readonly contentLength: number;

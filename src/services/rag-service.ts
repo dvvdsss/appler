@@ -193,7 +193,7 @@ export class RAGService {
     return results.map((result) => ({
       url: result.url,
       content: result.content,
-      context: result.context,
+      title: result.title,
     }));
   }
 

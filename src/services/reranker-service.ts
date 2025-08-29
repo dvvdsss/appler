@@ -110,72 +110,100 @@ export class RerankerService {
       "User-Agent": "Apple-RAG-MCP/2.0.0",
     };
 
-    try {
-      const requestStart = Date.now();
-      console.log(`📡 SiliconFlow Reranker API Request Started...`);
+    // Simple retry mechanism - max 2 retries, no delay
+    let lastError: Error | null = null;
+    const maxRetries = 2;
 
-      const response = await fetch(this.config.apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.config.timeout),
-      });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const requestStart = Date.now();
+        console.log(
+          `📡 SiliconFlow Reranker API Request Started (attempt ${attempt + 1}/${maxRetries + 1})...`
+        );
 
-      console.log(
-        `📡 SiliconFlow Reranker API Response Received (${Date.now() - requestStart}ms)`
-      );
+        const response = await fetch(this.config.apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.config.timeout),
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(
-          `SiliconFlow Reranker API error ${response.status}: ${errorText}`
+        console.log(
+          `📡 SiliconFlow Reranker API Response Received (${Date.now() - requestStart}ms)`
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "Unknown error");
+          const error = new Error(
+            `SiliconFlow Reranker API error ${response.status}: ${errorText}`
+          );
+
+          // If this is the last attempt, throw the error
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          // Store error and continue to next attempt
+          lastError = error;
+          console.log(
+            `⚠️ Attempt ${attempt + 1} failed, retrying immediately...`
+          );
+          continue;
+        }
+
+        const parseStart = Date.now();
+        const result = (await response.json()) as RerankerResponse;
+
+        if (!result.results || result.results.length === 0) {
+          throw new Error("No reranking results received from SiliconFlow API");
+        }
+
+        console.log(
+          `📊 Reranker Response Parsed: ${result.results.length} results (${Date.now() - parseStart}ms)`
+        );
+
+        // Transform results to our format
+        const mappingStart = Date.now();
+        const rankedDocuments: RankedDocument[] = result.results.map(
+          (item) => ({
+            content: item.document.text,
+            originalIndex: item.index,
+            relevanceScore: item.relevance_score,
+          })
+        );
+
+        console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
+        console.log(
+          `✅ Reranker Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
+        );
+
+        // Log token usage
+        if (result.tokens) {
+          logger.info("Reranker token usage", {
+            inputTokens: result.tokens.input_tokens,
+            outputTokens: result.tokens.output_tokens,
+            totalTokens:
+              result.tokens.input_tokens + result.tokens.output_tokens,
+          });
+        }
+
+        return rankedDocuments;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // If this is the last attempt, throw the error
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+
+        console.log(
+          `⚠️ Attempt ${attempt + 1} failed, retrying immediately: ${lastError.message}`
         );
       }
-
-      const parseStart = Date.now();
-      const result = (await response.json()) as RerankerResponse;
-
-      if (!result.results || result.results.length === 0) {
-        throw new Error("No reranking results received from SiliconFlow API");
-      }
-
-      console.log(
-        `📊 Reranker Response Parsed: ${result.results.length} results (${Date.now() - parseStart}ms)`
-      );
-
-      // Transform results to our format
-      const mappingStart = Date.now();
-      const rankedDocuments: RankedDocument[] = result.results.map((item) => ({
-        content: item.document.text,
-        originalIndex: item.index,
-        relevanceScore: item.relevance_score,
-      }));
-
-      console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
-      console.log(
-        `✅ Reranker Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
-      );
-
-      // Log token usage
-      if (result.tokens) {
-        logger.info("Reranker token usage", {
-          inputTokens: result.tokens.input_tokens,
-          outputTokens: result.tokens.output_tokens,
-          totalTokens: result.tokens.input_tokens + result.tokens.output_tokens,
-        });
-      }
-
-      return rankedDocuments;
-    } catch (error) {
-      console.log(
-        `❌ Reranker Failed: ${error instanceof Error ? error.message : "Unknown error"} (${Date.now() - rerankerStart}ms)`
-      );
-
-      if (error instanceof Error) {
-        throw new Error(`Reranking failed: ${error.message}`);
-      }
-      throw new Error("Reranking failed: Unknown error");
     }
+
+    // This should never be reached, but just in case
+    throw lastError || new Error("Max retries exceeded");
   }
 
   /**
