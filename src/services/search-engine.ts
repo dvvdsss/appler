@@ -184,16 +184,13 @@ export class SearchEngine {
     return titleMerged;
   }
 
-  private parseChunk(content: string): ParsedChunk {
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        title: parsed.title || "",
-        content: parsed.content || content,
-      };
-    } catch {
-      return { title: "", content };
-    }
+  private parseChunk(content: string, title: string | null): ParsedChunk {
+    // Since data migration is complete, content is now plain text
+    // and title comes from the dedicated title field
+    return {
+      title: title || "",
+      content: content,
+    };
   }
 
   private mergeByTitle(results: SearchResult[]): ProcessedResult[] {
@@ -201,7 +198,7 @@ export class SearchEngine {
 
     // Group by title
     for (const result of results) {
-      const { title } = this.parseChunk(result.content);
+      const { title } = this.parseChunk(result.content, result.title);
       if (!titleGroups.has(title)) {
         titleGroups.set(title, []);
       }
@@ -211,7 +208,9 @@ export class SearchEngine {
     // Merge groups
     return Array.from(titleGroups.entries()).map(([title, group]) => {
       const primary = group[0];
-      const contents = group.map((r) => this.parseChunk(r.content).content);
+      const contents = group.map(
+        (r) => this.parseChunk(r.content, r.title).content
+      );
       const mergedContent = contents.join("\n\n---\n\n");
       // 相同 title 必然来自同一个 URL
       const url = primary.url;

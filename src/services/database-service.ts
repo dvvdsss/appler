@@ -181,6 +181,7 @@ export class DatabaseService {
         SELECT
           id,
           url,
+          title,
           content
         FROM chunks
         WHERE embedding IS NOT NULL
@@ -198,6 +199,7 @@ export class DatabaseService {
       const mappedResults = results.map((row) => ({
         id: row.id as string,
         url: row.url as string,
+        title: row.title as string | null,
         content: row.content as string,
       }));
 

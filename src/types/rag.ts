@@ -41,6 +41,7 @@ export interface RAGResult {
 export interface SearchResult {
   readonly id: string;
   readonly url: string;
+  readonly title: string | null;
   readonly content: string;
 }
 
