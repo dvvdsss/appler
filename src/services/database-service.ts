@@ -248,9 +248,8 @@ export class DatabaseService {
   async getPageByUrl(url: string): Promise<{
     id: string;
     url: string;
+    title: string | null;
     content: string;
-    created_at: string;
-    processed_at: string | null;
   } | null> {
     const searchStart = Date.now();
     const normalizedUrl = this.normalizeUrl(url);
@@ -259,7 +258,7 @@ export class DatabaseService {
     try {
       // Try exact match first
       let results = await this.sql`
-        SELECT id, url, content, created_at, processed_at
+        SELECT id, url, title, content
         FROM pages
         WHERE url = ${normalizedUrl}
         LIMIT 1
@@ -273,7 +272,7 @@ export class DatabaseService {
           : normalizedUrl + "/";
 
         results = await this.sql`
-          SELECT id, url, content, created_at, processed_at
+          SELECT id, url, title, content
           FROM pages
           WHERE url = ${alternativeUrl}
           LIMIT 1
@@ -297,9 +296,8 @@ export class DatabaseService {
       return {
         id: row.id as string,
         url: row.url as string,
+        title: row.title as string | null,
         content: row.content as string,
-        created_at: row.created_at as string,
-        processed_at: row.processed_at as string | null,
       };
     } catch (error) {
       const totalTime = Date.now() - searchStart;

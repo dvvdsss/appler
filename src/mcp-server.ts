@@ -924,20 +924,23 @@ export class MCPServer {
     pageResult: {
       id: string;
       url: string;
+      title: string | null;
       content: string;
-      created_at: string;
-      processed_at: string | null;
     },
     isAuthenticated: boolean
   ): string {
-    let response = `# Apple Developer Content\n\n`;
-    response += `**Source URL:** ${pageResult.url}\n\n`;
-    response += `**Content:**\n\n${pageResult.content}`;
-
-    if (!isAuthenticated) {
-      response += `\n\n${APP_CONSTANTS.ANONYMOUS_ACCESS_MESSAGE}`;
+    // Combine title and content with two newlines
+    let content = "";
+    if (pageResult.title) {
+      content = `${pageResult.title}\n\n${pageResult.content}`;
+    } else {
+      content = pageResult.content;
     }
 
-    return response;
+    if (!isAuthenticated) {
+      content += `\n\n${APP_CONSTANTS.ANONYMOUS_ACCESS_MESSAGE}`;
+    }
+
+    return content;
   }
 }
