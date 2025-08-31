@@ -176,41 +176,26 @@ export class DatabaseService {
     });
 
     try {
-      const queryStart = Date.now();
       const results = await this.sql`
-        SELECT
-          id,
-          url,
-          title,
-          content
+        SELECT id, url, title, content
         FROM chunks
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
         LIMIT ${resultCount}
       `;
 
-      const queryTime = Date.now() - queryStart;
-      logger.info("Vector query executed", {
+      const totalTime = Date.now() - searchStart;
+      logger.info("Vector search completed", {
         resultCount: results.length,
-        queryTime,
+        totalTime,
       });
 
-      const mappingStart = Date.now();
-      const mappedResults = results.map((row) => ({
+      return results.map((row) => ({
         id: row.id as string,
         url: row.url as string,
         title: row.title as string | null,
         content: row.content as string,
       }));
-
-      const mappingTime = Date.now() - mappingStart;
-      const totalTime = Date.now() - searchStart;
-      logger.info("Vector search completed", {
-        mappingTime,
-        totalTime,
-      });
-
-      return mappedResults;
     } catch (error) {
       const totalTime = Date.now() - searchStart;
       logger.error("Vector search failed", {
@@ -218,6 +203,53 @@ export class DatabaseService {
         totalTime,
       });
       throw new Error(`Vector search failed: ${error}`);
+    }
+  }
+
+  /**
+   * Technical term search optimized for Apple Developer Documentation
+   * Uses PostgreSQL 'simple' configuration for precise matching of technical terms,
+   * API names, and special symbols (@State, SecItemAdd, etc.)
+   */
+  async technicalTermSearch(
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResult[]> {
+    const { resultCount = 5 } = options;
+    const start = Date.now();
+
+    logger.info("Technical term search", {
+      query: query.substring(0, 50),
+      resultCount,
+    });
+
+    try {
+      const results = await this.sql`
+        SELECT id, url, title, content
+        FROM chunks
+        WHERE to_tsvector('simple', COALESCE(title, '') || ' ' || content)
+              @@ plainto_tsquery('simple', ${query})
+        LIMIT ${resultCount}
+      `;
+
+      logger.info("Technical term search completed", {
+        results: results.length,
+        duration: Date.now() - start,
+      });
+
+      return results.map((row) => ({
+        id: row.id as string,
+        url: row.url as string,
+        title: row.title as string | null,
+        content: row.content as string,
+      }));
+    } catch (error) {
+      logger.error("Technical term search failed", {
+        error: String(error),
+        query: query.substring(0, 50),
+        duration: Date.now() - start,
+      });
+      throw new Error(`Technical term search failed: ${error}`);
     }
   }
 

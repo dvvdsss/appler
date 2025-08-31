@@ -1,17 +1,17 @@
 /**
- * RAG Search Engine with Vector Similarity and Semantic AI Reranking
+ * Hybrid Search Engine for Apple Developer Documentation
  *
- * Implements retrieval-augmented generation using vector embeddings for semantic search
- * and professional AI reranking for optimal result quality.
+ * Advanced RAG implementation combining semantic vector search with precise
+ * technical term matching, optimized for developer documentation retrieval.
  *
- * Processing Pipeline:
- * Query → Vector Embedding → Similarity Search → Title-based Merging → AI Reranking → Results
+ * Pipeline: Query → [Vector (4N) + Technical Term (4N)] → Merge → Title Merge → AI Rerank → Results
  *
  * Features:
- * - High-performance vector similarity search with pgvector
- * - Intelligent title-based merging for comprehensive results
- * - Professional AI reranking with Qwen3-Reranker-8B
- * - Optimized for Apple Developer Documentation retrieval
+ * - 4N+4N hybrid candidate strategy
+ * - Semantic vector search with pgvector HNSW
+ * - Technical term search with PostgreSQL 'simple' configuration
+ * - Title-based content merging
+ * - AI reranking with Qwen3-Reranker-8B
  */
 
 import { logger } from "../logger.js";
@@ -47,49 +47,60 @@ export class SearchEngine {
   ) {}
 
   /**
-   * Execute RAG search with vector similarity and AI reranking
+   * Execute hybrid search optimized for Apple Developer Documentation
    */
   async search(
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchEngineResult> {
     const { resultCount = 5 } = options;
-    return this.vectorSearchWithReranker(query, resultCount);
+    return this.hybridSearchWithReranker(query, resultCount);
   }
 
   /**
-   * RAG search implementation with minimum 10 chunks strategy
+   * Hybrid search with 4N+4N candidate strategy
    *
-   * 1. Generate vector embedding for semantic similarity
-   * 2. Retrieve candidates using vector search (minimum 10 chunks)
-   * 3. Merge related content by title
-   * 4. Apply AI reranking to select best N results
+   * 1. Parallel: Vector search (4N) + Technical term search (4N)
+   * 2. Merge and deduplicate by ID
+   * 3. Title-based content merging
+   * 4. AI reranking for optimal results
    */
-  private async vectorSearchWithReranker(
+  private async hybridSearchWithReranker(
     query: string,
     resultCount: number
   ): Promise<SearchEngineResult> {
     const searchStart = Date.now();
-    logger.info("Vector search started", { query, resultCount });
+    logger.info("Hybrid search started", { query, resultCount });
 
-    // Step 1: Vector candidate retrieval (minimum 10 chunks)
+    // Step 1: Parallel candidate retrieval (4N each, no minimum limit)
     const candidateStart = Date.now();
-    const candidateCount = Math.max(resultCount * 4, 10); // Ensure minimum 10 chunks
-    const vectorResults = await this.getVectorCandidates(query, candidateCount);
+    const candidateCount = resultCount * 4;
+
+    const [vectorResults, technicalResults] = await Promise.all([
+      this.getVectorCandidates(query, candidateCount),
+      this.getTechnicalTermCandidates(query, candidateCount),
+    ]);
 
     const candidateTime = Date.now() - candidateStart;
-    logger.info("Vector candidates retrieved", {
+    logger.info("Hybrid candidates retrieved", {
       vectorCount: vectorResults.length,
-      strategy: "4N with minimum 10 chunks",
+      technicalCount: technicalResults.length,
+      strategy: "4N+4N hybrid",
       candidateTime,
     });
 
-    // Step 2: Result processing
+    // Step 2: Merge and deduplicate candidates
+    const mergedCandidates = this.mergeCandidates(
+      vectorResults,
+      technicalResults
+    );
+
+    // Step 3: Process results (title-based merging)
     const processStart = Date.now();
-    const processedResults = this.processResults(vectorResults);
+    const processedResults = this.processResults(mergedCandidates);
     console.log(`🔄 Processing Complete: ${Date.now() - processStart}ms`);
 
-    // Step 3: Professional reranking
+    // Step 4: AI reranking (no score dependencies)
     const rerankerStart = Date.now();
     const rankedDocuments = await this.reranker.rerank(
       query,
@@ -100,8 +111,7 @@ export class SearchEngine {
       `🎯 Reranking Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
     );
 
-    // Step 4: Map back to search results
-    const mappingStart = Date.now();
+    // Step 5: Map back to final results
     const finalResults: RankedSearchResult[] = rankedDocuments.map((doc) => {
       const processed = processedResults[doc.originalIndex];
       return {
@@ -112,36 +122,21 @@ export class SearchEngine {
         original_index: doc.originalIndex,
       };
     });
-    console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
 
-    // Collect additional URLs from candidates not in final results
-    const finalUrls = new Set(finalResults.map((r) => r.url));
-    const additionalUrlsMap = new Map<string, number>();
-
-    // Collect unique URLs with their content lengths
-    processedResults
-      .filter((r) => !finalUrls.has(r.url))
-      .forEach((r) => {
-        if (!additionalUrlsMap.has(r.url)) {
-          additionalUrlsMap.set(r.url, r.contentLength);
-        }
-      });
-
-    const additionalUrls = Array.from(additionalUrlsMap.entries())
-      .map(([url, contentLength]) => ({ url, contentLength }))
-      .slice(0, 10); // Limit to 10 additional URLs
+    // Collect additional URLs
+    const additionalUrls = this.collectAdditionalUrls(
+      processedResults,
+      finalResults
+    );
 
     const totalTime = Date.now() - searchStart;
-    logger.info("Vector search completed", {
+    logger.info("Hybrid search completed", {
+      totalTime,
       finalResults: finalResults.length,
       additionalUrls: additionalUrls.length,
-      totalTime,
     });
 
-    return {
-      results: finalResults,
-      additionalUrls,
-    };
+    return { results: finalResults, additionalUrls };
   }
 
   /**
@@ -154,10 +149,7 @@ export class SearchEngine {
     const vectorStart = Date.now();
     console.log(`🎯 Vector Candidates: "${query.substring(0, 30)}..."`);
 
-    // Generate query embedding
     const queryEmbedding = await this.embedding.createEmbedding(query);
-
-    // Perform vector search
     const results = await this.database.vectorSearch(queryEmbedding, {
       resultCount,
     });
@@ -167,6 +159,74 @@ export class SearchEngine {
     );
 
     return results;
+  }
+
+  /**
+   * Retrieve technical term search candidates
+   */
+  private async getTechnicalTermCandidates(
+    query: string,
+    resultCount: number
+  ): Promise<SearchResult[]> {
+    const start = Date.now();
+    console.log(`🔍 Technical Term Candidates: "${query.substring(0, 30)}..."`);
+
+    const results = await this.database.technicalTermSearch(query, {
+      resultCount,
+    });
+
+    console.log(
+      `✅ Technical Term Candidates: ${results.length} results (${Date.now() - start}ms)`
+    );
+
+    return results;
+  }
+
+  /**
+   * Merge and deduplicate candidates from vector and technical term search
+   */
+  private mergeCandidates(
+    vectorResults: SearchResult[],
+    technicalResults: SearchResult[]
+  ): SearchResult[] {
+    const seen = new Set<string>();
+
+    // Prioritize vector results, then add unique technical results
+    return [
+      ...vectorResults.filter((result) => {
+        if (seen.has(result.id)) return false;
+        seen.add(result.id);
+        return true;
+      }),
+      ...technicalResults.filter((result) => {
+        if (seen.has(result.id)) return false;
+        seen.add(result.id);
+        return true;
+      }),
+    ];
+  }
+
+  /**
+   * Collect additional URLs from processed results
+   */
+  private collectAdditionalUrls(
+    processedResults: ProcessedResult[],
+    finalResults: RankedSearchResult[]
+  ): AdditionalUrl[] {
+    const finalUrls = new Set(finalResults.map((r) => r.url));
+    const additionalUrlsMap = new Map<string, number>();
+
+    processedResults
+      .filter((r) => !finalUrls.has(r.url))
+      .forEach((r) => {
+        if (!additionalUrlsMap.has(r.url)) {
+          additionalUrlsMap.set(r.url, r.contentLength);
+        }
+      });
+
+    return Array.from(additionalUrlsMap.entries())
+      .map(([url, contentLength]) => ({ url, contentLength }))
+      .slice(0, 10);
   }
 
   /**
