@@ -130,23 +130,23 @@ export class RAGService {
         alreadyInitialized: initTime === 0,
       });
 
-      // Execute RAG search with vector similarity and semantic reranking
+      // Execute Hybrid Search with Semantic Search for RAG, Keyword Search, and AI reranking
       const resultCount = Math.min(Math.max(result_count, 1), 20);
-      logger.info("RAG search configuration", {
-        searchType: "vector_semantic",
+      logger.info("Hybrid search configuration", {
+        searchType: "semantic_keyword_hybrid",
         resultCount,
       });
 
       // Execute search
       const searchStart = Date.now();
-      logger.info("Starting RAG search", { query: trimmedQuery });
+      logger.info("Starting Hybrid search", { query: trimmedQuery });
 
       const searchResult = await this.searchEngine.search(trimmedQuery, {
         resultCount,
       });
 
       const searchTime = Date.now() - searchStart;
-      logger.info("RAG search completed", {
+      logger.info("Hybrid search completed", {
         resultCount: searchResult.results.length,
         additionalUrls: searchResult.additionalUrls.length,
         searchTime,

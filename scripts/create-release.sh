@@ -95,7 +95,9 @@ $CHANGES
 
 ### 🌟 Features
 - 🍎 Complete Apple developer documentation access
-- ⚡ RAG(Semantic) Search capabilities
+- ⚡ Semantic Search for RAG capabilities
+- 🔍 Keyword Search for precise technical term matching
+- 🎯 Hybrid Search combining semantic and keyword search
 - 🤖 AI-powered search with Qwen3-Reranker-8B
 - 🔒 Secure token-based authentication
 - 📊 Usage analytics and monitoring

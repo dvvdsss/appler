@@ -1,8 +1,8 @@
 /**
  * Hybrid Search Engine for Apple Developer Documentation
  *
- * Advanced RAG implementation combining semantic vector search with precise
- * technical term matching, optimized for developer documentation retrieval.
+ * Advanced implementation combining Semantic Search for RAG with precise
+ * Keyword Search and Hybrid Search, optimized for developer documentation retrieval.
  *
  * Pipeline: Query → [Vector (4N) + Technical Term (4N)] → Merge → Title Merge → AI Rerank → Results
  *

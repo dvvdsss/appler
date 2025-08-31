@@ -20,7 +20,7 @@ Apple RAG MCP delivers exactly what your AI agents need: **official Swift develo
 
 A cutting-edge **Retrieval-Augmented Generation (RAG) system** combining Apple's official documentation with video content from the Apple Developer YouTube channel. Features **professional AI reranking** with Qwen3-Reranker-8B for superior search accuracy across multiple content types.
 
-**🤖 AI-Powered Embedding & Reranking** • **⚡ RAG(Semantic) Search** • **🎯 Precision Results**
+**🤖 AI-Powered Embedding & Reranking** • **⚡ Semantic Search for RAG** • **🔍 Keyword Search** • **🎯 Hybrid Search** • **📊 Precision Results**
 
 ## 🚀 Quick Start
 
@@ -62,8 +62,8 @@ Click the button above and Cursor will automatically configure everything for yo
 ### ⚡ **Fast & Reliable**
 Get quick responses with our optimized search infrastructure. No more hunting through docs.
 
-### 🎯 **AI-Powered RAG Search**
-Advanced RAG technology with vector similarity and semantic understanding provides accurate, contextual answers from Apple's documentation.
+### 🎯 **AI-Powered Hybrid Search**
+Advanced search technology combining Semantic Search for RAG, Keyword Search, and Hybrid Search with vector similarity and technical term matching provides accurate, contextual answers from Apple's documentation.
 
 ### 🔒 **Always Secure**
 MCP authentication ensures trusted access for your AI agents with enterprise-grade security.
@@ -86,7 +86,9 @@ Start immediately with no MCP Token required. Get an MCP Token for higher usage 
 
 ## 🎯 Features
 
-- **🔍 RAG Search** - Vector similarity with semantic understanding for intelligent retrieval
+- **🔍 Semantic Search for RAG** - Vector similarity with semantic understanding for intelligent retrieval
+- **🔎 Keyword Search** - Precise technical term matching for API names and specific terminology
+- **🎯 Hybrid Search** - Combined semantic and keyword search with AI reranking for optimal results
 - **📚 Complete Coverage** - iOS, macOS, watchOS, tvOS, visionOS documentation
 - **📺 Video Content** - Apple Developer YouTube channel with WWDC sessions and tutorials
 - **⚡ Fast Response** - Optimized for speed across all content types
