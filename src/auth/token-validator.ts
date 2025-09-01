@@ -3,11 +3,7 @@
  * Validates MCP tokens against Cloudflare D1 database
  */
 
-import { logger } from "../logger.js";
-import {
-  type CloudflareD1Config,
-  D1Connector,
-} from "../services/d1-connector.js";
+import { logger } from "../utils/logger.js";
 
 export interface TokenValidationResult {
   valid: boolean;
@@ -21,60 +17,27 @@ export interface UserTokenData {
   name: string;
 }
 
-interface CacheEntry {
-  readonly data: UserTokenData;
-  readonly expiry: number;
-}
-
 export class TokenValidator {
-  private readonly d1Connector: D1Connector;
-  private readonly tokenCache = new Map<string, CacheEntry>();
-  private readonly cacheTimeout = 300_000; // 5 minutes in milliseconds
-  private readonly cleanupInterval: NodeJS.Timeout;
-
-  constructor(d1Config: CloudflareD1Config) {
-    this.d1Connector = new D1Connector(d1Config);
-
-    // Start cache cleanup with proper cleanup on destruction
-    this.cleanupInterval = setInterval(
-      () => this.cleanupExpiredCache(),
-      60_000
-    );
-  }
-
-  /**
-   * Cleanup resources
-   */
-  destroy(): void {
-    clearInterval(this.cleanupInterval);
-    this.tokenCache.clear();
-  }
+  constructor(private d1: D1Database) {}
 
   /**
    * Validate MCP token
    */
   async validateToken(token: string): Promise<TokenValidationResult> {
     try {
-      // Fast cache lookup
-      const cached = this.getCachedToken(token);
-      if (cached) {
-        return { valid: true, userData: cached };
-      }
-
       // Validate token format
       if (!this.isValidTokenFormat(token)) {
         return { valid: false, error: "Invalid token format" };
       }
 
-      // Query database
+      // Query database directly
       const userData = await this.getUserDataFromD1(token);
       if (!userData) {
         return { valid: false, error: "Token not found" };
       }
 
-      // Non-blocking async operations
-      this.updateTokenLastUsedAsync(token);
-      this.cacheToken(token, userData);
+      // Update token last used
+      await this.updateTokenLastUsedAsync(token);
 
       return { valid: true, userData };
     } catch (error) {
@@ -94,46 +57,24 @@ export class TokenValidator {
   }
 
   /**
-   * Get cached token with expiry check
-   */
-  private getCachedToken(token: string): UserTokenData | null {
-    const cached = this.tokenCache.get(token);
-    if (cached && Date.now() < cached.expiry) {
-      logger.debug("Token validation from cache", {
-        userId: cached.data.userId,
-      });
-      return cached.data;
-    }
-    return null;
-  }
-
-  /**
-   * Cache token with expiry
-   */
-  private cacheToken(token: string, userData: UserTokenData): void {
-    this.tokenCache.set(token, {
-      data: userData,
-      expiry: Date.now() + this.cacheTimeout,
-    });
-  }
-
-  /**
    * Get user data from D1 database
    */
   private async getUserDataFromD1(
     token: string
   ): Promise<UserTokenData | null> {
     try {
-      const result = await this.d1Connector.query(
-        `SELECT
+      const result = await this.d1
+        .prepare(
+          `SELECT
            u.id as user_id,
            u.email,
            u.name
          FROM mcp_tokens t
          JOIN users u ON t.user_id = u.id
-         WHERE t.mcp_token = ?`,
-        [token]
-      );
+         WHERE t.mcp_token = ?`
+        )
+        .bind(token)
+        .all();
 
       if (!result.success || !result.results || result.results.length === 0) {
         return null;
@@ -156,39 +97,32 @@ export class TokenValidator {
   /**
    * Non-blocking token usage update
    */
-  private updateTokenLastUsedAsync(token: string): void {
-    // Fire and forget - don't block validation response
-    this.d1Connector
-      .query("UPDATE mcp_tokens SET last_used_at = ? WHERE mcp_token = ?", [
-        new Date().toISOString(),
-        token,
-      ])
-      .catch((error) => {
-        logger.warn("Failed to update token last_used_at", {
-          error: error instanceof Error ? error.message : String(error),
-          tokenPrefix: `${token.substring(0, 8)}...`,
-        });
+  private async updateTokenLastUsedAsync(token: string): Promise<void> {
+    try {
+      logger.info("🚀 Starting token last_used_at update", {
+        tokenPrefix: `${token.substring(0, 8)}...`,
       });
-  }
 
-  /**
-   * Clean up expired cache entries
-   */
-  private cleanupExpiredCache(): void {
-    const now = Date.now();
-    let cleaned = 0;
+      const result = await this.d1
+        .prepare("UPDATE mcp_tokens SET last_used_at = ? WHERE mcp_token = ?")
+        .bind(new Date().toISOString(), token)
+        .run();
 
-    for (const [token, cached] of this.tokenCache.entries()) {
-      if (now >= cached.expiry) {
-        this.tokenCache.delete(token);
-        cleaned++;
+      if (!result.success) {
+        throw new Error("D1 token update execution failed");
       }
-    }
 
-    if (cleaned > 0) {
-      logger.debug("Cleaned up expired token cache entries", {
-        count: cleaned,
+      logger.info("✅ Token last_used_at update completed successfully", {
+        tokenPrefix: `${token.substring(0, 8)}...`,
+        success: result.success,
       });
+    } catch (error) {
+      logger.error("❌ Failed to update token last_used_at", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        tokenPrefix: `${token.substring(0, 8)}...`,
+      });
+      // 不重新抛出错误，避免影响主流程
     }
   }
 
@@ -197,16 +131,16 @@ export class TokenValidator {
    */
   async getUserData(userId: string): Promise<UserTokenData> {
     try {
-      const result = await this.d1Connector.query(
-        "SELECT id, email, name FROM users WHERE id = ?",
-        [userId]
-      );
+      const result = await this.d1
+        .prepare("SELECT id, email, name FROM users WHERE id = ?")
+        .bind(userId)
+        .all();
 
       if (!result.success || !result.results || result.results.length === 0) {
         throw new Error("User not found");
       }
 
-      const user = result.results[0];
+      const user = result.results[0] as Record<string, unknown>;
 
       return {
         userId: user.id as string,

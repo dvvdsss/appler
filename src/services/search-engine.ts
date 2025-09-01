@@ -14,22 +14,36 @@
  * - AI reranking with Qwen3-Reranker-8B
  */
 
-import { logger } from "../logger.js";
-import type {
-  AdditionalUrl,
-  ParsedChunk,
-  ProcessedResult,
-  SearchOptions,
-  SearchResult,
-} from "../types/rag";
-import type { DatabaseService } from "./database-service";
-import type { EmbeddingService } from "./embedding-service";
-import type { RerankerService } from "./reranker-service";
+import type { SearchOptions, SearchResult } from "../types/index.js";
+
+// Local types for search engine
+export interface AdditionalUrl {
+  readonly url: string;
+  readonly title: string | null;
+}
+
+export interface ParsedChunk {
+  readonly content: string;
+  readonly title: string | null;
+}
+
+export interface ProcessedResult {
+  readonly id: string;
+  readonly url: string;
+  readonly title: string | null;
+  readonly content: string;
+  readonly contentLength: number;
+  readonly mergedFrom?: string[];
+}
+
+import type { DatabaseService } from "./database.js";
+import type { EmbeddingService } from "./embedding.js";
+import type { RerankerService } from "./reranker.js";
 
 export interface RankedSearchResult {
   readonly id: string;
   readonly url: string;
-  readonly title: string;
+  readonly title: string | null;
   readonly content: string;
   readonly original_index: number;
 }
@@ -69,46 +83,28 @@ export class SearchEngine {
     query: string,
     resultCount: number
   ): Promise<SearchEngineResult> {
-    const searchStart = Date.now();
-    logger.info("Hybrid search started", { query, resultCount });
-
     // Step 1: Parallel candidate retrieval (4N each, no minimum limit)
-    const candidateStart = Date.now();
     const candidateCount = resultCount * 4;
 
-    const [vectorResults, technicalResults] = await Promise.all([
-      this.getVectorCandidates(query, candidateCount),
-      this.getTechnicalTermCandidates(query, candidateCount),
+    const [semanticResults, keywordResults] = await Promise.all([
+      this.getSemanticCandidates(query, candidateCount),
+      this.getKeywordCandidates(query, candidateCount),
     ]);
-
-    const candidateTime = Date.now() - candidateStart;
-    logger.info("Hybrid candidates retrieved", {
-      vectorCount: vectorResults.length,
-      technicalCount: technicalResults.length,
-      strategy: "4N+4N hybrid",
-      candidateTime,
-    });
 
     // Step 2: Merge and deduplicate candidates
     const mergedCandidates = this.mergeCandidates(
-      vectorResults,
-      technicalResults
+      semanticResults,
+      keywordResults
     );
 
     // Step 3: Process results (title-based merging)
-    const processStart = Date.now();
     const processedResults = this.processResults(mergedCandidates);
-    console.log(`🔄 Processing Complete: ${Date.now() - processStart}ms`);
 
     // Step 4: AI reranking (no score dependencies)
-    const rerankerStart = Date.now();
     const rankedDocuments = await this.reranker.rerank(
       query,
       processedResults.map((r) => r.content),
       Math.min(resultCount, processedResults.length)
-    );
-    console.log(
-      `🎯 Reranking Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
     );
 
     // Step 5: Map back to final results
@@ -129,76 +125,67 @@ export class SearchEngine {
       finalResults
     );
 
-    const totalTime = Date.now() - searchStart;
-    logger.info("Hybrid search completed", {
-      totalTime,
-      finalResults: finalResults.length,
-      additionalUrls: additionalUrls.length,
-    });
-
     return { results: finalResults, additionalUrls };
   }
 
   /**
-   * Retrieve semantic candidates using vector similarity search
+   * Retrieve semantic search candidates
    */
-  private async getVectorCandidates(
+  private async getSemanticCandidates(
     query: string,
     resultCount: number
   ): Promise<SearchResult[]> {
-    const vectorStart = Date.now();
-    console.log(`🎯 Vector Candidates: "${query.substring(0, 30)}..."`);
-
+    const startTime = Date.now();
     const queryEmbedding = await this.embedding.createEmbedding(query);
-    const results = await this.database.vectorSearch(queryEmbedding, {
+    const results = await this.database.semanticSearch(queryEmbedding, {
       resultCount,
     });
 
+    const duration = Date.now() - startTime;
     console.log(
-      `✅ Vector Candidates: ${results.length} results (${Date.now() - vectorStart}ms)`
+      `Semantic search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
     );
 
     return results;
   }
 
   /**
-   * Retrieve technical term search candidates
+   * Retrieve keyword search candidates
    */
-  private async getTechnicalTermCandidates(
+  private async getKeywordCandidates(
     query: string,
     resultCount: number
   ): Promise<SearchResult[]> {
-    const start = Date.now();
-    console.log(`🔍 Technical Term Candidates: "${query.substring(0, 30)}..."`);
-
-    const results = await this.database.technicalTermSearch(query, {
+    const startTime = Date.now();
+    const results = await this.database.keywordSearch(query, {
       resultCount,
     });
 
+    const duration = Date.now() - startTime;
     console.log(
-      `✅ Technical Term Candidates: ${results.length} results (${Date.now() - start}ms)`
+      `Keyword search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
     );
 
     return results;
   }
 
   /**
-   * Merge and deduplicate candidates from vector and technical term search
+   * Merge and deduplicate candidates from semantic and keyword search
    */
   private mergeCandidates(
-    vectorResults: SearchResult[],
-    technicalResults: SearchResult[]
+    semanticResults: SearchResult[],
+    keywordResults: SearchResult[]
   ): SearchResult[] {
     const seen = new Set<string>();
 
-    // Prioritize vector results, then add unique technical results
+    // Prioritize semantic results, then add unique keyword results
     return [
-      ...vectorResults.filter((result) => {
+      ...semanticResults.filter((result) => {
         if (seen.has(result.id)) return false;
         seen.add(result.id);
         return true;
       }),
-      ...technicalResults.filter((result) => {
+      ...keywordResults.filter((result) => {
         if (seen.has(result.id)) return false;
         seen.add(result.id);
         return true;
@@ -225,7 +212,7 @@ export class SearchEngine {
       });
 
     return Array.from(additionalUrlsMap.entries())
-      .map(([url, contentLength]) => ({ url, contentLength }))
+      .map(([url, contentLength]) => ({ url, title: null, contentLength }))
       .slice(0, 10);
   }
 
@@ -234,14 +221,7 @@ export class SearchEngine {
    */
   private processResults(candidates: SearchResult[]): ProcessedResult[] {
     // Step 1: Merge by title
-    const titleMerged = this.mergeByTitle(candidates);
-
-    logger.info("Result processing", {
-      candidates: candidates.length,
-      final: titleMerged.length,
-    });
-
-    return titleMerged;
+    return this.mergeByTitle(candidates);
   }
 
   private parseChunk(content: string, title: string | null): ParsedChunk {
@@ -259,10 +239,11 @@ export class SearchEngine {
     // Group by title
     for (const result of results) {
       const { title } = this.parseChunk(result.content, result.title);
-      if (!titleGroups.has(title)) {
-        titleGroups.set(title, []);
+      const titleKey = title || "untitled";
+      if (!titleGroups.has(titleKey)) {
+        titleGroups.set(titleKey, []);
       }
-      titleGroups.get(title)!.push(result);
+      titleGroups.get(titleKey)!.push(result);
     }
 
     // Merge groups

@@ -3,16 +3,8 @@
  * High-performance document reranking with Qwen3-Reranker-8B
  */
 
-import { logger } from "../logger.js";
-import type { AppConfig } from "../types/env.js";
-
-export interface RerankerConfig {
-  apiKey: string;
-  apiUrl: string;
-  model: "Qwen/Qwen3-Reranker-8B";
-  instruction: "Please rerank the documents based on the query.";
-  timeout: number;
-}
+import type { AppConfig } from "../types/index.js";
+import { logger } from "../utils/logger.js";
 
 export interface RerankerRequest {
   model: "Qwen/Qwen3-Reranker-8B";
@@ -47,25 +39,15 @@ export interface RankedDocument {
 }
 
 export class RerankerService {
-  private config: RerankerConfig;
+  private readonly apiUrl = "https://api.siliconflow.cn/v1/rerank";
+  private readonly model = "Qwen/Qwen3-Reranker-8B";
+  private readonly instruction =
+    "Please rerank the documents based on the query.";
 
-  constructor(appConfig: AppConfig) {
-    this.config = {
-      apiKey: appConfig.SILICONFLOW_API_KEY,
-      apiUrl: "https://api.siliconflow.cn/v1/rerank",
-      model: "Qwen/Qwen3-Reranker-8B",
-      instruction: "Please rerank the documents based on the query.",
-      timeout: appConfig.SILICONFLOW_TIMEOUT * 1000,
-    };
-
-    if (!this.config.apiKey) {
+  constructor(private config: AppConfig) {
+    if (!config.SILICONFLOW_API_KEY) {
       throw new Error("SILICONFLOW_API_KEY is required for reranker service");
     }
-
-    logger.info("Reranker service initialized", {
-      model: this.config.model,
-      timeout: this.config.timeout,
-    });
   }
 
   /**
@@ -76,11 +58,7 @@ export class RerankerService {
     documents: string[],
     topN: number
   ): Promise<RankedDocument[]> {
-    const rerankerStart = Date.now();
-    console.log(
-      `🔄 Reranker Started: "${query.substring(0, 50)}..." with ${documents.length} documents`
-    );
-
+    const startTime = Date.now();
     if (!query?.trim()) {
       throw new Error("Query cannot be empty for reranking");
     }
@@ -96,16 +74,16 @@ export class RerankerService {
     }
 
     const payload: RerankerRequest = {
-      model: this.config.model,
+      model: this.model,
       query: query.trim(),
       documents,
-      instruction: this.config.instruction,
+      instruction: this.instruction,
       top_n: validTopN,
       return_documents: true,
     };
 
     const headers = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${this.config.SILICONFLOW_API_KEY}`,
       "Content-Type": "application/json",
       "User-Agent": "Apple-RAG-MCP/2.0.0",
     };
@@ -116,21 +94,12 @@ export class RerankerService {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const requestStart = Date.now();
-        console.log(
-          `📡 SiliconFlow Reranker API Request Started (attempt ${attempt + 1}/${maxRetries + 1})...`
-        );
-
-        const response = await fetch(this.config.apiUrl, {
+        const response = await fetch(this.apiUrl, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(this.config.timeout),
+          signal: AbortSignal.timeout(this.config.SILICONFLOW_TIMEOUT * 1000),
         });
-
-        console.log(
-          `📡 SiliconFlow Reranker API Response Received (${Date.now() - requestStart}ms)`
-        );
 
         if (!response.ok) {
           const errorText = await response.text().catch(() => "Unknown error");
@@ -145,25 +114,16 @@ export class RerankerService {
 
           // Store error and continue to next attempt
           lastError = error;
-          console.log(
-            `⚠️ Attempt ${attempt + 1} failed, retrying immediately...`
-          );
           continue;
         }
 
-        const parseStart = Date.now();
         const result = (await response.json()) as RerankerResponse;
 
         if (!result.results || result.results.length === 0) {
           throw new Error("No reranking results received from SiliconFlow API");
         }
 
-        console.log(
-          `📊 Reranker Response Parsed: ${result.results.length} results (${Date.now() - parseStart}ms)`
-        );
-
         // Transform results to our format
-        const mappingStart = Date.now();
         const rankedDocuments: RankedDocument[] = result.results.map(
           (item) => ({
             content: item.document.text,
@@ -172,20 +132,10 @@ export class RerankerService {
           })
         );
 
-        console.log(`🔄 Results Mapped (${Date.now() - mappingStart}ms)`);
+        const duration = Date.now() - startTime;
         console.log(
-          `✅ Reranker Completed: ${rankedDocuments.length} results (${Date.now() - rerankerStart}ms)`
+          `Rerank completed (${(duration / 1000).toFixed(1)}s): ${rankedDocuments.length} results`
         );
-
-        // Log token usage
-        if (result.tokens) {
-          logger.info("Reranker token usage", {
-            inputTokens: result.tokens.input_tokens,
-            outputTokens: result.tokens.output_tokens,
-            totalTokens:
-              result.tokens.input_tokens + result.tokens.output_tokens,
-          });
-        }
 
         return rankedDocuments;
       } catch (error) {
@@ -196,9 +146,7 @@ export class RerankerService {
           throw lastError;
         }
 
-        console.log(
-          `⚠️ Attempt ${attempt + 1} failed, retrying immediately: ${lastError.message}`
-        );
+        // Silent retry - errors will be logged if all attempts fail
       }
     }
 

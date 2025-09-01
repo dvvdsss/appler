@@ -2,74 +2,66 @@
  * Modern Tool Call Logger - Separated Search and Fetch Logging
  * Optimal solution with dedicated tables for different MCP tool call types
  */
-import { logger } from "../logger.js";
-import { type CloudflareD1Config, D1Connector } from "./d1-connector.js";
+import { logger } from "../utils/logger.js";
 
 export interface SearchLogEntry {
   userId: string;
-  mcpToken?: string;
+  mcpToken?: string | null;
   searchQuery: string;
   resultCount: number;
   responseTimeMs: number;
   statusCode?: number;
-  errorCode?: string;
+  errorCode?: string | null;
   ipAddress?: string;
 }
 
 export interface FetchLogEntry {
   userId: string;
-  mcpToken?: string;
+  mcpToken?: string | null;
   requestedUrl: string;
-  actualUrl?: string;
-  pageId?: string;
+  actualUrl?: string | null;
+  pageId?: string | null;
   responseTimeMs: number;
   statusCode?: number;
-  errorCode?: string;
+  errorCode?: string | null;
   ipAddress?: string;
 }
 
 export class ToolCallLogger {
-  private d1Connector: D1Connector;
+  private d1: D1Database;
 
-  constructor(d1Config?: CloudflareD1Config) {
-    if (!d1Config) {
-      throw new Error("CloudflareD1Config is required for ToolCallLogger");
-    }
-    this.d1Connector = new D1Connector(d1Config);
+  constructor(d1: D1Database) {
+    this.d1 = d1;
   }
 
   /**
    * Log search operation to D1 database (async, non-blocking)
    */
   async logSearch(entry: SearchLogEntry): Promise<void> {
-    // Fire-and-forget logging to avoid blocking main query flow
-    this.executeSearchLog(entry).catch((error) => {
-      logger.warn("Search logging failed (non-blocking)", {
+    try {
+      await this.executeSearchLog(entry);
+    } catch (error) {
+      logger.error("Search log failed", {
         error: error instanceof Error ? error.message : String(error),
         userId: entry.userId,
-        mcpToken: entry.mcpToken
-          ? `${entry.mcpToken.substring(0, 8)}...`
-          : "anonymous",
-        query: `${entry.searchQuery.substring(0, 50)}...`,
       });
-    });
+      // 不重新抛出错误，避免影响主流程
+    }
   }
 
   /**
    * Log fetch operation to D1 database (async, non-blocking)
    */
   async logFetch(entry: FetchLogEntry): Promise<void> {
-    // Fire-and-forget logging to avoid blocking main query flow
-    this.executeFetchLog(entry).catch((error) => {
-      logger.warn("Fetch logging failed (non-blocking)", {
+    try {
+      await this.executeFetchLog(entry);
+    } catch (error) {
+      logger.error("Fetch log failed", {
         error: error instanceof Error ? error.message : String(error),
         userId: entry.userId,
-        mcpToken: entry.mcpToken
-          ? `${entry.mcpToken.substring(0, 8)}...`
-          : "anonymous",
-        url: entry.requestedUrl,
       });
-    });
+      // 不重新抛出错误，避免影响主流程
+    }
   }
 
   /**
@@ -77,11 +69,13 @@ export class ToolCallLogger {
    */
   private async executeSearchLog(entry: SearchLogEntry): Promise<void> {
     try {
-      const result = await this.d1Connector.query(
-        `INSERT INTO search_logs
+      const result = await this.d1
+        .prepare(
+          `INSERT INTO search_logs
          (user_id, mcp_token, search_query, result_count, response_time_ms, status_code, error_code, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
           entry.userId,
           entry.mcpToken,
           entry.searchQuery,
@@ -89,24 +83,13 @@ export class ToolCallLogger {
           entry.responseTimeMs,
           entry.statusCode,
           entry.errorCode || null,
-          entry.ipAddress || null,
-        ]
-      );
+          entry.ipAddress || null
+        )
+        .run();
 
       if (!result.success) {
         throw new Error("D1 search log execution failed");
       }
-
-      logger.debug("Search logged successfully", {
-        userId: entry.userId,
-        mcpToken: entry.mcpToken
-          ? `${entry.mcpToken.substring(0, 8)}...`
-          : "anonymous",
-        query: `${entry.searchQuery.substring(0, 50)}...`,
-        resultCount: entry.resultCount,
-        responseTime: entry.responseTimeMs,
-        environment: process.env.NODE_ENV || "development",
-      });
     } catch (error) {
       // Re-throw for caller's catch block
       throw new Error(
@@ -120,11 +103,13 @@ export class ToolCallLogger {
    */
   private async executeFetchLog(entry: FetchLogEntry): Promise<void> {
     try {
-      const result = await this.d1Connector.query(
-        `INSERT INTO fetch_logs
+      const result = await this.d1
+        .prepare(
+          `INSERT INTO fetch_logs
          (user_id, mcp_token, requested_url, actual_url, page_id, response_time_ms, status_code, error_code, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
           entry.userId,
           entry.mcpToken,
           entry.requestedUrl,
@@ -133,24 +118,13 @@ export class ToolCallLogger {
           entry.responseTimeMs,
           entry.statusCode,
           entry.errorCode || null,
-          entry.ipAddress || null,
-        ]
-      );
+          entry.ipAddress || null
+        )
+        .run();
 
       if (!result.success) {
         throw new Error("D1 fetch log execution failed");
       }
-
-      logger.debug("Fetch logged successfully", {
-        userId: entry.userId,
-        mcpToken: entry.mcpToken
-          ? `${entry.mcpToken.substring(0, 8)}...`
-          : "anonymous",
-        requestedUrl: entry.requestedUrl,
-        actualUrl: entry.actualUrl,
-        responseTime: entry.responseTimeMs,
-        environment: process.env.NODE_ENV || "development",
-      });
     } catch (error) {
       // Re-throw for caller's catch block
       throw new Error(

@@ -1,0 +1,32 @@
+name = "apple-rag-mcp"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Workers Logs Configuration (付费会员全功能启用)
+[observability]
+enabled = true
+head_sampling_rate = 1  # 100% 采样率，记录所有请求
+
+# Development environment D1 database
+# Replace with your own D1 database configuration
+[[d1_databases]]
+binding = "DB"
+database_name = "your_d1_database_name"
+database_id = "your_d1_database_id"
+
+# Production environment
+[env.production]
+name = "your_production_worker_name"
+
+# Production environment observability (付费会员全功能启用)
+[env.production.observability]
+enabled = true
+head_sampling_rate = 1  # 100% 采样率，记录所有请求
+
+# Production environment D1 database
+# Replace with your own production D1 database configuration
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "your_production_d1_database_name"
+database_id = "your_production_d1_database_id"

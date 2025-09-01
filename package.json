@@ -4,25 +4,10 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "tsx watch server.ts",
-    "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:stop": "pm2 stop apple-rag-mcp",
-    "pm2:restart": "pm2 restart apple-rag-mcp",
-    "pm2:delete": "pm2 delete apple-rag-mcp",
-    "pm2:logs": "pm2 logs apple-rag-mcp",
-    "pm2:status": "pm2 status",
-    "start:prod": "pnpm build && pm2 start ecosystem.config.cjs --env production",
-    "clean": "rm -rf dist node_modules/.cache",
-    "reinstall": "rm -rf node_modules pnpm-lock.yaml && pnpm install",
-    "deploy": "./deploy.sh",
-    "fmt": "biome format --write .",
-    "fmt:check": "biome format .",
-    "lint:biome": "biome lint .",
-    "lint:biome:fix": "biome lint --write .",
-    "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "fmt": "biome check --write"
   },
   "keywords": [
     "mcp",
@@ -41,18 +26,14 @@
   "license": "MIT",
   "description": "Modern MCP 2025-06-18 compliant server with OAuth 2.1 Authorization for Apple Developer Documentation with Semantic Search for RAG, Keyword Search, and Hybrid Search - Production ready with vector similarity and semantic AI reranking",
   "dependencies": {
-    "@types/node": "^20.10.0",
-    "dotenv": "^16.3.1",
-    "fastify": "^4.24.3",
-    "postgres": "^3.4.5"
+    "@types/node": "^20.19.11",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.1.2",
-    "pino-pretty": "^10.2.3",
-    "pm2": "^5.3.0",
-    "tsx": "^4.6.0",
-    "typescript": "^5.3.0",
-    "wrangler": "^4.28.0"
+    "@biomejs/biome": "^2.2.2",
+    "@cloudflare/workers-types": "^4.20250831.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.33.1"
   },
   "engines": {
     "node": ">=18.0.0"

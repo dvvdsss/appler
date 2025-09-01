@@ -104,7 +104,9 @@ web_modules/
 
 # Development variables
 .dev.vars
-.dev.vars.*
+
+# Wrangler configuration (contains sensitive database IDs)
+wrangler.toml
 
 # Internal documentation (private)
 internal-docs/

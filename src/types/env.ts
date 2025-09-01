@@ -23,7 +23,4 @@ export interface AppConfig {
   readonly EMBEDDING_DB_USER: string;
   readonly EMBEDDING_DB_PASSWORD: string;
   readonly EMBEDDING_DB_SSLMODE: "disable" | "require";
-
-  // Security Configuration
-  readonly SECURITY_WEBHOOK_URL?: string;
 }

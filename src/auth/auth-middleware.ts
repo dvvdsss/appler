@@ -2,32 +2,18 @@
  * Simple MCP Authentication Middleware
  */
 
-import type { FastifyReply, FastifyRequest } from "fastify";
-import { logger } from "../logger.js";
-import type { CloudflareD1Config } from "../services/d1-connector.js";
-import { IPAuthenticationService } from "../services/ip-authentication-service.js";
+import { IPAuthenticationService } from "../services/ip-authentication.js";
+import type { AuthContext } from "../types/index.js";
+import { logger } from "../utils/logger.js";
 import { TokenValidator, type UserTokenData } from "./token-validator.js";
-
-export interface AuthContext {
-  readonly isAuthenticated: boolean;
-  readonly userData?: UserTokenData;
-  readonly token?: string;
-}
 
 export class AuthMiddleware {
   private readonly tokenValidator: TokenValidator;
   private readonly ipAuthService: IPAuthenticationService;
 
-  constructor(d1Config: CloudflareD1Config) {
-    this.tokenValidator = new TokenValidator(d1Config);
-    this.ipAuthService = new IPAuthenticationService(d1Config);
-  }
-
-  /**
-   * Cleanup resources
-   */
-  destroy(): void {
-    this.tokenValidator.destroy();
+  constructor(d1: D1Database) {
+    this.tokenValidator = new TokenValidator(d1);
+    this.ipAuthService = new IPAuthenticationService(d1);
   }
 
   /**
@@ -43,13 +29,10 @@ export class AuthMiddleware {
    * Optional authentication middleware
    * Validates token if present, or checks IP-based authentication, allows access without either
    */
-  async optionalAuth(
-    request: FastifyRequest,
-    _reply: FastifyReply
-  ): Promise<AuthContext> {
-    const authHeader = request.headers.authorization as string;
-    const token = this.extractBearerToken(authHeader);
-    const clientIP = request.ip;
+  async optionalAuth(request: Request): Promise<AuthContext> {
+    const authHeader = request.headers.get("authorization");
+    const token = this.extractBearerToken(authHeader || undefined);
+    const clientIP = this.getClientIP(request);
 
     // Try token authentication first
     if (token) {
@@ -62,8 +45,9 @@ export class AuthMiddleware {
 
         return {
           isAuthenticated: true,
-          userData: validation.userData,
-          token,
+          userId: validation.userData?.userId,
+          email: validation.userData?.email,
+          token: token,
         };
       }
 
@@ -85,7 +69,9 @@ export class AuthMiddleware {
 
       return {
         isAuthenticated: true,
-        userData: ipAuthResult,
+        userId: ipAuthResult.userId,
+        email: ipAuthResult.email,
+        token: "ip-based",
       };
     }
 
@@ -106,5 +92,18 @@ export class AuthMiddleware {
    */
   async getUserData(userId: string): Promise<UserTokenData> {
     return await this.tokenValidator.getUserData(userId);
+  }
+
+  /**
+   * Get client IP address from request (Worker optimized)
+   */
+  private getClientIP(request: Request): string {
+    // Cloudflare provides client IP in CF-Connecting-IP header
+    return (
+      request.headers.get("CF-Connecting-IP") ||
+      request.headers.get("X-Forwarded-For") ||
+      request.headers.get("X-Real-IP") ||
+      "unknown"
+    );
   }
 }

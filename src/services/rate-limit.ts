@@ -3,10 +3,9 @@
  * Implements subscription-based rate limiting for MCP server
  */
 
-import type { AuthContext } from "../auth/auth-middleware.js";
-import { logger } from "../logger.js";
-import type { CloudflareD1Config, D1Connector } from "./d1-connector.js";
-import { IPAuthenticationService } from "./ip-authentication-service.js";
+import type { AuthContext } from "../types/index.js";
+import { logger } from "../utils/logger.js";
+import { IPAuthenticationService } from "./ip-authentication.js";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -26,12 +25,12 @@ interface PlanLimits extends Record<string, unknown> {
 }
 
 export class RateLimitService {
-  private d1Connector: D1Connector;
+  private d1: D1Database;
   private ipAuthService: IPAuthenticationService;
 
-  constructor(d1Connector: D1Connector, d1Config: CloudflareD1Config) {
-    this.d1Connector = d1Connector;
-    this.ipAuthService = new IPAuthenticationService(d1Config);
+  constructor(d1: D1Database) {
+    this.d1 = d1;
+    this.ipAuthService = new IPAuthenticationService(d1);
   }
 
   /**
@@ -57,7 +56,7 @@ export class RateLimitService {
           userData: {
             userId: ipAuthResult.userId,
             email: ipAuthResult.email,
-            name: ipAuthResult.name,
+            plan: "unknown", // IP auth doesn't provide plan info
           },
         };
 
@@ -69,8 +68,8 @@ export class RateLimitService {
         const limits = this.getPlanLimits(planType);
 
         const [weeklyUsage, minuteUsage] = await Promise.all([
-          this.getWeeklyUsage(identifier, clientIP),
-          this.getMinuteUsage(identifier, clientIP),
+          this.getWeeklyUsage(identifier),
+          this.getMinuteUsage(identifier),
         ]);
 
         const weeklyAllowed =
@@ -113,8 +112,8 @@ export class RateLimitService {
 
       // Check weekly and minute limits
       const [weeklyUsage, minuteUsage] = await Promise.all([
-        this.getWeeklyUsage(identifier, clientIP),
-        this.getMinuteUsage(identifier, clientIP),
+        this.getWeeklyUsage(identifier),
+        this.getMinuteUsage(identifier),
       ]);
 
       // Determine if request is allowed
@@ -199,10 +198,10 @@ export class RateLimitService {
     clientIP: string,
     authContext: AuthContext
   ): Promise<{ identifier: string; planType: string }> {
-    if (authContext.isAuthenticated && authContext.userData) {
-      const planType = await this.getUserPlanType(authContext.userData.userId);
+    if (authContext.isAuthenticated && authContext.userId) {
+      const planType = await this.getUserPlanType(authContext.userId);
       return {
-        identifier: authContext.userData.userId,
+        identifier: authContext.userId,
         planType,
       };
     } else {
@@ -218,14 +217,16 @@ export class RateLimitService {
    */
   private async getUserPlanType(userId: string): Promise<string> {
     try {
-      const result = await this.d1Connector.query(
-        `SELECT us.plan_type 
-         FROM user_subscriptions us 
-         WHERE us.user_id = ? 
+      const result = await this.d1
+        .prepare(
+          `SELECT us.plan_type
+         FROM user_subscriptions us
+         WHERE us.user_id = ?
          AND us.status = 'active'
-         LIMIT 1`,
-        [userId]
-      );
+         LIMIT 1`
+        )
+        .bind(userId)
+        .all();
 
       return (result.results?.[0]?.plan_type as string) || "hobby";
     } catch (error) {
@@ -240,10 +241,7 @@ export class RateLimitService {
   /**
    * Get weekly usage count from both search_logs and fetch_logs
    */
-  private async getWeeklyUsage(
-    identifier: string,
-    clientIP: string
-  ): Promise<number> {
+  private async getWeeklyUsage(identifier: string): Promise<number> {
     try {
       // Calculate start of current week (Sunday)
       const now = new Date();
@@ -253,22 +251,26 @@ export class RateLimitService {
       const weekStart = startOfWeek.toISOString();
 
       // Get count from search_logs
-      const searchResult = await this.d1Connector.query(
-        `SELECT COUNT(*) as count
+      const searchResult = await this.d1
+        .prepare(
+          `SELECT COUNT(*) as count
          FROM search_logs
-         WHERE (user_id = ? OR ip_address = ?)
-         AND created_at >= ?`,
-        [identifier, clientIP, weekStart]
-      );
+         WHERE user_id = ?
+         AND created_at >= datetime(?)`
+        )
+        .bind(identifier, weekStart)
+        .all();
 
       // Get count from fetch_logs
-      const fetchResult = await this.d1Connector.query(
-        `SELECT COUNT(*) as count
+      const fetchResult = await this.d1
+        .prepare(
+          `SELECT COUNT(*) as count
          FROM fetch_logs
-         WHERE (user_id = ? OR ip_address = ?)
-         AND created_at >= ?`,
-        [identifier, clientIP, weekStart]
-      );
+         WHERE user_id = ?
+         AND created_at >= datetime(?)`
+        )
+        .bind(identifier, weekStart)
+        .all();
 
       const searchCount = (searchResult.results?.[0]?.count as number) || 0;
       const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
@@ -278,7 +280,6 @@ export class RateLimitService {
       logger.error("Failed to get weekly usage", {
         error: error instanceof Error ? error.message : String(error),
         identifier,
-        clientIP,
       });
       return 0;
     }
@@ -287,31 +288,32 @@ export class RateLimitService {
   /**
    * Get minute usage count from both search_logs and fetch_logs
    */
-  private async getMinuteUsage(
-    identifier: string,
-    clientIP: string
-  ): Promise<number> {
+  private async getMinuteUsage(identifier: string): Promise<number> {
     try {
       // Calculate one minute ago
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
 
       // Get count from search_logs
-      const searchResult = await this.d1Connector.query(
-        `SELECT COUNT(*) as count
+      const searchResult = await this.d1
+        .prepare(
+          `SELECT COUNT(*) as count
          FROM search_logs
-         WHERE (user_id = ? OR ip_address = ?)
-         AND created_at > ?`,
-        [identifier, clientIP, oneMinuteAgo]
-      );
+         WHERE user_id = ?
+         AND created_at > datetime(?)`
+        )
+        .bind(identifier, oneMinuteAgo)
+        .all();
 
       // Get count from fetch_logs
-      const fetchResult = await this.d1Connector.query(
-        `SELECT COUNT(*) as count
+      const fetchResult = await this.d1
+        .prepare(
+          `SELECT COUNT(*) as count
          FROM fetch_logs
-         WHERE (user_id = ? OR ip_address = ?)
-         AND created_at > ?`,
-        [identifier, clientIP, oneMinuteAgo]
-      );
+         WHERE user_id = ?
+         AND created_at > datetime(?)`
+        )
+        .bind(identifier, oneMinuteAgo)
+        .all();
 
       const searchCount = (searchResult.results?.[0]?.count as number) || 0;
       const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
@@ -321,7 +323,6 @@ export class RateLimitService {
       logger.error("Failed to get minute usage", {
         error: error instanceof Error ? error.message : String(error),
         identifier,
-        clientIP,
       });
       return 0;
     }
