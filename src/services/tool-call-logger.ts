@@ -67,11 +67,12 @@ export class ToolCallLogger {
    */
   private async executeSearchLog(entry: SearchLogEntry): Promise<void> {
     try {
+      const now = new Date().toISOString(); // Generate UTC timestamp with timezone info
       const result = await this.d1
         .prepare(
           `INSERT INTO search_logs
-         (user_id, mcp_token, search_query, result_count, response_time_ms, status_code, error_code, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (user_id, mcp_token, search_query, result_count, response_time_ms, status_code, error_code, ip_address, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           entry.userId,
@@ -81,7 +82,8 @@ export class ToolCallLogger {
           entry.responseTimeMs,
           entry.statusCode,
           entry.errorCode || null,
-          entry.ipAddress || null
+          entry.ipAddress || null,
+          now
         )
         .run();
 
@@ -101,11 +103,12 @@ export class ToolCallLogger {
    */
   private async executeFetchLog(entry: FetchLogEntry): Promise<void> {
     try {
+      const now = new Date().toISOString(); // Generate UTC timestamp with timezone info
       const result = await this.d1
         .prepare(
           `INSERT INTO fetch_logs
-         (user_id, mcp_token, requested_url, actual_url, page_id, response_time_ms, status_code, error_code, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         (user_id, mcp_token, requested_url, actual_url, page_id, response_time_ms, status_code, error_code, ip_address, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           entry.userId,
@@ -116,7 +119,8 @@ export class ToolCallLogger {
           entry.responseTimeMs,
           entry.statusCode,
           entry.errorCode || null,
-          entry.ipAddress || null
+          entry.ipAddress || null,
+          now
         )
         .run();
 
