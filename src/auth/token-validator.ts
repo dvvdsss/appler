@@ -41,10 +41,9 @@ export class TokenValidator {
 
       return { valid: true, userData };
     } catch (error) {
-      logger.error("Token validation failed", {
-        error: error instanceof Error ? error.message : String(error),
-        tokenPrefix: `${token.substring(0, 8)}...`,
-      });
+      logger.error(
+        `Token validation failed for ${token.substring(0, 8)}...: ${error instanceof Error ? error.message : String(error)}`
+      );
       return { valid: false, error: "Validation failed" };
     }
   }
@@ -87,9 +86,9 @@ export class TokenValidator {
         name: (row.name as string) || "unknown",
       };
     } catch (error) {
-      logger.warn("D1 user data lookup failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        `D1 user data lookup failed: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   }
@@ -99,9 +98,9 @@ export class TokenValidator {
    */
   private async updateTokenLastUsedAsync(token: string): Promise<void> {
     try {
-      logger.info("🚀 Starting token last_used_at update", {
-        tokenPrefix: `${token.substring(0, 8)}...`,
-      });
+      logger.info(
+        `🚀 Starting token last_used_at update for ${token.substring(0, 8)}...`
+      );
 
       const result = await this.d1
         .prepare("UPDATE mcp_tokens SET last_used_at = ? WHERE mcp_token = ?")
@@ -112,16 +111,13 @@ export class TokenValidator {
         throw new Error("D1 token update execution failed");
       }
 
-      logger.info("✅ Token last_used_at update completed successfully", {
-        tokenPrefix: `${token.substring(0, 8)}...`,
-        success: result.success,
-      });
+      logger.info(
+        `✅ Token last_used_at update completed successfully for ${token.substring(0, 8)}... (success: ${result.success})`
+      );
     } catch (error) {
-      logger.error("❌ Failed to update token last_used_at", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        tokenPrefix: `${token.substring(0, 8)}...`,
-      });
+      logger.error(
+        `❌ Failed to update token last_used_at for ${token.substring(0, 8)}...: ${error instanceof Error ? error.message : String(error)}`
+      );
       // 不重新抛出错误，避免影响主流程
     }
   }
@@ -148,10 +144,9 @@ export class TokenValidator {
         name: (user.name as string) || (user.email as string).split("@")[0],
       };
     } catch (error) {
-      logger.error("Failed to get user data", {
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        `Failed to get user data for userId ${userId}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   }

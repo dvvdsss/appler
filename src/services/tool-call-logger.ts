@@ -41,10 +41,9 @@ export class ToolCallLogger {
     try {
       await this.executeSearchLog(entry);
     } catch (error) {
-      logger.error("Search log failed", {
-        error: error instanceof Error ? error.message : String(error),
-        userId: entry.userId,
-      });
+      logger.error(
+        `Search log failed: ${error instanceof Error ? error.message : String(error)} (userId: ${entry.userId})`
+      );
       // 不重新抛出错误，避免影响主流程
     }
   }
@@ -56,10 +55,9 @@ export class ToolCallLogger {
     try {
       await this.executeFetchLog(entry);
     } catch (error) {
-      logger.error("Fetch log failed", {
-        error: error instanceof Error ? error.message : String(error),
-        userId: entry.userId,
-      });
+      logger.error(
+        `Fetch log failed: ${error instanceof Error ? error.message : String(error)} (userId: ${entry.userId})`
+      );
       // 不重新抛出错误，避免影响主流程
     }
   }

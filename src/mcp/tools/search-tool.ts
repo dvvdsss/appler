@@ -87,15 +87,9 @@ export class SearchTool {
 
       if (!rateLimitResult.allowed) {
         // Log rate limit hit
-        logger.business("rate_limit_exceeded", {
-          operation: "rate_limit_check",
-          user_id: authContext.userId || `anon_${clientIP}`,
-          authenticated: authContext.isAuthenticated,
-          limit_type: rateLimitResult.limitType,
-          limit: rateLimitResult.limit,
-          remaining: rateLimitResult.remaining,
-          plan_type: rateLimitResult.planType,
-        });
+        logger.info(
+          `Rate limit exceeded for user ${authContext.userId || `anon_${clientIP}`} (authenticated: ${authContext.isAuthenticated}, limit_type: ${rateLimitResult.limitType}, limit: ${rateLimitResult.limit}, remaining: ${rateLimitResult.remaining}, plan_type: ${rateLimitResult.planType})`
+        );
 
         // Log rate-limited request to database
         await this.logSearch(
@@ -135,12 +129,7 @@ export class SearchTool {
       return createSuccessResponse(id, formattedResponse);
     } catch (error) {
       logger.error(
-        "RAG query failed",
-        {
-          query: query,
-          result_count: result_count,
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `RAG query failed for query "${query}" (result_count: ${result_count}): ${error instanceof Error ? error.message : String(error)}`
       );
 
       return createErrorResponse(
@@ -195,13 +184,9 @@ export class SearchTool {
       }
 
       // Send progress notification (simulated for Worker environment)
-      logger.business("sse_search_progress", {
-        operation: "sse_search",
-        query: query,
-        progress: 0.1,
-        stage: "starting_rag_query",
-        authenticated: authContext.isAuthenticated,
-      });
+      logger.info(
+        `SSE search progress for query "${query}" (progress: 0.1, stage: starting_rag_query, authenticated: ${authContext.isAuthenticated})`
+      );
 
       // Execute RAG query with progress tracking
       const ragResult = await this.services.rag.query({
@@ -229,15 +214,7 @@ export class SearchTool {
       return createSuccessResponse(id, formattedResponse);
     } catch (error) {
       logger.error(
-        "SSE search failed",
-        {
-          operation: "sse_search",
-          query,
-          result_count: resultCount,
-          authenticated: authContext.isAuthenticated,
-          query_length: query.length,
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `SSE search failed for query "${query}" (length: ${query.length}, result_count: ${resultCount}, authenticated: ${authContext.isAuthenticated}): ${error instanceof Error ? error.message : String(error)}`
       );
 
       return createErrorResponse(
@@ -305,13 +282,7 @@ export class SearchTool {
       });
     } catch (error) {
       logger.error(
-        "Failed to log search to database",
-        {
-          operation: "database_log_search",
-          search_query: searchQuery,
-          user_id: authContext.userId || `anon_${ipAddress}`,
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `Failed to log search to database for query "${searchQuery}" (user_id: ${authContext.userId || `anon_${ipAddress}`}): ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

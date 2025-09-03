@@ -44,11 +44,9 @@ export class RateLimitService {
       // Check for IP-based authentication first
       const ipAuthResult = await this.ipAuthService.authenticateIP(clientIP);
       if (ipAuthResult) {
-        logger.debug("IP-based authentication successful", {
-          clientIP,
-          userId: ipAuthResult.userId,
-          planType: ipAuthResult.planType,
-        });
+        logger.info(
+          `IP-based authentication successful for ${clientIP} (userId: ${ipAuthResult.userId}, planType: ${ipAuthResult.planType})`
+        );
 
         // Create new authContext with IP-based user info
         const ipAuthContext = {
@@ -158,23 +156,16 @@ export class RateLimitService {
       };
 
       if (!allowed) {
-        logger.info("Rate limit exceeded", {
-          identifier,
-          planType,
-          weeklyUsage,
-          minuteUsage,
-          limits,
-          clientIP,
-        });
+        logger.info(
+          `Rate limit exceeded for ${identifier} (planType: ${planType}, weeklyUsage: ${weeklyUsage}, minuteUsage: ${minuteUsage}, clientIP: ${clientIP})`
+        );
       }
 
       return result;
     } catch (error) {
-      logger.error("Rate limit check failed", {
-        error: error instanceof Error ? error.message : String(error),
-        clientIP,
-        authenticated: authContext.isAuthenticated,
-      });
+      logger.error(
+        `Rate limit check failed for ${clientIP} (authenticated: ${authContext.isAuthenticated}): ${error instanceof Error ? error.message : String(error)}`
+      );
 
       // Fail open - allow request if rate limit check fails
       return {
@@ -230,10 +221,9 @@ export class RateLimitService {
 
       return (result.results?.[0]?.plan_type as string) || "hobby";
     } catch (error) {
-      logger.error("Failed to get user plan type", {
-        error: error instanceof Error ? error.message : String(error),
-        userId,
-      });
+      logger.error(
+        `Failed to get user plan type for ${userId}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return "hobby"; // Default to hobby plan on error
     }
   }
@@ -277,10 +267,9 @@ export class RateLimitService {
 
       return searchCount + fetchCount;
     } catch (error) {
-      logger.error("Failed to get weekly usage", {
-        error: error instanceof Error ? error.message : String(error),
-        identifier,
-      });
+      logger.error(
+        `Failed to get weekly usage for ${identifier}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return 0;
     }
   }
@@ -320,10 +309,9 @@ export class RateLimitService {
 
       return searchCount + fetchCount;
     } catch (error) {
-      logger.error("Failed to get minute usage", {
-        error: error instanceof Error ? error.message : String(error),
-        identifier,
-      });
+      logger.error(
+        `Failed to get minute usage for ${identifier}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return 0;
     }
   }
@@ -371,7 +359,7 @@ export class RateLimitService {
           requestsPerMinute: -1, // unlimited
         };
       default:
-        logger.warn("Unknown plan type, defaulting to hobby", { planType });
+        logger.warn(`Unknown plan type ${planType}, defaulting to hobby`);
         return {
           weeklyQueries: 10,
           requestsPerMinute: 1,

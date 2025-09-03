@@ -39,9 +39,9 @@ export class AuthMiddleware {
       const validation = await this.tokenValidator.validateToken(token);
 
       if (validation.valid) {
-        logger.debug("Token authentication successful", {
-          userId: validation.userData?.userId,
-        });
+        logger.info(
+          `Token authentication successful for userId: ${validation.userData?.userId}`
+        );
 
         return {
           isAuthenticated: true,
@@ -51,21 +51,18 @@ export class AuthMiddleware {
         };
       }
 
-      logger.debug("Token validation failed", {
-        error: validation.error,
-        tokenPrefix: `${token.substring(0, 8)}...`,
-        ip: clientIP,
-      });
+      logger.info(
+        `Token validation failed for ${token.substring(0, 8)}... from IP ${clientIP}: ${validation.error}`
+      );
     }
 
     // Try IP-based authentication
     const ipAuthResult =
       await this.ipAuthService.checkIPAuthentication(clientIP);
     if (ipAuthResult) {
-      logger.debug("IP-based authentication successful", {
-        userId: ipAuthResult.userId,
-        clientIP,
-      });
+      logger.info(
+        `IP-based authentication successful for userId: ${ipAuthResult.userId} from IP: ${clientIP}`
+      );
 
       return {
         isAuthenticated: true,
@@ -76,12 +73,8 @@ export class AuthMiddleware {
     }
 
     // No authentication method succeeded
-    logger.debug(
-      "No authentication provided - allowing unauthenticated access",
-      {
-        hasToken: !!token,
-        clientIP,
-      }
+    logger.info(
+      `No authentication provided - allowing unauthenticated access from IP: ${clientIP} (hasToken: ${!!token})`
     );
 
     return { isAuthenticated: false };

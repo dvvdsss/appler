@@ -42,11 +42,9 @@ export class EmbeddingService implements IEmbeddingService {
       const embedding = this.extractEmbedding(response);
       return this.normalizeL2(embedding);
     } catch (error) {
-      logger.error("Embedding generation failed", {
-        error: String(error),
-        textLength: trimmedText.length,
-        duration: Date.now() - startTime,
-      });
+      logger.error(
+        `Embedding generation failed for text of length ${trimmedText.length} (duration: ${Date.now() - startTime}ms): ${String(error)}`
+      );
       throw error;
     }
   }

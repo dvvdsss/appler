@@ -82,10 +82,7 @@ export class FetchTool {
       // Validate and normalize URL
       const urlResult = validateAndNormalizeUrl(url);
       if (!urlResult.isValid) {
-        logger.warn("Invalid URL provided", {
-          originalUrl: url,
-          error: urlResult.error,
-        });
+        logger.warn(`Invalid URL provided: ${url} - ${urlResult.error}`);
 
         return createErrorResponse(
           id,
@@ -155,11 +152,9 @@ export class FetchTool {
         "FETCH_FAILED"
       );
 
-      logger.error("Fetch failed", {
-        error: error instanceof Error ? error.message : String(error),
-        url,
-        authenticated: authContext.isAuthenticated,
-      });
+      logger.error(
+        `Fetch failed for URL ${url}: ${error instanceof Error ? error.message : String(error)} (authenticated: ${authContext.isAuthenticated})`
+      );
 
       return createErrorResponse(
         id,
@@ -197,9 +192,9 @@ export class FetchTool {
         mcpToken: authContext.token || null,
       });
     } catch (error) {
-      logger.error("Failed to log fetch", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        `Failed to log fetch: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 

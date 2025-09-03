@@ -85,10 +85,9 @@ export class RAGService {
       const totalTime = Date.now() - startTime;
 
       // Log completion with timing
-      logger.info(`RAG query completed (${(totalTime / 1000).toFixed(1)}s)`, {
-        results: formattedResults.length,
-        query: query.substring(0, 50),
-      });
+      logger.info(
+        `RAG query completed (${(totalTime / 1000).toFixed(1)}s) - results: ${formattedResults.length}, query: ${query.substring(0, 50)}`
+      );
 
       return {
         success: true,
@@ -99,10 +98,9 @@ export class RAGService {
         processing_time_ms: totalTime,
       };
     } catch (error) {
-      logger.error("RAG query failed", {
-        query: trimmedQuery.substring(0, 50),
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      logger.error(
+        `RAG query failed for query "${trimmedQuery.substring(0, 50)}": ${error instanceof Error ? error.message : "Unknown error"}`
+      );
       return this.createErrorResponse(
         trimmedQuery,
         `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`,

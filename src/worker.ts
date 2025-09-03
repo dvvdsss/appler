@@ -180,13 +180,7 @@ export default {
       const errorUrl = new URL(request.url);
 
       logger.error(
-        "Worker error",
-        {
-          method: request.method,
-          pathname: errorUrl.pathname,
-          duration: Math.round(duration),
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `Worker error for ${request.method} ${errorUrl.pathname} (duration: ${Math.round(duration)}ms): ${error instanceof Error ? error.message : String(error)}`
       );
 
       return new Response(

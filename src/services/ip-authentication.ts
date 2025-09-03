@@ -71,10 +71,9 @@ export class IPAuthenticationService {
         planType: user.plan_type,
       };
     } catch (error) {
-      logger.error("IP authentication failed", {
-        clientIP,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        `IP authentication failed for ${clientIP}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   }
@@ -111,10 +110,9 @@ export class IPAuthenticationService {
         name: user.name || "IP User",
       };
     } catch (error) {
-      logger.error("IP authentication check failed", {
-        clientIP,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        `IP authentication check failed for ${clientIP}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   }
@@ -139,12 +137,9 @@ export class IPAuthenticationService {
         throw new Error("D1 IP update execution failed");
       }
     } catch (error) {
-      logger.error("❌ Failed to update IP last_used_at", {
-        ipAddress,
-        userId: `${userId.substring(0, 8)}...`,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      logger.error(
+        `❌ Failed to update IP last_used_at for ${ipAddress} (userId: ${userId.substring(0, 8)}...): ${error instanceof Error ? error.message : String(error)}`
+      );
       // 不重新抛出错误，避免影响主流程
     }
   }

@@ -63,12 +63,9 @@ export class DatabaseService {
         contentLength: (row.content as string)?.length || 0,
       }));
     } catch (error) {
-      logger.error("Database semantic search failed", {
-        operation: "semantic_search",
-        embeddingDimensions: queryEmbedding.length,
-        resultCount,
-        error: String(error),
-      });
+      logger.error(
+        `Database semantic search failed (operation: semantic_search, embeddingDimensions: ${queryEmbedding.length}, resultCount: ${resultCount}): ${String(error)}`
+      );
       throw new Error(`Vector search failed: ${error}`);
     }
   }
@@ -101,12 +98,9 @@ export class DatabaseService {
         contentLength: (row.content as string)?.length || 0,
       }));
     } catch (error) {
-      logger.error("Database keyword search failed", {
-        operation: "keyword_search",
-        query: query.substring(0, 50),
-        resultCount,
-        error: String(error),
-      });
+      logger.error(
+        `Database keyword search failed (operation: keyword_search, query: ${query.substring(0, 50)}, resultCount: ${resultCount}): ${String(error)}`
+      );
       throw new Error(`Keyword search failed: ${error}`);
     }
   }
@@ -181,12 +175,9 @@ export class DatabaseService {
         content: row.content as string,
       };
     } catch (error) {
-      logger.error("Database page lookup failed", {
-        operation: "page_lookup",
-        url: url.substring(0, 100),
-        normalizedUrl: this.normalizeUrl(url).substring(0, 100),
-        error: String(error),
-      });
+      logger.error(
+        `Database page lookup failed (operation: page_lookup, url: ${url.substring(0, 100)}, normalizedUrl: ${this.normalizeUrl(url).substring(0, 100)}): ${String(error)}`
+      );
       throw new Error(`Page lookup failed: ${error}`);
     }
   }
@@ -199,10 +190,9 @@ export class DatabaseService {
     try {
       await this.sql.end();
     } catch (error) {
-      logger.error("Database close failed", {
-        operation: "database_close",
-        error: String(error),
-      });
+      logger.error(
+        `Database close failed (operation: database_close): ${String(error)}`
+      );
       // Don't re-throw - closing errors are not critical
     }
   }

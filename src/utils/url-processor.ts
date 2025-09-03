@@ -16,11 +16,11 @@ export interface UrlValidationResult {
  */
 export function validateAndNormalizeUrl(url: string): UrlValidationResult {
   // Basic validation
-  if (!url || typeof url !== 'string' || url.trim().length === 0) {
+  if (!url || typeof url !== "string" || url.trim().length === 0) {
     return {
       isValid: false,
       normalizedUrl: url,
-      error: 'URL is required'
+      error: "URL is required",
     };
   }
 
@@ -38,7 +38,7 @@ export function validateAndNormalizeUrl(url: string): UrlValidationResult {
     return {
       isValid: false,
       normalizedUrl: url,
-      error: 'URL contains malformed patterns'
+      error: "URL contains malformed patterns",
     };
   }
 
@@ -46,9 +46,8 @@ export function validateAndNormalizeUrl(url: string): UrlValidationResult {
   try {
     const parsed = new URL(url);
     // Preserve case sensitivity for Apple Developer paths
-    const normalizedPath = parsed.pathname === "/"
-      ? "/"
-      : parsed.pathname.replace(/\/+$/, ""); // Remove trailing slashes except root
+    const normalizedPath =
+      parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, ""); // Remove trailing slashes except root
 
     // Remove query parameters and fragments to match pages table format
     const normalizedUrl = `${parsed.protocol.toLowerCase()}//${parsed.hostname.toLowerCase()}${normalizedPath}`;
@@ -61,8 +60,7 @@ export function validateAndNormalizeUrl(url: string): UrlValidationResult {
     return {
       isValid: false,
       normalizedUrl: url,
-      error: 'Invalid URL format'
+      error: "Invalid URL format",
     };
   }
 }
-

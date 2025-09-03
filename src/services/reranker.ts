@@ -163,9 +163,9 @@ export class RerankerService {
       const testResult = await this.rerank("test query", ["test document"], 1);
       return testResult.length > 0;
     } catch (error) {
-      logger.error("Reranker health check failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        `Reranker health check failed: ${error instanceof Error ? error.message : String(error)}`
+      );
       return false;
     }
   }

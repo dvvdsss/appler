@@ -171,11 +171,7 @@ export class MCPProtocolHandler {
       );
     } catch (error) {
       logger.error(
-        "Request processing failed",
-        {
-          operation: "mcp_request_processing",
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `Request processing failed (operation: mcp_request_processing): ${error instanceof Error ? error.message : String(error)}`
       );
 
       return new Response(
@@ -225,11 +221,7 @@ export class MCPProtocolHandler {
       }
     } catch (error) {
       logger.error(
-        "Method execution failed",
-        {
-          method,
-        },
-        error instanceof Error ? error : new Error(String(error))
+        `Method execution failed for ${method}: ${error instanceof Error ? error.message : String(error)}`
       );
 
       return createErrorResponse(
@@ -393,9 +385,7 @@ export class MCPProtocolHandler {
   private async handleNotification(
     notification: MCPNotification
   ): Promise<void> {
-    logger.business("mcp_notification_received", {
-      method: notification.method,
-    });
+    logger.info(`MCP notification received: ${notification.method}`);
     // Handle notifications as needed
   }
 
