@@ -35,7 +35,7 @@ export class SearchTool {
     httpRequest: Request
   ): Promise<MCPResponse> {
     const startTime = Date.now();
-    const { query, result_count = 5 } = args;
+    const { query, result_count = 4 } = args;
 
     // Validate query parameter
     if (!query || typeof query !== "string" || query.trim().length === 0) {

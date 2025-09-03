@@ -9,6 +9,7 @@ import { MCPProtocolHandler } from "./mcp/protocol-handler.js";
 import { createServices } from "./services/index.js";
 import type { WorkerEnv } from "./types/index.js";
 import { logger } from "./utils/logger.js";
+import { configureTelegram } from "./utils/telegram-notifier.js";
 
 /**
  * Cloudflare Worker entry point - Global optimal implementation
@@ -21,6 +22,9 @@ export default {
     _ctx: ExecutionContext
   ): Promise<Response> {
     const startTime = performance.now();
+
+    // Configure Telegram notification
+    configureTelegram(env.TELEGRAM_BOT_URL);
 
     try {
       const url = new URL(request.url);

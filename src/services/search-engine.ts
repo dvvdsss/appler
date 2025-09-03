@@ -15,6 +15,7 @@
  */
 
 import type { SearchOptions, SearchResult } from "../types/index.js";
+import { logger } from "../utils/logger.js";
 
 // Local types for search engine
 export interface AdditionalUrl {
@@ -67,7 +68,7 @@ export class SearchEngine {
     query: string,
     options: SearchOptions = {}
   ): Promise<SearchEngineResult> {
-    const { resultCount = 5 } = options;
+    const { resultCount = 4 } = options;
     return this.hybridSearchWithReranker(query, resultCount);
   }
 
@@ -100,24 +101,47 @@ export class SearchEngine {
     // Step 3: Process results (title-based merging)
     const processedResults = this.processResults(mergedCandidates);
 
-    // Step 4: AI reranking (no score dependencies)
-    const rankedDocuments = await this.reranker.rerank(
-      query,
-      processedResults.map((r) => r.content),
-      Math.min(resultCount, processedResults.length)
-    );
+    // Step 4: AI reranking with fallback mechanism
+    let finalResults: RankedSearchResult[];
 
-    // Step 5: Map back to final results
-    const finalResults: RankedSearchResult[] = rankedDocuments.map((doc) => {
-      const processed = processedResults[doc.originalIndex];
-      return {
-        id: processed.id,
-        url: processed.url,
-        title: processed.title,
-        content: processed.content,
-        original_index: doc.originalIndex,
-      };
-    });
+    try {
+      const rankedDocuments = await this.reranker.rerank(
+        query,
+        processedResults.map((r) => r.content),
+        Math.min(resultCount, processedResults.length)
+      );
+
+      // Step 5: Map back to final results
+      finalResults = rankedDocuments.map((doc) => {
+        const processed = processedResults[doc.originalIndex];
+        return {
+          id: processed.id,
+          url: processed.url,
+          title: processed.title,
+          content: processed.content,
+          original_index: doc.originalIndex,
+        };
+      });
+    } catch (error) {
+      logger.error(
+        `Reranking failed, falling back to original order (query_length: ${query.length}, candidates: ${processedResults.length}): ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      // Fallback: use original order, truncate to requested count
+      finalResults = processedResults
+        .slice(0, resultCount)
+        .map((processed, index) => ({
+          id: processed.id,
+          url: processed.url,
+          title: processed.title,
+          content: processed.content,
+          original_index: index,
+        }));
+
+      logger.warn(
+        `Reranking failed, using original order with ${finalResults.length} results`
+      );
+    }
 
     // Collect additional URLs
     const additionalUrls = this.collectAdditionalUrls(
@@ -129,44 +153,70 @@ export class SearchEngine {
   }
 
   /**
-   * Retrieve semantic search candidates
+   * Retrieve semantic search candidates with error handling
    */
   private async getSemanticCandidates(
     query: string,
     resultCount: number
   ): Promise<SearchResult[]> {
     const startTime = Date.now();
-    const queryEmbedding = await this.embedding.createEmbedding(query);
-    const results = await this.database.semanticSearch(queryEmbedding, {
-      resultCount,
-    });
 
-    const duration = Date.now() - startTime;
-    console.log(
-      `Semantic search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
-    );
+    try {
+      const queryEmbedding = await this.embedding.createEmbedding(query);
+      const results = await this.database.semanticSearch(queryEmbedding, {
+        resultCount,
+      });
 
-    return results;
+      const duration = Date.now() - startTime;
+      logger.info(
+        `Semantic search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
+      );
+
+      return results;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(
+        `Semantic search failed (duration: ${duration}ms, query_length: ${query.length}, result_count: ${resultCount}): ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      // Return empty results as fallback - let keyword search handle the query
+      logger.warn(
+        `Semantic search failed, falling back to keyword-only search`
+      );
+      return [];
+    }
   }
 
   /**
-   * Retrieve keyword search candidates
+   * Retrieve keyword search candidates with error handling
    */
   private async getKeywordCandidates(
     query: string,
     resultCount: number
   ): Promise<SearchResult[]> {
     const startTime = Date.now();
-    const results = await this.database.keywordSearch(query, {
-      resultCount,
-    });
 
-    const duration = Date.now() - startTime;
-    console.log(
-      `Keyword search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
-    );
+    try {
+      const results = await this.database.keywordSearch(query, {
+        resultCount,
+      });
 
-    return results;
+      const duration = Date.now() - startTime;
+      logger.info(
+        `Keyword search completed (${(duration / 1000).toFixed(1)}s): ${results.length} results`
+      );
+
+      return results;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(
+        `Keyword search failed (duration: ${duration}ms, query_length: ${query.length}, result_count: ${resultCount}): ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      // Return empty results as fallback
+      logger.warn(`Keyword search failed, returning empty results`);
+      return [];
+    }
   }
 
   /**

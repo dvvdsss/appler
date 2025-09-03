@@ -8,17 +8,12 @@ async function notifyTelegram(message: string): Promise<void> {
   if (!telegramUrl) return;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
     const response = await fetch(telegramUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: message }),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(5000),
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();

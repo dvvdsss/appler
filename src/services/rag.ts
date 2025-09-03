@@ -45,7 +45,7 @@ export class RAGService {
    */
   async query(request: RAGQuery): Promise<RAGResult> {
     const startTime = Date.now();
-    const { query, result_count = 5 } = request;
+    const { query, result_count = 4 } = request;
 
     // No started log - only completion with timing
 

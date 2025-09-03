@@ -21,6 +21,9 @@ export interface WorkerEnv {
   // SiliconFlow API
   SILICONFLOW_API_KEY: string;
   SILICONFLOW_TIMEOUT: string;
+
+  // Telegram Bot
+  TELEGRAM_BOT_URL: string;
 }
 
 // MCP Protocol Types

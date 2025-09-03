@@ -10,29 +10,38 @@ import { RateLimitService } from "./rate-limit.js";
 import { ToolCallLogger } from "./tool-call-logger.js";
 
 /**
- * Create all services from Worker environment
+ * Create all services from Worker environment with validation
  */
 export async function createServices(env: WorkerEnv): Promise<Services> {
-  // Convert Worker env to app config
-  const config = createAppConfig(env);
+  try {
+    // Convert Worker env to app config
+    const config = createAppConfig(env);
 
-  // Initialize services (RAG creates its own database and embedding instances)
-  const auth = new AuthMiddleware(env.DB);
-  const rag = new RAGService(config);
-  const rateLimit = new RateLimitService(env.DB);
-  const logger = new ToolCallLogger(env.DB);
+    // Initialize services (RAG creates its own database and embedding instances)
+    const auth = new AuthMiddleware(env.DB);
+    const rag = new RAGService(config);
+    const rateLimit = new RateLimitService(env.DB);
+    const logger = new ToolCallLogger(env.DB);
 
-  // Initialize async services
-  await rag.initialize();
+    // Initialize async services
+    await rag.initialize();
 
-  return {
-    rag,
-    auth,
-    database: rag.database,
-    embedding: rag.embedding,
-    rateLimit,
-    logger,
-  };
+    return {
+      rag,
+      auth,
+      database: rag.database,
+      embedding: rag.embedding,
+      rateLimit,
+      logger,
+    };
+  } catch (error) {
+    // Import logger here to avoid circular dependency
+    const { logger } = await import("../utils/logger.js");
+    logger.error(
+      `Service initialization failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    throw error;
+  }
 }
 
 /**

@@ -133,7 +133,7 @@ export class RerankerService {
         );
 
         const duration = Date.now() - startTime;
-        console.log(
+        logger.info(
           `Rerank completed (${(duration / 1000).toFixed(1)}s): ${rankedDocuments.length} results`
         );
 

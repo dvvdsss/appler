@@ -185,7 +185,6 @@ export class DatabaseService {
   /**
    * Close database connection
    */
-
   async close(): Promise<void> {
     try {
       await this.sql.end();

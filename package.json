@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy:cf": "wrangler deploy",
     "build": "tsc",
     "fmt": "biome check --write"
   },
