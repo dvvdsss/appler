@@ -43,11 +43,14 @@ export function formatRAGResponse(
     response += `Additional Related Documentation:\n`;
 
     ragResult.additionalUrls.forEach((item) => {
-      response += `${item.url}`;
-      if (item.title) {
-        response += ` - ${item.title}`;
+      response += `${item.url}\n`;
+
+      // Show title for YouTube URLs
+      if (item.title && item.url.startsWith("https://www.youtube.com")) {
+        response += `  └─ ${item.title}\n`;
       }
-      response += ` (${item.characterCount} chars)\n\n`;
+
+      response += `  └─ ${item.characterCount} characters\n\n`;
     });
   }
 

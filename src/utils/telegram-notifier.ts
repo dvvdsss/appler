@@ -1,3 +1,10 @@
+interface TelegramApiResponse {
+  ok: boolean;
+  result?: unknown;
+  error_code?: number;
+  description?: string;
+}
+
 let telegramUrl: string | undefined;
 
 function configureTelegram(url?: string): void {
@@ -22,7 +29,7 @@ async function notifyTelegram(message: string): Promise<void> {
       return;
     }
 
-    const result = (await response.json()) as any;
+    const result = (await response.json()) as TelegramApiResponse;
     if (!result.ok) {
       console.error(`[Telegram] API error:`, result);
       return;
