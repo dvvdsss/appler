@@ -14,27 +14,25 @@
  * - AI reranking with Qwen3-Reranker-8B
  */
 
-import type { SearchOptions, SearchResult } from "../types/index.js";
+import type {
+  AdditionalUrl,
+  SearchOptions,
+  SearchResult,
+} from "../types/index.js";
 import { logger } from "../utils/logger.js";
 
-// Local types for search engine
-export interface AdditionalUrl {
-  readonly url: string;
-  readonly title: string | null;
-}
-
 export interface ParsedChunk {
-  readonly content: string;
-  readonly title: string | null;
+  content: string;
+  title: string | null;
 }
 
 export interface ProcessedResult {
-  readonly id: string;
-  readonly url: string;
-  readonly title: string | null;
-  readonly content: string;
-  readonly contentLength: number;
-  readonly mergedFrom?: string[];
+  id: string;
+  url: string;
+  title: string | null;
+  content: string;
+  contentLength: number;
+  mergedFrom?: string[];
 }
 
 import type { DatabaseService } from "./database.js";
@@ -42,16 +40,16 @@ import type { EmbeddingService } from "./embedding.js";
 import type { RerankerService } from "./reranker.js";
 
 export interface RankedSearchResult {
-  readonly id: string;
-  readonly url: string;
-  readonly title: string | null;
-  readonly content: string;
-  readonly original_index: number;
+  id: string;
+  url: string;
+  title: string | null;
+  content: string;
+  original_index: number;
 }
 
 export interface SearchEngineResult {
-  readonly results: readonly RankedSearchResult[];
-  readonly additionalUrls: readonly AdditionalUrl[];
+  results: RankedSearchResult[];
+  additionalUrls: AdditionalUrl[];
 }
 
 export class SearchEngine {
@@ -251,18 +249,19 @@ export class SearchEngine {
     finalResults: RankedSearchResult[]
   ): AdditionalUrl[] {
     const finalUrls = new Set(finalResults.map((r) => r.url));
-    const additionalUrlsMap = new Map<string, number>();
 
-    processedResults
+    return processedResults
       .filter((r) => !finalUrls.has(r.url))
-      .forEach((r) => {
-        if (!additionalUrlsMap.has(r.url)) {
-          additionalUrlsMap.set(r.url, r.contentLength);
+      .reduce((urls, r) => {
+        if (!urls.some((u) => u.url === r.url)) {
+          urls.push({
+            url: r.url,
+            title: r.title,
+            characterCount: r.contentLength,
+          });
         }
-      });
-
-    return Array.from(additionalUrlsMap.entries())
-      .map(([url, contentLength]) => ({ url, title: null, contentLength }))
+        return urls;
+      }, [] as AdditionalUrl[])
       .slice(0, 10);
   }
 

@@ -8,6 +8,11 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 head_sampling_rate = 1
 
+# Smart Placement Configuration
+# Automatically places Worker closer to your database for better performance
+[placement]
+mode = "smart"
+
 # Shared configuration for all environments
 # Replace with your actual values
 [vars]

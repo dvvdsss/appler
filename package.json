@@ -4,9 +4,10 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy:cf": "wrangler deploy --env production",
+    "deploy:dev": "wrangler deploy --env development",
+    "deploy:prod": "wrangler deploy --env production",
     "build": "tsc",
+    "type-check": "tsc --noEmit",
     "fmt": "biome check --write"
   },
   "keywords": [

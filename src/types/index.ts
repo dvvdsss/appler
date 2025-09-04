@@ -75,11 +75,17 @@ export interface RAGQuery {
   result_count?: number;
 }
 
+export interface AdditionalUrl {
+  url: string;
+  title: string | null;
+  characterCount: number;
+}
+
 export interface RAGResult {
   success: boolean;
   query: string;
   results: SearchResult[];
-  additionalUrls: string[];
+  additionalUrls: AdditionalUrl[];
   count: number;
   processing_time_ms: number;
 }

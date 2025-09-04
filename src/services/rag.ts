@@ -93,7 +93,7 @@ export class RAGService {
         success: true,
         query: trimmedQuery,
         results: formattedResults,
-        additionalUrls: searchResult.additionalUrls.map((url) => url.url),
+        additionalUrls: searchResult.additionalUrls,
         count: formattedResults.length,
         processing_time_ms: totalTime,
       };
