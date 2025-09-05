@@ -5,7 +5,6 @@
 
 import type { AuthContext } from "../types/index.js";
 import { logger } from "../utils/logger.js";
-import { IPAuthenticationService } from "./ip-authentication.js";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -26,11 +25,9 @@ interface PlanLimits extends Record<string, unknown> {
 
 export class RateLimitService {
   private d1: D1Database;
-  private ipAuthService: IPAuthenticationService;
 
   constructor(d1: D1Database) {
     this.d1 = d1;
-    this.ipAuthService = new IPAuthenticationService(d1);
   }
 
   /**
@@ -41,65 +38,7 @@ export class RateLimitService {
     authContext: AuthContext
   ): Promise<RateLimitResult> {
     try {
-      // Check for IP-based authentication first
-      const ipAuthResult = await this.ipAuthService.authenticateIP(clientIP);
-      if (ipAuthResult) {
-        logger.info(
-          `IP-based authentication successful for ${clientIP} (userId: ${ipAuthResult.userId}, planType: ${ipAuthResult.planType})`
-        );
-
-        // Create new authContext with IP-based user info
-        const ipAuthContext = {
-          isAuthenticated: true,
-          userData: {
-            userId: ipAuthResult.userId,
-            email: ipAuthResult.email,
-            plan: "unknown", // IP auth doesn't provide plan info
-          },
-        };
-
-        // Continue with normal rate limiting using IP-authenticated user
-        const { identifier, planType } = await this.getUserInfo(
-          clientIP,
-          ipAuthContext
-        );
-        const limits = this.getPlanLimits(planType);
-
-        const [weeklyUsage, minuteUsage] = await Promise.all([
-          this.getWeeklyUsage(identifier),
-          this.getMinuteUsage(identifier),
-        ]);
-
-        const weeklyAllowed =
-          limits.weeklyQueries === -1 || weeklyUsage < limits.weeklyQueries;
-        const minuteAllowed =
-          limits.requestsPerMinute === -1 ||
-          minuteUsage < limits.requestsPerMinute;
-        const allowed = weeklyAllowed && minuteAllowed;
-
-        const weeklyRemaining =
-          limits.weeklyQueries === -1
-            ? -1
-            : Math.max(0, limits.weeklyQueries - weeklyUsage);
-        const minuteRemaining =
-          limits.requestsPerMinute === -1
-            ? -1
-            : Math.max(0, limits.requestsPerMinute - minuteUsage);
-
-        return {
-          allowed,
-          limit: limits.weeklyQueries,
-          remaining: weeklyRemaining,
-          resetAt: this.getWeeklyResetTime(),
-          planType,
-          limitType: "weekly" as const,
-          minuteLimit: limits.requestsPerMinute,
-          minuteRemaining,
-          minuteResetAt: this.getMinuteResetTime(),
-        };
-      }
-
-      // Determine user identifier and plan type
+      // Get user identifier and plan type (handles all auth types)
       const { identifier, planType } = await this.getUserInfo(
         clientIP,
         authContext
@@ -108,7 +47,7 @@ export class RateLimitService {
       // Get plan limits
       const limits = this.getPlanLimits(planType);
 
-      // Check weekly and minute limits
+      // Check weekly and minute limits in parallel
       const [weeklyUsage, minuteUsage] = await Promise.all([
         this.getWeeklyUsage(identifier),
         this.getMinuteUsage(identifier),
@@ -122,23 +61,15 @@ export class RateLimitService {
         minuteUsage < limits.requestsPerMinute;
       const allowed = weeklyAllowed && minuteAllowed;
 
-      // Calculate remaining and reset time
+      // Calculate remaining quotas
       const weeklyRemaining =
         limits.weeklyQueries === -1
           ? -1
           : Math.max(0, limits.weeklyQueries - weeklyUsage);
-
       const minuteRemaining =
         limits.requestsPerMinute === -1
           ? -1
           : Math.max(0, limits.requestsPerMinute - minuteUsage);
-
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + (7 - nextWeek.getDay()));
-      nextWeek.setHours(0, 0, 0, 0);
-
-      const nextMinute = new Date();
-      nextMinute.setMinutes(nextMinute.getMinutes() + 1, 0, 0);
 
       // Determine which limit was hit
       const limitType = !minuteAllowed ? "minute" : "weekly";
@@ -147,12 +78,12 @@ export class RateLimitService {
         allowed,
         limit: limits.weeklyQueries,
         remaining: weeklyRemaining,
-        resetAt: nextWeek.toISOString(),
+        resetAt: this.getWeeklyResetTime(),
         planType,
         limitType,
         minuteLimit: limits.requestsPerMinute,
         minuteRemaining,
-        minuteResetAt: nextMinute.toISOString(),
+        minuteResetAt: this.getMinuteResetTime(),
       };
 
       if (!allowed) {
@@ -183,24 +114,26 @@ export class RateLimitService {
   }
 
   /**
-   * Get user identifier and plan type
+   * Get user identifier and plan type - handles all authentication scenarios
    */
   private async getUserInfo(
     clientIP: string,
     authContext: AuthContext
   ): Promise<{ identifier: string; planType: string }> {
+    // Handle authenticated users (token or IP-based)
     if (authContext.isAuthenticated && authContext.userId) {
       const planType = await this.getUserPlanType(authContext.userId);
       return {
         identifier: authContext.userId,
         planType,
       };
-    } else {
-      return {
-        identifier: `anon_${clientIP}`,
-        planType: "hobby",
-      };
     }
+
+    // Fallback: anonymous user
+    return {
+      identifier: `anon_${clientIP}`,
+      planType: "hobby",
+    };
   }
 
   /**
@@ -230,42 +163,30 @@ export class RateLimitService {
 
   /**
    * Get weekly usage count from both search_logs and fetch_logs
+   * Excludes rate-limited requests (status_code = 429) to prevent vicious cycles
    */
   private async getWeeklyUsage(identifier: string): Promise<number> {
     try {
-      // Calculate start of current week (Sunday)
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-      const weekStart = startOfWeek.toISOString();
+      const weekStart = this.getWeekStartTime().toISOString();
 
-      // Get count from search_logs
-      const searchResult = await this.d1
+      // Single optimized query to get combined count, only counting successful requests
+      const result = await this.d1
         .prepare(
-          `SELECT COUNT(*) as count
-         FROM search_logs
-         WHERE user_id = ?
-         AND created_at >= datetime(?)`
+          `SELECT 
+            (SELECT COUNT(*) FROM search_logs WHERE user_id = ? AND created_at >= ? AND status_code = 200) +
+            (SELECT COUNT(*) FROM fetch_logs WHERE user_id = ? AND created_at >= ? AND status_code = 200) as total_count`
         )
-        .bind(identifier, weekStart)
-        .all();
+        .bind(identifier, weekStart, identifier, weekStart)
+        .first();
 
-      // Get count from fetch_logs
-      const fetchResult = await this.d1
-        .prepare(
-          `SELECT COUNT(*) as count
-         FROM fetch_logs
-         WHERE user_id = ?
-         AND created_at >= datetime(?)`
-        )
-        .bind(identifier, weekStart)
-        .all();
+      const count = (result?.total_count as number) || 0;
 
-      const searchCount = (searchResult.results?.[0]?.count as number) || 0;
-      const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
+      // Debug logging to verify the fix is working
+      logger.info(
+        `DEBUG: Weekly usage for ${identifier}: ${count} (only status_code=200, since: ${weekStart})`
+      );
 
-      return searchCount + fetchCount;
+      return count;
     } catch (error) {
       logger.error(
         `Failed to get weekly usage for ${identifier}: ${error instanceof Error ? error.message : String(error)}`
@@ -276,38 +197,30 @@ export class RateLimitService {
 
   /**
    * Get minute usage count from both search_logs and fetch_logs
+   * Excludes rate-limited requests (status_code = 429) to prevent vicious cycles
    */
   private async getMinuteUsage(identifier: string): Promise<number> {
     try {
-      // Calculate one minute ago
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
 
-      // Get count from search_logs
-      const searchResult = await this.d1
+      // Single optimized query to get combined count, only counting successful requests
+      const result = await this.d1
         .prepare(
-          `SELECT COUNT(*) as count
-         FROM search_logs
-         WHERE user_id = ?
-         AND created_at > datetime(?)`
+          `SELECT 
+            (SELECT COUNT(*) FROM search_logs WHERE user_id = ? AND created_at > ? AND status_code = 200) +
+            (SELECT COUNT(*) FROM fetch_logs WHERE user_id = ? AND created_at > ? AND status_code = 200) as total_count`
         )
-        .bind(identifier, oneMinuteAgo)
-        .all();
+        .bind(identifier, oneMinuteAgo, identifier, oneMinuteAgo)
+        .first();
 
-      // Get count from fetch_logs
-      const fetchResult = await this.d1
-        .prepare(
-          `SELECT COUNT(*) as count
-         FROM fetch_logs
-         WHERE user_id = ?
-         AND created_at > datetime(?)`
-        )
-        .bind(identifier, oneMinuteAgo)
-        .all();
+      const count = (result?.total_count as number) || 0;
 
-      const searchCount = (searchResult.results?.[0]?.count as number) || 0;
-      const fetchCount = (fetchResult.results?.[0]?.count as number) || 0;
+      // Debug logging to verify the fix is working
+      logger.info(
+        `DEBUG: Minute usage for ${identifier}: ${count} (only status_code=200, window: ${oneMinuteAgo} to now)`
+      );
 
-      return searchCount + fetchCount;
+      return count;
     } catch (error) {
       logger.error(
         `Failed to get minute usage for ${identifier}: ${error instanceof Error ? error.message : String(error)}`
@@ -317,7 +230,18 @@ export class RateLimitService {
   }
 
   /**
-   * Get weekly reset time
+   * Get start of current week (Sunday 00:00:00)
+   */
+  private getWeekStartTime(): Date {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    return startOfWeek;
+  }
+
+  /**
+   * Get weekly reset time (next Sunday 00:00:00)
    */
   private getWeeklyResetTime(): string {
     const now = new Date();
@@ -328,7 +252,7 @@ export class RateLimitService {
   }
 
   /**
-   * Get minute reset time
+   * Get minute reset time (next minute 00 seconds)
    */
   private getMinuteResetTime(): string {
     const now = new Date();

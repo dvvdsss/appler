@@ -11,6 +11,40 @@ export interface UrlValidationResult {
 }
 
 /**
+ * Convert youtu.be short URLs to youtube.com format for database compatibility
+ */
+export function convertYouTubeShortUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+
+    // Check if it's a youtu.be URL
+    if (parsed.hostname.toLowerCase() === "youtu.be") {
+      // Extract video ID from pathname (remove leading slash)
+      const videoId = parsed.pathname.slice(1);
+
+      if (videoId) {
+        // Convert to youtube.com format
+        let convertedUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        // Preserve any additional query parameters
+        if (parsed.search) {
+          // Remove the leading '?' and append with '&'
+          convertedUrl += `&${parsed.search.slice(1)}`;
+        }
+
+        return convertedUrl;
+      }
+    }
+
+    // Return original URL if not a youtu.be URL or invalid format
+    return url;
+  } catch {
+    // Return original URL if parsing fails
+    return url;
+  }
+}
+
+/**
  * Validates and normalizes a single URL using elegant malformed URL detection
  * Integrates the sophisticated filtering logic for comprehensive validation
  */
@@ -50,8 +84,7 @@ export function validateAndNormalizeUrl(url: string): UrlValidationResult {
       parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, ""); // Remove trailing slashes except root
 
     // Special handling for YouTube URLs - preserve query parameters
-    const isYouTubeUrl = parsed.hostname.toLowerCase().includes('youtube.com') ||
-                        parsed.hostname.toLowerCase().includes('youtu.be');
+    const isYouTubeUrl = parsed.hostname.toLowerCase().includes("youtube.com");
 
     let normalizedUrl: string;
     if (isYouTubeUrl) {

@@ -10,7 +10,10 @@ import type {
   Services,
 } from "../../types/index.js";
 import { logger } from "../../utils/logger.js";
-import { validateAndNormalizeUrl } from "../../utils/url-processor.js";
+import {
+  convertYouTubeShortUrl,
+  validateAndNormalizeUrl,
+} from "../../utils/url-processor.js";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -79,8 +82,11 @@ export class FetchTool {
     }
 
     try {
+      // Pre-process URL: convert youtu.be to youtube.com format for database compatibility
+      const preprocessedUrl = convertYouTubeShortUrl(url);
+
       // Validate and normalize URL
-      const urlResult = validateAndNormalizeUrl(url);
+      const urlResult = validateAndNormalizeUrl(preprocessedUrl);
       if (!urlResult.isValid) {
         logger.warn(`Invalid URL provided: ${url} - ${urlResult.error}`);
 
