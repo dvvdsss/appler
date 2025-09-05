@@ -88,7 +88,7 @@ export class RerankerService {
       "User-Agent": "Apple-RAG-MCP/2.0.0",
     };
 
-    // Simple retry mechanism - max 2 retries, no delay
+    // Retry mechanism with exponential backoff
     let lastError: Error | null = null;
     const maxRetries = 2;
 
@@ -112,8 +112,10 @@ export class RerankerService {
             throw error;
           }
 
-          // Store error and continue to next attempt
+          // Store error and add delay before retry
           lastError = error;
+          const delay = Math.min(1000 * 2 ** attempt, 3000); // Exponential backoff, max 3s
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -146,7 +148,9 @@ export class RerankerService {
           throw lastError;
         }
 
-        // Silent retry - errors will be logged if all attempts fail
+        // Add delay before retry
+        const delay = Math.min(1000 * 2 ** attempt, 3000); // Exponential backoff, max 3s
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 

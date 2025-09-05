@@ -11,7 +11,8 @@ import { APP_CONSTANTS } from "../protocol-handler.js";
  */
 export function formatRAGResponse(
   ragResult: RAGResult,
-  isAuthenticated: boolean
+  isAuthenticated: boolean,
+  wasAdjusted: boolean = false
 ): string {
   if (
     !ragResult ||
@@ -57,6 +58,11 @@ export function formatRAGResponse(
   // Footer message for anonymous users
   if (!isAuthenticated) {
     response += `\n\n${APP_CONSTANTS.ANONYMOUS_ACCESS_MESSAGE}`;
+  }
+
+  // Parameter range reminder for AI agents (only when parameter was adjusted)
+  if (wasAdjusted) {
+    response += `\n\nNote: The result_count parameter accepts values between 1 and 10. Values outside this range are automatically adjusted to the nearest valid limit.`;
   }
 
   return response;

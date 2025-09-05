@@ -35,7 +35,7 @@ export class SearchTool {
     httpRequest: Request
   ): Promise<MCPResponse> {
     const startTime = Date.now();
-    const { query, result_count = 4 } = args;
+    let { query, result_count = 4 } = args;
 
     // Validate query parameter
     if (!query || typeof query !== "string" || query.trim().length === 0) {
@@ -46,20 +46,23 @@ export class SearchTool {
       );
     }
 
-    // Validate result_count parameter if provided
-    if (result_count !== undefined) {
-      if (
-        typeof result_count !== "number" ||
-        result_count < 1 ||
-        result_count > 50
-      ) {
-        return createErrorResponse(
-          id,
-          MCP_ERROR_CODES.INVALID_PARAMS,
-          "result_count must be a number between 1 and 50"
-        );
-      }
+    // Validate and clamp result_count parameter
+    let adjustedResultCount = result_count;
+    let wasAdjusted = false;
+
+    if (typeof result_count !== "number") {
+      adjustedResultCount = 4; // Default value
+      wasAdjusted = true;
+    } else if (result_count < 1) {
+      adjustedResultCount = 1;
+      wasAdjusted = true;
+    } else if (result_count > 10) {
+      adjustedResultCount = 10;
+      wasAdjusted = true;
     }
+
+    // Update result_count for processing
+    result_count = adjustedResultCount;
 
     // Check if request wants SSE
     const isSSE = httpRequest.headers
@@ -73,7 +76,8 @@ export class SearchTool {
         query,
         result_count,
         authContext,
-        httpRequest
+        httpRequest,
+        wasAdjusted
       );
     }
 
@@ -123,7 +127,8 @@ export class SearchTool {
 
       const formattedResponse = formatRAGResponse(
         ragResult,
-        authContext.isAuthenticated
+        authContext.isAuthenticated,
+        wasAdjusted
       );
 
       return createSuccessResponse(id, formattedResponse);
@@ -148,7 +153,8 @@ export class SearchTool {
     query: string,
     resultCount: number,
     authContext: AuthContext,
-    httpRequest: Request
+    httpRequest: Request,
+    wasAdjusted: boolean
   ): Promise<MCPResponse> {
     const startTime = Date.now();
     const ipAddress = this.extractClientIP(httpRequest);
@@ -208,7 +214,8 @@ export class SearchTool {
       // Format and return response
       const formattedResponse = formatRAGResponse(
         ragResult,
-        authContext.isAuthenticated
+        authContext.isAuthenticated,
+        wasAdjusted
       );
 
       return createSuccessResponse(id, formattedResponse);

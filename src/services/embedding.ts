@@ -26,7 +26,7 @@ export class EmbeddingService implements IEmbeddingService {
   }
 
   /**
-   * Create embedding for text using SiliconFlow API
+   * Create embedding for text using SiliconFlow API with retry mechanism
    */
   async createEmbedding(text: string): Promise<number[]> {
     const startTime = Date.now();
@@ -36,17 +36,33 @@ export class EmbeddingService implements IEmbeddingService {
     }
 
     const trimmedText = text.trim();
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    try {
-      const response = await this.callSiliconFlowAPI(trimmedText);
-      const embedding = this.extractEmbedding(response);
-      return this.normalizeL2(embedding);
-    } catch (error) {
-      logger.error(
-        `Embedding generation failed for text of length ${trimmedText.length} (duration: ${Date.now() - startTime}ms): ${String(error)}`
-      );
-      throw error;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await this.callSiliconFlowAPI(trimmedText);
+        const embedding = this.extractEmbedding(response);
+        return this.normalizeL2(embedding);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Check if this is a retryable error (503, 504, timeout)
+        if (this.isRetryableError(lastError) && attempt < maxRetries - 1) {
+          const delay = Math.min(1000 * 2 ** attempt, 5000); // Exponential backoff, max 5s
+          await this.sleep(delay);
+          continue;
+        }
+
+        // If not retryable or last attempt, throw error
+        break;
+      }
     }
+
+    logger.error(
+      `Embedding generation failed for text of length ${trimmedText.length} (duration: ${Date.now() - startTime}ms): ${String(lastError)}`
+    );
+    throw lastError;
   }
 
   /**
@@ -131,5 +147,26 @@ export class EmbeddingService implements IEmbeddingService {
     }
 
     return embedding.map((val) => val / norm);
+  }
+
+  /**
+   * Check if error is retryable (503, 504, timeout)
+   */
+  private isRetryableError(error: Error): boolean {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("503") ||
+      message.includes("504") ||
+      message.includes("timeout") ||
+      message.includes("overloaded") ||
+      error.name === "AbortError"
+    );
+  }
+
+  /**
+   * Sleep utility for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

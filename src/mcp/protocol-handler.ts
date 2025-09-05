@@ -295,9 +295,9 @@ export class MCPProtocolHandler {
             },
             result_count: {
               type: "number",
-              description: "Number of results to return (1-50)",
+              description: "Number of results to return (1-10)",
               minimum: 1,
-              maximum: 50,
+              maximum: 10,
               default: 5,
             },
           },
