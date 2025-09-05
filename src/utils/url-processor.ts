@@ -49,8 +49,18 @@ export function validateAndNormalizeUrl(url: string): UrlValidationResult {
     const normalizedPath =
       parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, ""); // Remove trailing slashes except root
 
-    // Remove query parameters and fragments to match pages table format
-    const normalizedUrl = `${parsed.protocol.toLowerCase()}//${parsed.hostname.toLowerCase()}${normalizedPath}`;
+    // Special handling for YouTube URLs - preserve query parameters
+    const isYouTubeUrl = parsed.hostname.toLowerCase().includes('youtube.com') ||
+                        parsed.hostname.toLowerCase().includes('youtu.be');
+
+    let normalizedUrl: string;
+    if (isYouTubeUrl) {
+      // For YouTube URLs, preserve query parameters (especially ?v= parameter)
+      normalizedUrl = `${parsed.protocol.toLowerCase()}//${parsed.hostname.toLowerCase()}${normalizedPath}${parsed.search}`;
+    } else {
+      // For other URLs, remove query parameters and fragments to match pages table format
+      normalizedUrl = `${parsed.protocol.toLowerCase()}//${parsed.hostname.toLowerCase()}${normalizedPath}`;
+    }
 
     return {
       isValid: true,
