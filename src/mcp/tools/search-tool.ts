@@ -10,6 +10,7 @@ import type {
   Services,
 } from "../../types/index.js";
 import { logger } from "../../utils/logger.js";
+import { cleanQuerySafely } from "../../utils/query-cleaner.js";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -44,6 +45,15 @@ export class SearchTool {
         MCP_ERROR_CODES.INVALID_PARAMS,
         APP_CONSTANTS.MISSING_SEARCH_ERROR
       );
+    }
+
+    // Clean the query to remove temporal information
+    const originalQuery = query;
+    query = cleanQuerySafely(query);
+
+    // Log query cleaning if significant changes were made
+    if (query !== originalQuery) {
+      logger.info(`Query cleaned for search: "${originalQuery}" -> "${query}"`);
     }
 
     // Validate and clamp result_count parameter
@@ -158,6 +168,17 @@ export class SearchTool {
   ): Promise<MCPResponse> {
     const startTime = Date.now();
     const ipAddress = this.extractClientIP(httpRequest);
+
+    // Clean the query to remove temporal information for SSE as well
+    const originalQuery = query;
+    query = cleanQuerySafely(query);
+
+    // Log query cleaning if significant changes were made
+    if (query !== originalQuery) {
+      logger.info(
+        `Query cleaned for SSE search: "${originalQuery}" -> "${query}"`
+      );
+    }
 
     try {
       // Rate limiting check for SSE

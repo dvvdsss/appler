@@ -33,7 +33,7 @@ export const APP_CONSTANTS = {
     SEARCH: {
       NAME: "search",
       DESCRIPTION:
-        "Search Apple's official developer documentation and video content using advanced RAG technology. Returns relevant content from Apple's technical documentation, frameworks, APIs, design guidelines, and educational resources including WWDC sessions.",
+        "Search Apple's official developer documentation and video content using advanced RAG technology. Returns relevant content from Apple's technical documentation, frameworks, APIs, design guidelines, and educational resources.",
     },
     FETCH: {
       NAME: "fetch",
@@ -289,7 +289,7 @@ export class MCPProtocolHandler {
             query: {
               type: "string",
               description:
-                "Search query for Apple's official developer documentation and video content including WWDC sessions",
+                "Search query for Apple's official developer documentation and video content. Focus on technical concepts, APIs, frameworks, features, and version numbers rather than temporal information.",
               minLength: 1,
               maxLength: 10000,
             },

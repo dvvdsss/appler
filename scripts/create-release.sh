@@ -64,7 +64,7 @@ fi
 # 生成Release Notes
 RELEASE_NOTES="## Apple RAG MCP $TAG
 
-🍎 **Inject Apple Expertise into AI Agents via MCP**
+ **Inject Apple Expertise into AI Agents via MCP**
 
 ### Recent Changes
 $CHANGES
@@ -94,7 +94,7 @@ $CHANGES
 - **Dashboard:** Manage usage and tokens at [apple-rag.com/overview](https://apple-rag.com/overview)
 
 ### 🌟 Features
-- 🍎 Complete Apple developer documentation access
+-  Complete Apple developer documentation access
 - ⚡ Semantic Search for RAG capabilities
 - 🔍 Keyword Search for precise technical term matching
 - 🎯 Hybrid Search combining semantic and keyword search

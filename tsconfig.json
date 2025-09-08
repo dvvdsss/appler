@@ -27,6 +27,6 @@
 
     "types": ["node", "@cloudflare/workers-types"]
   },
-  "include": ["server.ts", "src/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "logs", "**/*.test.ts"]
 }

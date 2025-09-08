@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**🍎 Inject Apple Expertise into AI Agents via MCP**
+** Inject Apple Expertise into AI Agents via MCP**
 
 *Transform your AI agents into Apple development experts with instant access to official Swift docs, design guidelines, and platform knowledge.*
 
