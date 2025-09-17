@@ -39,6 +39,16 @@ const TEMPORAL_PATTERNS = [
 ];
 
 /**
+ * Meta-descriptive words that reduce Apple docs search precision
+ */
+const META_DESCRIPTIVE_PATTERNS = [
+  /\b(documentation|docs?|reference|manual|guide|tutorial)\b/gi,
+  /\b(implementation|implement|implementing|how[\s-]?to)\b/gi,
+  /\b(example|examples|sample)\b(?!\s+(code|project|app))/gi,
+  /\b(method|function|property|parameter|argument|type|class|struct|enum)\b(?!\s+(name|signature|declaration|definition|type|value))/gi,
+];
+
+/**
  * Additional patterns for cleaning up extra spaces and punctuation
  */
 const CLEANUP_PATTERNS = [
@@ -54,9 +64,7 @@ const CLEANUP_PATTERNS = [
 ];
 
 /**
- * Clean a search query by removing temporal information
- * @param query - The original search query
- * @returns The cleaned query with temporal information removed
+ * Clean a search query by removing temporal information and meta-descriptive words
  */
 export function cleanQuery(query: string): string {
   if (!query || typeof query !== "string") {
@@ -66,33 +74,35 @@ export function cleanQuery(query: string): string {
   let cleanedQuery = query;
   const originalQuery = query;
 
-  // Apply temporal pattern removal
+  // Remove temporal patterns
   for (const pattern of TEMPORAL_PATTERNS) {
     cleanedQuery = cleanedQuery.replace(pattern, " ");
   }
 
-  // Clean up extra spaces and punctuation
-  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[0], " "); // Multiple spaces -> single space
-  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[1], ""); // Trim
-  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[2], ","); // Clean up comma spacing
-  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[3], ","); // Clean up comma spacing
+  // Remove meta-descriptive words
+  for (const pattern of META_DESCRIPTIVE_PATTERNS) {
+    cleanedQuery = cleanedQuery.replace(pattern, " ");
+  }
 
-  // Remove empty parentheses or brackets that might be left behind
+  // Clean up spaces and punctuation
+  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[0], " ");
+  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[1], "");
+  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[2], ",");
+  cleanedQuery = cleanedQuery.replace(CLEANUP_PATTERNS[3], ",");
+
+  // Remove empty brackets
   cleanedQuery = cleanedQuery.replace(/\(\s*\)/g, "");
   cleanedQuery = cleanedQuery.replace(/\[\s*\]/g, "");
   cleanedQuery = cleanedQuery.replace(/\{\s*\}/g, "");
 
-  // Final cleanup
   cleanedQuery = cleanedQuery.trim();
 
-  // Log the cleaning operation if significant changes were made
+  // Log significant changes
   if (
     cleanedQuery !== originalQuery &&
     cleanedQuery.length < originalQuery.length * 0.8
   ) {
-    logger.info(
-      `Query cleaned: "${originalQuery}" -> "${cleanedQuery}" (removed ${originalQuery.length - cleanedQuery.length} characters)`
-    );
+    logger.info(`Query cleaned: "${originalQuery}" -> "${cleanedQuery}"`);
   }
 
   return cleanedQuery;
@@ -128,8 +138,6 @@ export function isCleanedQueryValid(
 
 /**
  * Clean query with fallback to original if cleaning removes too much content
- * @param query - The original search query
- * @returns The cleaned query, or original query if cleaning was too aggressive
  */
 export function cleanQuerySafely(query: string): string {
   const cleaned = cleanQuery(query);
@@ -138,9 +146,6 @@ export function cleanQuerySafely(query: string): string {
     return cleaned;
   }
 
-  // If cleaning was too aggressive, log and return original
-  logger.info(
-    `Query cleaning was too aggressive for "${query}", using original query`
-  );
+  logger.info(`Query cleaning too aggressive for "${query}", using original`);
   return query;
 }

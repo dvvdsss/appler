@@ -42,6 +42,7 @@ export function formatRAGResponse(
   if (ragResult.additionalUrls && ragResult.additionalUrls.length > 0) {
     response += `\n\n${"─".repeat(60)}\n\n`;
     response += `Additional Related Documentation:\n`;
+    response += `The following ${ragResult.additionalUrls.length} URLs contain supplementary information that may provide additional context or related topics. This includes both Apple developer documentation and video content from WWDC sessions and tutorials. Use the \`fetch\` tool to retrieve their complete, cleaned content:\n\n`;
 
     ragResult.additionalUrls.forEach((item) => {
       response += `${item.url}\n`;
