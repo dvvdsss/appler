@@ -113,5 +113,52 @@ git push origin "$TAG"
 echo "Creating GitHub Release..."
 gh release create "$TAG" --title "Apple RAG MCP $TAG" --notes "$RELEASE_NOTES"
 
+echo "📝 Updating version files..."
+
+# Update package.json version
+if [ -f "package.json" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+    else
+        # Linux
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
+    fi
+    echo "✅ Updated package.json version to $VERSION"
+fi
+
+# Update server.json version to match the release
+if [ -f "server.json" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" server.json
+    else
+        # Linux
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" server.json
+    fi
+    echo "✅ Updated server.json version to $VERSION"
+else
+    echo "⚠️  server.json not found, skipping version update"
+fi
+
+# Commit version updates
+if git diff --quiet; then
+    echo "ℹ️  No version changes to commit"
+else
+    echo "📝 Committing version updates..."
+    git add package.json server.json 2>/dev/null || true
+    git commit -m "chore: bump version to $VERSION" || true
+    git push origin main || git push origin master || true
+fi
+
+echo "🚀 Publishing to MCP Registry..."
+if command -v mcp-publisher &> /dev/null && mcp-publisher publish; then
+    echo "✅ Successfully published to MCP Registry!"
+else
+    echo "⚠️  MCP Registry publishing failed or mcp-publisher not available"
+    echo "   GitHub Actions will handle MCP publishing automatically"
+fi
+
 echo "✅ Release $TAG created successfully!"
-echo "🔗 View: https://github.com/BingoWon/apple-rag-mcp/releases/tag/$TAG"
+echo "🔗 GitHub: https://github.com/BingoWon/apple-rag-mcp/releases/tag/$TAG"
+echo "🔗 MCP Registry: https://registry.modelcontextprotocol.io/v0/servers?search=com.apple-rag/mcp-server"

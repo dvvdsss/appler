@@ -191,3 +191,9 @@ miniflare-*
 # External documentation (from API projects)
 
 docs/
+
+# MCP Registry tokens and credentials - NEVER COMMIT THESE
+.mcpregistry_*
+*.pem
+key.pem
+mcp-*.key
