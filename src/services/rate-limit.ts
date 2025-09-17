@@ -270,7 +270,7 @@ export class RateLimitService {
       case "hobby":
         return {
           weeklyQueries: 10,
-          requestsPerMinute: 1,
+          requestsPerMinute: 2,
         };
       case "pro":
         return {
@@ -286,7 +286,7 @@ export class RateLimitService {
         logger.warn(`Unknown plan type ${planType}, defaulting to hobby`);
         return {
           weeklyQueries: 10,
-          requestsPerMinute: 1,
+          requestsPerMinute: 2,
         };
     }
   }

@@ -1,8 +1,6 @@
-# Apple RAG MCP
-
 <div align="center">
 
-** Inject Apple Expertise into AI Agents via MCP**
+<img src="https://apple-rag.com/logo-with-text.svg" alt="Apple RAG MCP" width="400">
 
 *Transform your AI agents into Apple development experts with instant access to official Swift docs, design guidelines, and platform knowledge.*
 
@@ -11,8 +9,6 @@
 [🌐 Learn More](https://apple-rag.com) • [🚀 Get Started](https://apple-rag.com/register) • [📊 Dashboard](https://apple-rag.com/overview)
 
 </div>
-
----
 
 ## ✨ What is Apple RAG MCP?
 
@@ -123,8 +119,6 @@ Start immediately with no MCP Token required. Get an MCP Token for higher usage 
 - **📖 Documentation:** Complete setup guides and examples
 - **💬 Support:** Get help through our web dashboard
 - **⭐ GitHub:** Star this repo if you find it useful!
-
----
 
 <div align="center">
 
