@@ -152,11 +152,26 @@ else
 fi
 
 echo "🚀 Publishing to MCP Registry..."
-if command -v mcp-publisher &> /dev/null && mcp-publisher publish; then
-    echo "✅ Successfully published to MCP Registry!"
+if command -v mcp-publisher &> /dev/null; then
+    # Check if we need to re-authenticate
+    if ! mcp-publisher publish 2>/dev/null; then
+        echo "🔐 MCP authentication required or expired, re-authenticating..."
+        if mcp-publisher login dns --domain apple-rag.com --private-key 1b2af17c7e095864f5591b8710ee72b6b2c7629f669f3bfb78b93ab9e3348134; then
+            echo "✅ Re-authentication successful, publishing..."
+            if mcp-publisher publish; then
+                echo "✅ Successfully published to MCP Registry!"
+            else
+                echo "❌ MCP Registry publishing failed after re-authentication"
+            fi
+        else
+            echo "❌ MCP re-authentication failed"
+        fi
+    else
+        echo "✅ Successfully published to MCP Registry!"
+    fi
 else
-    echo "⚠️  MCP Registry publishing failed or mcp-publisher not available"
-    echo "   GitHub Actions will handle MCP publishing automatically"
+    echo "⚠️  mcp-publisher not available"
+    echo "   Install with: brew install mcp-publisher"
 fi
 
 echo "✅ Release $TAG created successfully!"
