@@ -96,7 +96,9 @@ export interface SearchResult {
   title: string | null;
   content: string;
   contentLength: number;
-  mergedFrom?: string[];
+  chunk_index: number;
+  total_chunks: number;
+  mergedChunkIndices?: number[];
 }
 
 // Service Types

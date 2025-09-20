@@ -20,6 +20,9 @@ import type {
   SearchResult,
 } from "../types/index.js";
 import { logger } from "../utils/logger.js";
+import type { DatabaseService } from "./database.js";
+import type { EmbeddingService } from "./embedding.js";
+import type { RerankerService } from "./reranker.js";
 
 export interface ParsedChunk {
   content: string;
@@ -32,18 +35,19 @@ export interface ProcessedResult {
   title: string | null;
   content: string;
   contentLength: number;
-  mergedFrom?: string[];
+  chunk_index: number;
+  total_chunks: number;
+  mergedChunkIndices?: number[];
 }
-
-import type { DatabaseService } from "./database.js";
-import type { EmbeddingService } from "./embedding.js";
-import type { RerankerService } from "./reranker.js";
 
 export interface RankedSearchResult {
   id: string;
   url: string;
   title: string | null;
   content: string;
+  chunk_index: number;
+  total_chunks: number;
+  mergedChunkIndices?: number[];
   original_index: number;
 }
 
@@ -117,6 +121,9 @@ export class SearchEngine {
           url: processed.url,
           title: processed.title,
           content: processed.content,
+          chunk_index: processed.chunk_index,
+          total_chunks: processed.total_chunks,
+          mergedChunkIndices: processed.mergedChunkIndices,
           original_index: doc.originalIndex,
         };
       });
@@ -133,6 +140,9 @@ export class SearchEngine {
           url: processed.url,
           title: processed.title,
           content: processed.content,
+          chunk_index: processed.chunk_index,
+          total_chunks: processed.total_chunks,
+          mergedChunkIndices: processed.mergedChunkIndices,
           original_index: index,
         }));
 
@@ -300,23 +310,40 @@ export class SearchEngine {
       titleGroups.get(titleKey)!.push(result);
     }
 
-    // Merge groups
     return Array.from(titleGroups.entries()).map(([title, group]) => {
       const primary = group[0];
-      const contents = group.map(
-        (r) => this.parseChunk(r.content, r.title).content
-      );
-      const mergedContent = contents.join("\n\n---\n\n");
-      // 相同 title 必然来自同一个 URL
-      const url = primary.url;
+
+      // Sort and merge chunks by original index to maintain proper content order
+      const chunkIndices = group
+        .map((r) => r.chunk_index)
+        .sort((a, b) => a - b);
+      const mergedContent = group
+        .sort((a, b) => a.chunk_index - b.chunk_index)
+        .map((r) => this.parseChunk(r.content, r.title).content)
+        .join("\n\n---\n\n");
+
+      // Detect complete document merging
+      const isCompleteDocument =
+        chunkIndices.length === primary.total_chunks &&
+        chunkIndices.every((idx, i) => idx === i);
+
+      // Determine final chunk representation
+      const [chunk_index, total_chunks] =
+        chunkIndices.length === 1
+          ? [chunkIndices[0], primary.total_chunks]
+          : isCompleteDocument
+            ? [0, 1]
+            : [Math.min(...chunkIndices), primary.total_chunks];
 
       return {
         id: primary.id,
-        url: url,
+        url: primary.url,
         title,
         content: mergedContent,
-        mergedFrom: group.map((r) => r.id),
+        mergedChunkIndices: chunkIndices.length > 1 ? chunkIndices : undefined,
         contentLength: mergedContent.length,
+        chunk_index,
+        total_chunks,
       };
     });
   }

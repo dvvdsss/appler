@@ -26,13 +26,32 @@ export function formatRAGResponse(
   const results = ragResult.results;
   let response = "";
 
-  // Format each result with professional styling
   results.forEach((result, index) => {
-    response += `[${index + 1}] ${result.title || "Untitled"}\n`;
-    response += `Source: ${result.url}\n\n`;
+    let title = `[${index + 1}] ${result.title || "Untitled"}`;
+
+    // Add completeness indicator based on chunk information and merge status
+    const isMerged =
+      result.mergedChunkIndices && result.mergedChunkIndices.length > 1;
+
+    if (result.total_chunks === 1) {
+      title += ` ✅ Complete Document`;
+      response += `${title}\n\n`;
+    } else if (isMerged) {
+      // For merged content, show which specific parts are included
+      const mergedParts = result
+        .mergedChunkIndices!.map((idx) => idx + 1)
+        .join(", ");
+      title += ` 📄 Parts ${mergedParts} merged (${result.total_chunks} total)`;
+      response += `${title}\n\n`;
+      response += `This shows merged content from multiple parts. For the complete document, use Apple RAG MCP fetch tool: \`fetch(url: "${result.url}")\`\n\n`;
+    } else {
+      title += ` 📄 Part ${result.chunk_index + 1} of ${result.total_chunks}`;
+      response += `${title}\n\n`;
+      response += `This is a partial document. For the complete content, use Apple RAG MCP fetch tool: \`fetch(url: "${result.url}")\`\n\n`;
+    }
+
     response += `${result.content}\n`;
 
-    // Separator between results
     if (index < results.length - 1) {
       response += `\n${"─".repeat(80)}\n\n`;
     }

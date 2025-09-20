@@ -48,7 +48,7 @@ export class DatabaseService {
 
     try {
       const results = await this.sql`
-        SELECT id, url, title, content
+        SELECT id, url, title, content, chunk_index, total_chunks
         FROM chunks
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
@@ -60,7 +60,9 @@ export class DatabaseService {
         url: row.url as string,
         title: row.title as string | null,
         content: row.content as string,
-        contentLength: (row.content as string)?.length || 0,
+        contentLength: (row.content as string).length,
+        chunk_index: row.chunk_index as number,
+        total_chunks: row.total_chunks as number,
       }));
     } catch (error) {
       logger.error(
@@ -83,7 +85,7 @@ export class DatabaseService {
 
     try {
       const results = await this.sql`
-        SELECT id, url, title, content
+        SELECT id, url, title, content, chunk_index, total_chunks
         FROM chunks
         WHERE to_tsvector('simple', COALESCE(title, '') || ' ' || content)
               @@ plainto_tsquery('simple', ${query})
@@ -95,7 +97,9 @@ export class DatabaseService {
         url: row.url as string,
         title: row.title as string | null,
         content: row.content as string,
-        contentLength: (row.content as string)?.length || 0,
+        contentLength: (row.content as string).length,
+        chunk_index: row.chunk_index as number,
+        total_chunks: row.total_chunks as number,
       }));
     } catch (error) {
       logger.error(

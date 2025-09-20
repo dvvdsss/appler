@@ -16,7 +16,7 @@ Apple RAG MCP delivers exactly what your AI agents need: **official Swift develo
 
 A cutting-edge **Retrieval-Augmented Generation (RAG) system** combining Apple's official documentation with video content from the Apple Developer YouTube channel. Features **professional AI reranking** with Qwen3-Reranker-8B for superior search accuracy across multiple content types.
 
-**🤖 AI-Powered Embedding & Reranking** • **⚡ Semantic Search for RAG** • **🔍 Keyword Search** • **🎯 Hybrid Search** • **📊 Precision Results**
+**🤖 AI-Powered Embedding & Reranking** • **⚡ Semantic Search for RAG** • **🔍 Keyword Search** • **🎯 Hybrid Search**
 
 ## 🚀 Quick Start
 

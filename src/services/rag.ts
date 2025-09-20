@@ -122,6 +122,9 @@ export class RAGService {
       title: result.title,
       content: result.content,
       contentLength: result.content.length,
+      chunk_index: result.chunk_index,
+      total_chunks: result.total_chunks,
+      mergedChunkIndices: result.mergedChunkIndices,
     }));
   }
 
