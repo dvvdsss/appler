@@ -174,6 +174,26 @@ else
     echo "   Install with: brew install mcp-publisher"
 fi
 
+echo "🚀 Deploying to environments..."
+
+# Deploy to development environment
+echo "📦 Deploying to development environment..."
+if npm run deploy:dev; then
+    echo "✅ Successfully deployed to development environment"
+else
+    echo "❌ Development deployment failed"
+fi
+
+# Deploy to production environment
+echo "📦 Deploying to production environment..."
+if npm run deploy:prod; then
+    echo "✅ Successfully deployed to production environment"
+else
+    echo "❌ Production deployment failed"
+fi
+
 echo "✅ Release $TAG created successfully!"
 echo "🔗 GitHub: https://github.com/BingoWon/apple-rag-mcp/releases/tag/$TAG"
 echo "🔗 MCP Registry: https://registry.modelcontextprotocol.io/v0/servers?search=com.apple-rag/mcp-server"
+echo "🌐 Development: https://dev.mcp.apple-rag.com"
+echo "🌐 Production: https://mcp.apple-rag.com"
