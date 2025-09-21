@@ -1,13 +1,22 @@
 /**
- * Modern Embedding Service - Cloudflare Worker Native
- * Optimized SiliconFlow API integration with edge computing
+ * Modern Embedding Service - MCP Optimized
+ * SiliconFlow API integration with unified multi-key failover
  */
 
-import type {
-  AppConfig,
-  EmbeddingService as IEmbeddingService,
-} from "../types/index.js";
+import type { EmbeddingService as IEmbeddingService } from "../types/index.js";
 import { logger } from "../utils/logger.js";
+import { SiliconFlowService } from "./siliconflow-base.js";
+import { SILICONFLOW_CONFIG } from "./siliconflow-config.js";
+
+interface EmbeddingInput {
+  text: string;
+}
+
+interface EmbeddingPayload {
+  model: "Qwen/Qwen3-Embedding-4B";
+  input: string;
+  encoding_format: "float";
+}
 
 interface EmbeddingResponse {
   data: Array<{
@@ -15,107 +24,41 @@ interface EmbeddingResponse {
   }>;
 }
 
-export class EmbeddingService implements IEmbeddingService {
-  private readonly apiUrl = "https://api.siliconflow.cn/v1/embeddings";
-  private readonly model = "Qwen/Qwen3-Embedding-4B";
-
-  constructor(private config: AppConfig) {
-    if (!config.SILICONFLOW_API_KEY) {
-      throw new Error("SILICONFLOW_API_KEY is required");
-    }
-  }
+export class EmbeddingService
+  extends SiliconFlowService<EmbeddingInput, EmbeddingResponse, number[]>
+  implements IEmbeddingService
+{
+  protected readonly endpoint = "/embeddings";
 
   /**
-   * Create embedding for text using SiliconFlow API with retry mechanism
+   * Create embedding with multi-key failover
    */
   async createEmbedding(text: string): Promise<number[]> {
-    const startTime = Date.now();
-
     if (!text?.trim()) {
       throw new Error("Text cannot be empty for embedding generation");
     }
 
-    const trimmedText = text.trim();
-    const maxRetries = 3;
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const response = await this.callSiliconFlowAPI(trimmedText);
-        const embedding = this.extractEmbedding(response);
-        return this.normalizeL2(embedding);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        // Check if this is a retryable error (503, 504, timeout)
-        if (this.isRetryableError(lastError) && attempt < maxRetries - 1) {
-          const delay = Math.min(1000 * 2 ** attempt, 5000); // Exponential backoff, max 5s
-          await this.sleep(delay);
-          continue;
-        }
-
-        // If not retryable or last attempt, throw error
-        break;
-      }
-    }
-
-    logger.error(
-      `Embedding generation failed for text of length ${trimmedText.length} (duration: ${Date.now() - startTime}ms): ${String(lastError)}`
-    );
-    throw lastError;
+    const input: EmbeddingInput = { text: text.trim() };
+    return this.callWithFailover(input, "Embedding generation");
   }
 
   /**
-   * Call SiliconFlow API
+   * Build API payload from request
    */
-  private async callSiliconFlowAPI(text: string): Promise<EmbeddingResponse> {
-    const payload = {
-      model: this.model,
-      input: text,
+  protected buildPayload(input: EmbeddingInput): EmbeddingPayload {
+    return {
+      model: SILICONFLOW_CONFIG.EMBEDDING_MODEL,
+      input: input.text,
       encoding_format: "float",
     };
+  }
 
-    const headers = {
-      Authorization: `Bearer ${this.config.SILICONFLOW_API_KEY}`,
-      "Content-Type": "application/json",
-      "User-Agent": "Apple-RAG-MCP/2.0.0",
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.config.SILICONFLOW_TIMEOUT * 1000
-    );
-
-    try {
-      const response = await fetch(this.apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(
-          `SiliconFlow API error ${response.status}: ${errorText}`
-        );
-      }
-
-      return (await response.json()) as EmbeddingResponse;
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(
-          `SiliconFlow API timeout after ${this.config.SILICONFLOW_TIMEOUT}s`
-        );
-      }
-
-      throw error;
-    }
+  /**
+   * Process API response and return normalized embedding
+   */
+  protected processResponse(response: EmbeddingResponse): number[] {
+    const embedding = this.extractEmbedding(response);
+    return this.normalizeL2(embedding);
   }
 
   /**
@@ -147,26 +90,5 @@ export class EmbeddingService implements IEmbeddingService {
     }
 
     return embedding.map((val) => val / norm);
-  }
-
-  /**
-   * Check if error is retryable (503, 504, timeout)
-   */
-  private isRetryableError(error: Error): boolean {
-    const message = error.message.toLowerCase();
-    return (
-      message.includes("503") ||
-      message.includes("504") ||
-      message.includes("timeout") ||
-      message.includes("overloaded") ||
-      error.name === "AbortError"
-    );
-  }
-
-  /**
-   * Sleep utility for retry delays
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

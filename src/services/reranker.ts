@@ -1,12 +1,19 @@
 /**
- * Modern SiliconFlow Reranker Service
- * High-performance document reranking with Qwen3-Reranker-8B
+ * Modern SiliconFlow Reranker Service - MCP Optimized
+ * High-performance document reranking with unified multi-key failover
  */
 
-import type { AppConfig } from "../types/index.js";
 import { logger } from "../utils/logger.js";
+import { SiliconFlowService } from "./siliconflow-base.js";
+import { SILICONFLOW_CONFIG } from "./siliconflow-config.js";
 
-export interface RerankerRequest {
+interface RerankerInput {
+  query: string;
+  documents: string[];
+  topN: number;
+}
+
+interface RerankerPayload {
   model: "Qwen/Qwen3-Reranker-8B";
   query: string;
   documents: string[];
@@ -38,27 +45,21 @@ export interface RankedDocument {
   relevanceScore: number;
 }
 
-export class RerankerService {
-  private readonly apiUrl = "https://api.siliconflow.cn/v1/rerank";
-  private readonly model = "Qwen/Qwen3-Reranker-8B";
-  private readonly instruction =
-    "Please rerank the documents based on the query.";
-
-  constructor(private config: AppConfig) {
-    if (!config.SILICONFLOW_API_KEY) {
-      throw new Error("SILICONFLOW_API_KEY is required for reranker service");
-    }
-  }
+export class RerankerService extends SiliconFlowService<
+  RerankerInput,
+  RerankerResponse,
+  RankedDocument[]
+> {
+  protected readonly endpoint = "/rerank";
 
   /**
-   * Rerank documents based on query relevance
+   * Rerank documents based on query relevance with multi-key failover
    */
   async rerank(
     query: string,
     documents: string[],
     topN: number
   ): Promise<RankedDocument[]> {
-    const startTime = Date.now();
     if (!query?.trim()) {
       throw new Error("Query cannot be empty for reranking");
     }
@@ -73,89 +74,42 @@ export class RerankerService {
       throw new Error("top_n must be greater than 0");
     }
 
-    const payload: RerankerRequest = {
-      model: this.model,
+    const input: RerankerInput = {
       query: query.trim(),
       documents,
-      instruction: this.instruction,
-      top_n: validTopN,
+      topN: validTopN,
+    };
+
+    return this.callWithFailover(input, "Document reranking");
+  }
+
+  /**
+   * Build API payload from input
+   */
+  protected buildPayload(input: RerankerInput): RerankerPayload {
+    return {
+      model: SILICONFLOW_CONFIG.RERANKER_MODEL,
+      query: input.query,
+      documents: input.documents,
+      instruction: SILICONFLOW_CONFIG.RERANKER_INSTRUCTION,
+      top_n: input.topN,
       return_documents: true,
     };
+  }
 
-    const headers = {
-      Authorization: `Bearer ${this.config.SILICONFLOW_API_KEY}`,
-      "Content-Type": "application/json",
-      "User-Agent": "Apple-RAG-MCP/2.0.0",
-    };
-
-    // Retry mechanism with exponential backoff
-    let lastError: Error | null = null;
-    const maxRetries = 2;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(this.apiUrl, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(this.config.SILICONFLOW_TIMEOUT * 1000),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "Unknown error");
-          const error = new Error(
-            `SiliconFlow Reranker API error ${response.status}: ${errorText}`
-          );
-
-          // If this is the last attempt, throw the error
-          if (attempt === maxRetries) {
-            throw error;
-          }
-
-          // Store error and add delay before retry
-          lastError = error;
-          const delay = Math.min(1000 * 2 ** attempt, 3000); // Exponential backoff, max 3s
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        const result = (await response.json()) as RerankerResponse;
-
-        if (!result.results || result.results.length === 0) {
-          throw new Error("No reranking results received from SiliconFlow API");
-        }
-
-        // Transform results to our format
-        const rankedDocuments: RankedDocument[] = result.results.map(
-          (item) => ({
-            content: item.document.text,
-            originalIndex: item.index,
-            relevanceScore: item.relevance_score,
-          })
-        );
-
-        const duration = Date.now() - startTime;
-        logger.info(
-          `Rerank completed (${(duration / 1000).toFixed(1)}s): ${rankedDocuments.length} results`
-        );
-
-        return rankedDocuments;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        // If this is the last attempt, throw the error
-        if (attempt === maxRetries) {
-          throw lastError;
-        }
-
-        // Add delay before retry
-        const delay = Math.min(1000 * 2 ** attempt, 3000); // Exponential backoff, max 3s
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
+  /**
+   * Process API response and return ranked documents
+   */
+  protected processResponse(response: RerankerResponse): RankedDocument[] {
+    if (!response.results || response.results.length === 0) {
+      throw new Error("No reranking results received from SiliconFlow API");
     }
 
-    // This should never be reached, but just in case
-    throw lastError || new Error("Max retries exceeded");
+    return response.results.map((item) => ({
+      content: item.document.text,
+      originalIndex: item.index,
+      relevanceScore: item.relevance_score,
+    }));
   }
 
   /**

@@ -12,10 +12,6 @@ export interface AppConfig {
   readonly CLOUDFLARE_API_TOKEN: string;
   readonly CLOUDFLARE_D1_DATABASE_ID: string;
 
-  // SiliconFlow API Configuration
-  readonly SILICONFLOW_API_KEY: string;
-  readonly SILICONFLOW_TIMEOUT: number;
-
   // Database Configuration (for embeddings only)
   readonly EMBEDDING_DB_HOST: string;
   readonly EMBEDDING_DB_PORT: number;

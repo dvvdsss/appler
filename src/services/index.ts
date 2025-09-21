@@ -17,9 +17,9 @@ export async function createServices(env: WorkerEnv): Promise<Services> {
     // Convert Worker env to app config
     const config = createAppConfig(env);
 
-    // Initialize services (RAG creates its own database and embedding instances)
+    // Initialize services with D1 database for key management
     const auth = new AuthMiddleware(env.DB);
-    const rag = new RAGService(config);
+    const rag = new RAGService(config, env.DB);
     const rateLimit = new RateLimitService(env.DB);
     const logger = new ToolCallLogger(env.DB);
 
@@ -55,7 +55,5 @@ function createAppConfig(env: WorkerEnv): AppConfig {
     RAG_DB_USER: env.RAG_DB_USER,
     RAG_DB_PASSWORD: env.RAG_DB_PASSWORD,
     RAG_DB_SSLMODE: env.RAG_DB_SSLMODE,
-    SILICONFLOW_API_KEY: env.SILICONFLOW_API_KEY,
-    SILICONFLOW_TIMEOUT: parseInt(env.SILICONFLOW_TIMEOUT, 10),
   };
 }

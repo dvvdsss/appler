@@ -18,10 +18,6 @@ export interface WorkerEnv {
   RAG_DB_PASSWORD: string;
   RAG_DB_SSLMODE: string;
 
-  // SiliconFlow API
-  SILICONFLOW_API_KEY: string;
-  SILICONFLOW_TIMEOUT: string;
-
   // Telegram Bot
   TELEGRAM_BOT_URL: string;
 }
@@ -157,8 +153,6 @@ export interface AppConfig {
   RAG_DB_USER: string;
   RAG_DB_PASSWORD: string;
   RAG_DB_SSLMODE: string;
-  SILICONFLOW_API_KEY: string;
-  SILICONFLOW_TIMEOUT: number;
   PORT?: number;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_API_TOKEN?: string;

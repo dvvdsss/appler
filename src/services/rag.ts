@@ -21,11 +21,11 @@ export class RAGService {
   private readonly reranker: RerankerService;
   private readonly searchEngine: SearchEngine;
 
-  constructor(config: AppConfig) {
-    // Initialize all services immediately
+  constructor(config: AppConfig, db: D1Database) {
+    // Initialize all services immediately with D1 database
     this.database = new DatabaseService(config);
-    this.embedding = new EmbeddingService(config);
-    this.reranker = new RerankerService(config);
+    this.embedding = new EmbeddingService(db);
+    this.reranker = new RerankerService(db);
     this.searchEngine = new SearchEngine(
       this.database,
       this.embedding,
