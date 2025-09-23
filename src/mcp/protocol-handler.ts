@@ -298,7 +298,7 @@ export class MCPProtocolHandler {
               description: "Number of results to return (1-10)",
               minimum: 1,
               maximum: 10,
-              default: 5,
+              default: 4,
             },
           },
           required: ["query"],
