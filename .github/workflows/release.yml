@@ -15,8 +15,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,48 +23,20 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          npm install -g pnpm
+          pnpm install
 
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm exec semantic-release
 
-      - name: Deploy to Development
-        if: success()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          pnpm install -g wrangler
-          pnpm run deploy:dev
 
-      - name: Deploy to Production
-        if: success()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm run deploy:prod
-
-      - name: Publish to MCP Registry
-        if: success()
-        env:
-          MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
-        run: |
-          if command -v mcp-publisher &> /dev/null; then
-            mcp-publisher login dns --domain apple-rag.com --private-key $MCP_PRIVATE_KEY
-            mcp-publisher publish
-          else
-            echo "mcp-publisher not available, skipping MCP Registry publishing"
-          fi
